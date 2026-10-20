@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792510414725,
+  "lastUpdate": 1792510421518,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14862,95 +14862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "def58a0b803b0da73aa4553ffeee6228a4842108",
-          "message": "chore(brillig): share the vector push codegen between push_back and push_front (#13987)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-10-15T09:09:15Z",
-          "tree_id": "4566e9e8d801857e16f7742abbbb0b071fd48233",
-          "url": "https://github.com/noir-lang/noir/commit/def58a0b803b0da73aa4553ffeee6228a4842108"
-        },
-        "date": 1792057739803,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 306.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 349.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 336.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 393.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 391.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 391.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 490.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 500.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 390.58,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 88.08,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.78,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -19260,6 +19171,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 396.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 393.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 394.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 496.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 507.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 393.23,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 89.1,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 80.87,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dc94d703c56767aa1ea1094325c2df597ad7b6e2",
+          "message": "fix(nargo): make `nargo doc --deny-warnings` fail on broken links, and use it on the stdlib in CI (#14067)",
+          "timestamp": "2026-10-20T14:53:58Z",
+          "tree_id": "036c9180c5803189e638b43863068c6d83cab374",
+          "url": "https://github.com/noir-lang/noir/commit/dc94d703c56767aa1ea1094325c2df597ad7b6e2"
+        },
+        "date": 1792510322010,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 307.93,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 350.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 337.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 396.57,
             "unit": "MB"
           },
           {
