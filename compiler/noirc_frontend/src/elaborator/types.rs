@@ -3371,6 +3371,7 @@ impl Elaborator<'_> {
                 method_name,
                 call_location,
                 object_location,
+                check_self_param,
             ),
             // `DefCollectorErrorKind::ReferenceInTraitImpl`: "Trait impls are not allowed on reference types"
             // References to another type should resolve to methods of their element type.
@@ -3483,6 +3484,7 @@ impl Elaborator<'_> {
             method_name,
             call_location,
             object_location,
+            check_self_param,
         )
     }
 
@@ -3672,6 +3674,7 @@ impl Elaborator<'_> {
         method_name: &str,
         location: Location,
         object_location: Location,
+        check_self_param: bool,
     ) -> Option<HirMethodReference> {
         let Some(DependencyId::Function(func_id)) = self.item.module.current_item() else {
             // Unexpected method outside a function.
@@ -3732,6 +3735,21 @@ impl Elaborator<'_> {
         }
 
         let matches = self.merge_trait_method_candidates(candidates);
+
+        // The bounds' methods take precedence, like a type's inherent methods. Without one, a
+        // method of an impl for all types `T` (`impl<T> Foo for T`) can apply.
+        if matches.is_empty() {
+            let generic_methods =
+                self.lookup_generic_methods(object_type, method_name, check_self_param);
+            if !generic_methods.is_empty() {
+                return self.return_trait_method_in_scope(
+                    object_type,
+                    &generic_methods,
+                    method_name,
+                    location,
+                );
+            }
+        }
 
         self.handle_trait_method_lookup_matches(
             object_type,

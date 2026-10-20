@@ -339,7 +339,6 @@ const INTO_AND_FROM: &str = r#"
 
 /// https://github.com/noir-lang/noir-claude/issues/2804
 #[test]
-#[ignore = "noir-claude#2804"]
 fn i2804_method_call_on_a_generic_finds_a_blanket_impl() {
     let src = format!(
         "{INTO_AND_FROM}
@@ -351,7 +350,6 @@ fn i2804_method_call_on_a_generic_finds_a_blanket_impl() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2804
 #[test]
-#[ignore = "noir-claude#2804"]
 fn i2804_method_call_on_a_bounded_generic_finds_a_blanket_impl() {
     let src = r#"
     trait Base { fn base(self) -> Field; }
