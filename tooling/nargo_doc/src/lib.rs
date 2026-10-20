@@ -400,6 +400,13 @@ impl DocItemBuilder<'_> {
     }
 
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
+        // Links in the impl's doc comments resolve against the module that declares the impl,
+        // which can differ from the module of its type: the impls of a primitive type are spread
+        // over the stdlib, and a struct's impl can live in another module of its crate.
+        let old_module_id = self.current_module_id;
+        if impl_.module_id.krate == self.crate_id {
+            self.current_module_id = impl_.module_id.local_id;
+        }
         let generics = vecmap(impl_.generics, |generic| {
             let name = generic.name.as_ref().clone();
             let numeric = self.kind_to_numeric(&generic.kind());
@@ -418,6 +425,7 @@ impl DocItemBuilder<'_> {
             .map(|(_, func_id)| self.convert_function(func_id))
             .collect();
         self.trait_constraints.clear();
+        self.current_module_id = old_module_id;
         Impl { generics, r#type, where_clause, methods, comments }
     }
 

@@ -3,7 +3,7 @@ use crate::option::Option;
 
 impl Quoted {
     /// Parses this token stream as an expression.
-    /// Returns [`Option::none()`](crate::option::Option::none) if it doesn't parse.
+    /// Returns [`Option::none()`](Option::none) if it doesn't parse.
     ///
     /// Example:
     ///
@@ -22,7 +22,7 @@ impl Quoted {
 
     /// Interprets this token stream as a path to a module.
     ///
-    /// Returns [`Option::none()`](crate::option::Option::none) if it isn't a path or no module is
+    /// Returns [`Option::none()`](Option::none) if it isn't a path or no module is
     /// found at it.
     ///
     /// Example:
@@ -48,7 +48,7 @@ impl Quoted {
 
     /// Interprets this token stream as a trait constraint without its object type.
     ///
-    /// For example [`Eq`](crate::cmp::Eq) or `Into<Field>`.
+    /// For example [`Eq`] or `Into<Field>`.
     ///
     /// Compilation fails if the tokens don't parse as a trait constraint or name a trait that isn't in
     /// scope.
@@ -88,7 +88,7 @@ impl Quoted {
     pub comptime fn as_type(self) -> Type {}
     // docs:end:as_type
 
-    /// Returns the source location spanning the tokens of this stream, or [`Option::none()`](crate::option::Option::none) if it is empty.
+    /// Returns the source location spanning the tokens of this stream, or [`Option::none()`](Option::none) if it is empty.
     ///
     /// Example:
     ///

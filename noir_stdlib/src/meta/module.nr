@@ -222,7 +222,7 @@ impl Module {
     pub comptime fn name(self) -> Quoted {}
     // docs:end:name
 
-    /// Returns the module this module is declared in, or [`Option::none()`](crate::option::Option::none) for a crate's root module.
+    /// Returns the module this module is declared in, or [`Option::none()`](Option::none) for a crate's root module.
     ///
     /// Example:
     ///

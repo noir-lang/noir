@@ -581,7 +581,7 @@ pub trait Hasher {
 ///
 /// Hash-based collections take a `BuildHasher` so that each one can create fresh hashers of a
 /// chosen type. [`BuildHasherDefault`] builds any hasher that implements
-/// [`Default`](crate::default::Default); implement this trait directly when building a hasher needs
+/// [`Default`]; implement this trait directly when building a hasher needs
 /// some state, such as a starting value.
 ///
 /// Example:

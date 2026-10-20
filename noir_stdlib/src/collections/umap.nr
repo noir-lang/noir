@@ -10,7 +10,7 @@ use crate::option::Option;
 /// it doesn't make results wrong.
 ///
 /// All methods are `unconstrained`, except the constructors `with_hasher`,
-/// `with_hasher_and_capacity` and [`Default::default`](crate::default::Default::default). Calling
+/// `with_hasher_and_capacity` and [`Default::default`]. Calling
 /// them from constrained code needs an `unsafe` block, and their results are not constrained
 /// afterward: nothing proves, for example, that a value returned by `get` was inserted under that
 /// key. Check any result that constrained code relies on. Comparing two maps with `==` fails in
