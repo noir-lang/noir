@@ -1763,7 +1763,16 @@ impl Elaborator<'_> {
         let method_name = last_segment.ident.as_str();
 
         let check_self_param = false;
-        let direct_method = self.lookup_direct_method(&typ, method_name, check_self_param);
+        // An inherent method that isn't visible from here leaves the call to a trait method if
+        // there is one, and otherwise stays the resolution, to report it as private.
+        let direct_method =
+            self.lookup_direct_method(&typ, method_name, check_self_param).filter(|func_id| {
+                self.method_call_is_visible(*func_id, &typ)
+                    || (self.lookup_trait_methods(&typ, method_name, check_self_param).is_empty()
+                        && self
+                            .lookup_generic_methods(&typ, method_name, check_self_param)
+                            .is_empty())
+            });
 
         // Resolve inherent methods (`TypeName::method`, and `Self::method`) through this
         // type-directed lookup. Names that aren't an inherent method here (associated constants,
