@@ -1384,11 +1384,11 @@ impl Elaborator<'_> {
         if let Some(function) = func_id {
             let function = self.function_meta(function);
             for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>() {
-                let checked_at_declaration = is_checkable_bound(&constraint);
+                let declared_bound = is_checkable_bound(&constraint).then(|| constraint.clone());
                 constraint.apply_instantiation_bindings(&bindings);
 
                 // This constraint shouldn't lead to choosing a trait impl method
-                self.push_where_clause_constraint(constraint, **expr_id, checked_at_declaration);
+                self.push_where_clause_constraint(constraint, **expr_id, declared_bound);
             }
         }
 
