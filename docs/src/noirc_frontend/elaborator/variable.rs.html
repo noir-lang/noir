@@ -1384,11 +1384,11 @@
 <a href=#1384 id=1384 data-nosnippet>1384</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(function) = func_id {
 <a href=#1385 id=1385 data-nosnippet>1385</a>            <span class="kw">let </span>function = <span class="self">self</span>.function_meta(function);
 <a href=#1386 id=1386 data-nosnippet>1386</a>            <span class="kw">for </span><span class="kw-2">mut </span>constraint <span class="kw">in </span>function.all_trait_constraints().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;() {
-<a href=#1387 id=1387 data-nosnippet>1387</a>                <span class="kw">let </span>checked_at_declaration = is_checkable_bound(<span class="kw-2">&amp;</span>constraint);
+<a href=#1387 id=1387 data-nosnippet>1387</a>                <span class="kw">let </span>declared_bound = is_checkable_bound(<span class="kw-2">&amp;</span>constraint).then(|| constraint.clone());
 <a href=#1388 id=1388 data-nosnippet>1388</a>                constraint.apply_instantiation_bindings(<span class="kw-2">&amp;</span>bindings);
 <a href=#1389 id=1389 data-nosnippet>1389</a>
 <a href=#1390 id=1390 data-nosnippet>1390</a>                <span class="comment">// This constraint shouldn't lead to choosing a trait impl method
-<a href=#1391 id=1391 data-nosnippet>1391</a>                </span><span class="self">self</span>.push_where_clause_constraint(constraint, <span class="kw-2">**</span>expr_id, checked_at_declaration);
+<a href=#1391 id=1391 data-nosnippet>1391</a>                </span><span class="self">self</span>.push_where_clause_constraint(constraint, <span class="kw-2">**</span>expr_id, declared_bound);
 <a href=#1392 id=1392 data-nosnippet>1392</a>            }
 <a href=#1393 id=1393 data-nosnippet>1393</a>        }
 <a href=#1394 id=1394 data-nosnippet>1394</a>
