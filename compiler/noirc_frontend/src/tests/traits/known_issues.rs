@@ -593,7 +593,6 @@ fn i1062_grandparent_associated_type_fixed_by_a_parent_bound_is_used_in_a_defaul
 
 /// https://github.com/noir-lang/noir-claude/issues/1958 (R1), rustc: E0119
 #[test]
-#[ignore = "noir-claude#1958"]
 fn i1958_impl_overlapping_a_blanket_impl_through_a_generic_is_rejected() {
     let src = r#"
     trait Small {}
@@ -610,7 +609,6 @@ fn i1958_impl_overlapping_a_blanket_impl_through_a_generic_is_rejected() {
 
 /// https://github.com/noir-lang/noir-claude/issues/1958 (R2), rustc: E0119
 #[test]
-#[ignore = "noir-claude#1958"]
 fn i1958_blanket_impls_with_where_clauses_one_type_satisfies_both_overlap() {
     let src = r#"
     trait Bounded {}
