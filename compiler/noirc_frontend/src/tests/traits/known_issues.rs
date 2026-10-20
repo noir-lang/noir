@@ -557,7 +557,6 @@ fn i1062_second_parent_path_to_one_trait_at_other_arguments_is_found() {
 
 /// https://github.com/noir-lang/noir-claude/issues/1062 (associated-type equality)
 #[test]
-#[ignore = "noir-claude#1062"]
 fn i1062_parent_bound_fixing_an_associated_type_is_used_in_a_default_method() {
     let src = r#"
     trait Parent { type Item; }
@@ -566,6 +565,24 @@ fn i1062_parent_bound_fixing_an_associated_type_is_used_in_a_default_method() {
     }
     struct S {}
     impl Parent for S { type Item = Field; }
+    impl Child for S {}
+    fn main() {}
+    "#;
+    assert_accepted(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/1062
+#[test]
+fn i1062_grandparent_associated_type_fixed_by_a_parent_bound_is_used_in_a_default_method() {
+    let src = r#"
+    trait Grand { type Item; }
+    trait Parent: Grand<Item = Field> {}
+    trait Child: Parent {
+        fn to_field(self, item: Self::Item) -> Field { item }
+    }
+    struct S {}
+    impl Grand for S { type Item = Field; }
+    impl Parent for S {}
     impl Child for S {}
     fn main() {}
     "#;

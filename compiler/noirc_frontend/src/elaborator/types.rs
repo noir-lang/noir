@@ -435,17 +435,26 @@ impl Elaborator<'_> {
     ) -> Vec<(TraitId, Type)> {
         let mut found = Vec::new();
         let mut visited = BTreeSet::new();
-        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found, &mut visited);
+        let bindings = TypeBindings::default();
+        self.collect_associated_type_in_parent_traits(
+            trait_id,
+            name,
+            &bindings,
+            &mut found,
+            &mut visited,
+        );
         found
     }
 
     /// Recursively collect all (`trait_id`, type) pairs for a named associated type
     /// across a trait and its parent hierarchy. Skip traits already
-    /// visited in `visited`.
+    /// visited in `visited`. `bindings` maps the trait's `Self`, generics and associated types to
+    /// those of the trait being defined, which reaches it through its parent bounds.
     fn collect_associated_type_in_parent_traits(
         &self,
         trait_id: TraitId,
         name: &str,
+        bindings: &TypeBindings,
         found: &mut Vec<(TraitId, Type)>,
         visited: &mut BTreeSet<TraitId>,
     ) {
@@ -460,10 +469,31 @@ impl Elaborator<'_> {
             found.push((trait_id, typ));
         }
 
-        let parent_trait_ids: Vec<_> =
-            the_trait.parent_bounds().map(|bound| bound.trait_id()).collect();
-        for parent_id in parent_trait_ids {
-            self.collect_associated_type_in_parent_traits(parent_id, name, found, visited);
+        let self_type = the_trait.self_type().substitute(bindings);
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
+        for parent_bound in parent_bounds {
+            let parent_id = parent_bound.trait_id();
+            // A parent bound that names the associated type (`trait Foo: Bar<Out = Field>`)
+            // decides it for every implementor.
+            if let Some(typ) = parent_bound.associated_type(name, bindings) {
+                if visited.insert(parent_id) {
+                    found.push((parent_id, typ));
+                }
+                continue;
+            }
+            let bound = parent_bound
+                .instantiate(bindings, |kind| self.interner.next_type_variable_with_kind(kind));
+            let parent_bindings = self
+                .interner
+                .get_trait(parent_id)
+                .bound_bindings(&self_type, &bound.trait_generics);
+            self.collect_associated_type_in_parent_traits(
+                parent_id,
+                name,
+                &parent_bindings,
+                found,
+                visited,
+            );
         }
     }
 
