@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792521419329,
+  "lastUpdate": 1792521941772,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14871,95 +14871,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "8b490123ead8b90a87a1e33d0f19948409782629",
-          "message": "fix(frontend): resolve a struct literal's or pattern's turbofish against the type alias it names (#13997)",
-          "timestamp": "2026-10-15T13:24:16Z",
-          "tree_id": "22aa3a1d625915ea55a17743f3b7a127f7694a9d",
-          "url": "https://github.com/noir-lang/noir/commit/8b490123ead8b90a87a1e33d0f19948409782629"
-        },
-        "date": 1792072861721,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 306.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 349.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 336.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 393.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 391.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 391.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 490.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 500.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 390.58,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 88.08,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.78,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "c9ec59ab4fe917f5ea1a752adcebf9b37b14e3b6",
           "message": "fix(frontend): don't choose an impl while another impl's where clause is undecided (#13999)",
@@ -19290,6 +19201,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-base-public",
             "value": 507.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 393.23,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 89.1,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 80.87,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f50f50000eeb58d4e7e7af55612bbc5883b389e2",
+          "message": "fix(nargo_doc): resolve doc links in an impl against the module that declares the impl (#14074)",
+          "timestamp": "2026-10-20T18:03:12Z",
+          "tree_id": "290b97eb2d5bc0bfa8045711ee05d80d33a51496",
+          "url": "https://github.com/noir-lang/noir/commit/f50f50000eeb58d4e7e7af55612bbc5883b389e2"
+        },
+        "date": 1792521845466,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 307.93,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 350.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 337.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 396.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 393.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 394.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 496.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 507.42,
             "unit": "MB"
           },
           {
