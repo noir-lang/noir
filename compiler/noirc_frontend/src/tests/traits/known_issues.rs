@@ -1023,7 +1023,6 @@ fn i2001_self_associated_type_in_an_inherent_impl_is_rejected() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2000, rustc: E0207
 #[test]
-#[ignore = "noir-claude#2000"]
 fn i2000_impl_generic_that_its_self_type_does_not_determine_is_rejected() {
     let src = r#"
     trait Foo { fn foo(self) -> u32; }
