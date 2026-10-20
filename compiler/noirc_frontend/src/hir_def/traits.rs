@@ -324,6 +324,17 @@ impl ParentBound {
         self.0.trait_id
     }
 
+    /// The type the bound gives the parent's associated type `name` (the `Field` of
+    /// `trait Foo: Bar<Out = Field>`) for one use of the declaring trait, with `bindings` as in
+    /// [`ParentBound::instantiate`]. `None` if the bound leaves it out.
+    pub fn associated_type(&self, name: &str, bindings: &TypeBindings) -> Option<Type> {
+        let named = self.0.trait_generics.named.iter().find(|named| named.name.as_str() == name)?;
+        if matches!(named.typ, Type::TypeVariable(_)) {
+            return None;
+        }
+        Some(named.typ.substitute(bindings))
+    }
+
     /// The bound for one use of the declaring trait. `bindings` maps the declaring trait's
     /// `Self`, generics and associated types to that use's (see [`Trait::bound_bindings`]).
     ///
