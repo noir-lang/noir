@@ -1848,7 +1848,7 @@ fn method_call_under_where_clause_selects_the_assumed_trait_argument_over_an_imp
         validate$f2(a$l2)
     }
     fn validate$f2(self$l3: (u32,)) -> u32 {
-        0
+        self$l3.0
     }
     ");
 }
@@ -1878,7 +1878,7 @@ fn method_call_under_where_clause_selects_the_assumed_trait_over_an_impl_of_anot
         foo$f2(w$l2)
     }
     fn foo$f2(self$l3: (u32,)) -> u32 {
-        self$l3.0
+        (self$l3.0 + 1)
     }
     ");
 }
