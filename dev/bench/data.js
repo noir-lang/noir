@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792492408527,
+  "lastUpdate": 1792492411626,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14872,95 +14872,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "7de135674176cd62f4466391bd7f6d970cb18d9a",
-          "message": "chore(frontend): share child traversal between Type walkers (#13972)",
-          "timestamp": "2026-10-14T16:18:12Z",
-          "tree_id": "513c617dc0cc6e6856016b22ce9074d48f2ffa80",
-          "url": "https://github.com/noir-lang/noir/commit/7de135674176cd62f4466391bd7f6d970cb18d9a"
-        },
-        "date": 1791996865023,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 306.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 349.75,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 336.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 393.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 391.18,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 391.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 490.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 500.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 390.58,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 88.08,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.78,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "acfcbcbe1fc7a0d3b77406c5be7dd37239bdca62",
           "message": "chore(frontend): share root crate collection between test helpers (#13991)",
           "timestamp": "2026-10-14T17:40:20Z",
@@ -19240,6 +19151,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/fcbd042c2ef54efd15213e218dd4b4e6b1cd2113"
         },
         "date": 1792492143034,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 307.92,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 350.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 337.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 396.55,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 393.82,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 394.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 496.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 507.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 393.22,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 89.09,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 80.86,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f77b0be6fbffb13fcdcd982f4225730296839cac",
+          "message": "fix(frontend): report a false where-clause bound without generics only at the bound (#14039)",
+          "timestamp": "2026-10-20T09:46:38Z",
+          "tree_id": "2391b3afb3eab75f2efad1031515812ac5f97c51",
+          "url": "https://github.com/noir-lang/noir/commit/f77b0be6fbffb13fcdcd982f4225730296839cac"
+        },
+        "date": 1792492352971,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
