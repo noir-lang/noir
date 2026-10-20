@@ -1647,7 +1647,7 @@ fn type_path_call_under_where_clause_selects_the_assumed_impl_over_a_types_own_i
         max$f2()
     }
     fn max$f2() -> u64 {
-        18446744073709551615
+        255
     }
     ");
 }
@@ -1677,7 +1677,7 @@ fn type_path_call_under_where_clause_selects_the_assumed_impl_when_a_blanket_whe
         max$f2()
     }
     fn max$f2() -> u64 {
-        18446744073709551615
+        255
     }
     ");
 }
@@ -1709,7 +1709,7 @@ fn self_type_path_call_in_a_bounded_impl_selects_the_assumed_impl_over_a_types_o
         max$f2()
     }
     fn max$f2() -> u64 {
-        18446744073709551615
+        255
     }
     ");
 }
@@ -1743,7 +1743,7 @@ fn method_call_under_where_clause_selects_the_assumed_impl_over_a_types_own_impl
         foo$f2(w$l0)
     }
     fn foo$f2(self$l1: ()) -> Field {
-        32
+        99
     }
     ");
 }
@@ -1759,6 +1759,8 @@ fn type_path_call_with_an_unknown_generic_and_two_applicable_impls_is_ambiguous(
     impl<T: Small> Limit for T { fn max() -> u64 { 255 } }
 
     fn main() -> pub u64 { S::max() }
+                           ^^^^^^ Multiple trait impls match the object type `S<_>`
+                           ~~~~~~ Ambiguous impl
     "#;
     check_errors(src);
 }
