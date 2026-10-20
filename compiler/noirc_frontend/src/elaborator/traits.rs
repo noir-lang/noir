@@ -719,21 +719,6 @@ impl Elaborator<'_> {
         {
             self.check_where_clause_bound_without_generics(constraint);
         }
-
-        // A bound that holds where it is declared can still fail where its function is used:
-        // an associated type it sets to a generic is only fixed there, and only some errors are
-        // reported here. Such a failure is reported at the use.
-        let pending =
-            std::mem::take(&mut self.session.where_clause_failures_pending_declaration_check);
-        for failure in pending {
-            if !self.where_clause_bounds_failing_at_declaration.contains(&failure.bound) {
-                self.push_trait_constraint_error(
-                    &failure.object_type,
-                    failure.error,
-                    failure.location,
-                );
-            }
-        }
     }
 
     /// The where clauses of this crate's inherent impls, trait impls and traits, in declaration
@@ -771,6 +756,17 @@ impl Elaborator<'_> {
 
     /// Expects a bound for which [`is_checkable_bound`] holds.
     fn check_where_clause_bound_without_generics(&mut self, constraint: TraitConstraint) {
+        if let Some(error) = self.where_clause_bound_without_generics_error(&constraint) {
+            self.push_err(TypeCheckError::NoMatchingImplFound(error));
+        }
+    }
+
+    /// The error [`Self::check_where_clause_bound_without_generics`] reports for `constraint`,
+    /// if any. Expects a bound for which [`is_checkable_bound`] holds.
+    pub(super) fn where_clause_bound_without_generics_error(
+        &self,
+        constraint: &TraitConstraint,
+    ) -> Option<NoMatchingImplFoundError> {
         let bound = &constraint.trait_bound;
 
         // An associated type the bound leaves out, or sets to something generic, can be anything.
@@ -795,17 +791,13 @@ impl Elaborator<'_> {
             | ImplSearchErrorKind::NoMatching(mut failing),
         ) = result
         else {
-            return;
+            return None;
         };
         if failing.is_empty() {
             failing.push(constraint.clone());
         }
 
-        let location = constraint.trait_bound.location;
-        if let Some(error) = NoMatchingImplFoundError::new(self.interner, failing, location) {
-            self.push_err(TypeCheckError::NoMatchingImplFound(error));
-            self.where_clause_bounds_failing_at_declaration.insert(location);
-        }
+        NoMatchingImplFoundError::new(self.interner, failing, constraint.trait_bound.location)
     }
 
     /// The removing counterpart for [`Self::add_trait_constraints_to_scope`].

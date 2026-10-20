@@ -70,22 +70,12 @@ struct LocalTraitConstraint {
     /// Where [`Elaborator::select_where_possible`] has got with this constraint.
     progress: Progress,
 
-    /// True for a where-clause bound of a referenced function that
-    /// [`Elaborator::check_where_clauses_without_generics`] also checks where it is declared. A
-    /// failure here is held back until that check has run, and dropped if it reported the bound.
-    checked_at_declaration: bool,
-}
-
-/// A failure of a where-clause bound where its function is used, waiting for the bound to be
-/// checked where it is declared. See
-/// [`ElaborationSession::where_clause_failures_pending_declaration_check`](super::session::ElaborationSession).
-pub(super) struct PendingWhereClauseFailure {
-    /// Where the bound is declared.
-    pub(super) bound: Location,
-    pub(super) object_type: Type,
-    pub(super) error: ImplSearchErrorKind,
-    /// Where the bound's function is used.
-    pub(super) location: Location,
+    /// For a where-clause bound of a referenced function that
+    /// [`Elaborator::check_where_clauses_without_generics`] also checks where it is declared, the
+    /// bound as declared, before the reference's instantiation. A failure here is not reported
+    /// again if that check reports the declared bound. It does not decide every instance (an
+    /// associated type set to a generic is only fixed here), so any other failure is reported.
+    declared_bound: Option<TraitConstraint>,
 }
 
 /// How far solving a queued constraint while its function is being checked has got. Whatever
@@ -167,8 +157,8 @@ impl Elaborator<'_> {
         expr: ExprId,
         select_impl: bool,
     ) {
-        let checked_at_declaration = false;
-        self.push_local_trait_constraint(constraint, expr, select_impl, checked_at_declaration);
+        let declared_bound = None;
+        self.push_local_trait_constraint(constraint, expr, select_impl, declared_bound);
     }
 
     /// [`Self::push_trait_constraint`] for a bound of the where clause of the function referenced
@@ -177,10 +167,10 @@ impl Elaborator<'_> {
         &mut self,
         constraint: TraitConstraint,
         expr: ExprId,
-        checked_at_declaration: bool,
+        declared_bound: Option<TraitConstraint>,
     ) {
         let select_impl = false;
-        self.push_local_trait_constraint(constraint, expr, select_impl, checked_at_declaration);
+        self.push_local_trait_constraint(constraint, expr, select_impl, declared_bound);
     }
 
     fn push_local_trait_constraint(
@@ -188,14 +178,14 @@ impl Elaborator<'_> {
         constraint: TraitConstraint,
         expr: ExprId,
         select_impl: bool,
-        checked_at_declaration: bool,
+        declared_bound: Option<TraitConstraint>,
     ) {
         self.get_function_context_mut().trait_constraints.push(LocalTraitConstraint {
             constraint,
             expr,
             select_impl,
             progress: Progress::New,
-            checked_at_declaration,
+            declared_bound,
         });
     }
 
@@ -327,21 +317,20 @@ impl Elaborator<'_> {
                         self.select_impl(local.expr, impl_kind, instantiation_bindings);
                     }
                 }
-                Err(error) if local.checked_at_declaration => {
-                    let failure = PendingWhereClauseFailure {
-                        bound: local.constraint.trait_bound.location,
-                        object_type: local.constraint.typ,
-                        error,
-                        location: self.interner.expr_location(&local.expr),
-                    };
-                    self.session.where_clause_failures_pending_declaration_check.push(failure);
-                }
+                Err(_) if self.reported_at_declaration(local.declared_bound.as_ref()) => (),
                 Err(error) => {
                     let location = self.interner.expr_location(&local.expr);
                     self.push_trait_constraint_error(&local.constraint.typ, error, location);
                 }
             }
         }
+    }
+
+    /// Whether `declared_bound`, a where-clause bound as declared, is reported as failing where it
+    /// is declared (see [`Elaborator::check_where_clauses_without_generics`]).
+    fn reported_at_declaration(&self, declared_bound: Option<&TraitConstraint>) -> bool {
+        declared_bound
+            .is_some_and(|bound| self.where_clause_bound_without_generics_error(bound).is_some())
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
