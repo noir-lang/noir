@@ -2,7 +2,7 @@ use crate::convert::AsPrimitive;
 
 /// The `+` operator.
 ///
-/// Implemented for `Field` and the integer types. `Field` addition is modulo the field's prime.
+/// Implemented for [`Field`] and the integer types. `Field` addition is modulo the field's prime.
 /// Integer addition fails if the result doesn't fit in the type, in both constrained and
 /// unconstrained code; use [`WrappingAdd`] to wrap around instead.
 ///
@@ -96,10 +96,10 @@ impl Add for i64 {
 
 /// The binary `-` operator.
 ///
-/// Implemented for `Field` and the integer types. `Field` subtraction is modulo the field's prime,
-/// so `0 - 1` is the largest field element. Integer subtraction fails if the result doesn't fit in
-/// the type, for example when an unsigned subtraction would go below zero; use [`WrappingSub`] to wrap
-/// around instead.
+/// Implemented for [`Field`] and the integer types. `Field` subtraction is modulo the field's
+/// prime, so `0 - 1` is the largest field element. Integer subtraction fails if the result doesn't
+/// fit in the type, for example when an unsigned subtraction would go below zero; use
+/// [`WrappingSub`] to wrap around instead.
 ///
 /// Example:
 ///
@@ -179,7 +179,7 @@ impl Sub for i64 {
 
 /// The `*` operator.
 ///
-/// Implemented for `Field` and the integer types. `Field` multiplication is modulo the field's
+/// Implemented for [`Field`] and the integer types. `Field` multiplication is modulo the field's
 /// prime. Integer multiplication fails if the result doesn't fit in the type; use [`WrappingMul`] to
 /// wrap around instead.
 ///
@@ -257,7 +257,7 @@ impl Mul for i64 {
 
 /// The `/` operator.
 ///
-/// Implemented for `Field` and the integer types.
+/// Implemented for [`Field`] and the integer types.
 ///
 /// - For integers, the quotient is rounded toward zero, so `-7 / 2` is `-3`.
 /// - For `Field`, `a / b` is the field element `c` with `c * b == a`: it multiplies by the inverse
@@ -346,7 +346,7 @@ impl Div for i64 {
 
 /// The `%` operator.
 ///
-/// Implemented for the integer types; `Field` has no remainder. The result has the sign of the
+/// Implemented for the integer types; [`Field`] has no remainder. The result has the sign of the
 /// left operand, matching [`Div`], which rounds toward zero: `-7 % 2` is `-1`. A zero divisor
 /// fails.
 ///
@@ -419,9 +419,9 @@ impl Rem for i64 {
 
 /// The unary `-` operator.
 ///
-/// Implemented for `Field` and the signed integer types. Negating a field element gives its additive
-/// inverse modulo the field's prime. Negating the minimum value of a signed type fails, because the
-/// result doesn't fit.
+/// Implemented for [`Field`] and the signed integer types. Negating a field element gives its
+/// additive inverse modulo the field's prime. Negating the minimum value of a signed type fails,
+/// because the result doesn't fit.
 ///
 /// Example:
 ///
@@ -478,7 +478,7 @@ impl Neg for i64 {
 /// `+` that wraps around instead of failing on overflow.
 ///
 /// For the integer types the result is computed modulo `2^N`, where `N` is the type's bit size; for
-/// signed types this is the two's complement result. For `Field` it is the same as `+`.
+/// signed types this is the two's complement result. For [`Field`] it is the same as `+`.
 ///
 /// Example:
 ///
@@ -561,7 +561,7 @@ impl WrappingAdd for Field {
 /// `-` that wraps around instead of failing on overflow.
 ///
 /// For the integer types the result is computed modulo `2^N`, where `N` is the type's bit size; for
-/// signed types this is the two's complement result. For `Field` it is the same as `-`.
+/// signed types this is the two's complement result. For [`Field`] it is the same as `-`.
 ///
 /// Example:
 ///
@@ -641,7 +641,7 @@ impl WrappingSub for Field {
 /// `*` that wraps around instead of failing on overflow.
 ///
 /// For the integer types the result is computed modulo `2^N`, where `N` is the type's bit size; for
-/// signed types this is the two's complement result. For `Field` it is the same as `*`.
+/// signed types this is the two's complement result. For [`Field`] it is the same as `*`.
 ///
 /// Example:
 ///

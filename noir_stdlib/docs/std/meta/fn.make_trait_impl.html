@@ -64,7 +64,7 @@
 <div class="comments">
 <p>A helper to make a simple trait impl for a type, usually in a derive function.</p>
 <p>It assumes the trait has one method, with the signature <code>function_signature</code>, and no generics.</p>
-<p>Under these assumptions, <code>make_trait_impl</code> will create an impl from a TypeDefinition,
+<p>Under these assumptions, <code>make_trait_impl</code> will create an impl from a <a href="../../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a>,
 automatically filling in the required generics from the type, along with the where clause.
 The function body is created by mapping each field with <code>for_each_field</code> and joining the
 results with <code>join_fields_with</code>. The result of this is passed to the <code>body</code> function for

@@ -41,7 +41,7 @@ impl CtString {
 
     /// Returns a new `CtString` with the formatted string `s` appended to the end.
     ///
-    /// Values interpolated into `s` are formatted the same way as in `println`, so a `Field` is
+    /// Values interpolated into `s` are formatted the same way as in `println`, so a [`Field`] is
     /// written in hexadecimal.
     ///
     /// Example:
@@ -109,7 +109,7 @@ impl Append for CtString {
 /// ```
 // docs:start:as-ctstring
 pub trait AsCtString {
-    /// Returns this string as a `CtString`.
+    /// Returns this string as a [`CtString`].
     comptime fn as_ctstring(self) -> CtString;
 }
 // docs:end:as-ctstring

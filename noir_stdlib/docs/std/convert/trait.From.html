@@ -87,7 +87,7 @@
 <div class="comments">
 <p>Create a new <code>Self</code> value from the given <code>T</code> value</p>
 <p>The standard library implements <code>From</code> only for conversions that can't lose information:
-widening an integer to a larger type of the same signedness, an unsigned integer to <code>Field</code>,
+widening an integer to a larger type of the same signedness, an unsigned integer to <a href="../../std/primitive.Field.html"><code>Field</code></a>,
 and <code>bool</code> to an integer or <code>Field</code>. For conversions that can truncate, use <code>as</code> or
 <a href="../../std/convert/trait.AsPrimitive.html"><code>AsPrimitive</code></a>. Implementing <code>From</code> also provides <a href="../../std/convert/trait.Into.html"><code>Into</code></a> in the other direction.</p>
 <p>Example:</p>

@@ -233,7 +233,7 @@ pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
 ///
 /// It assumes the trait has one method, with the signature `function_signature`, and no generics.
 ///
-/// Under these assumptions, `make_trait_impl` will create an impl from a TypeDefinition,
+/// Under these assumptions, `make_trait_impl` will create an impl from a [`TypeDefinition`],
 /// automatically filling in the required generics from the type, along with the where clause.
 /// The function body is created by mapping each field with `for_each_field` and joining the
 /// results with `join_fields_with`. The result of this is passed to the `body` function for

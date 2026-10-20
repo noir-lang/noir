@@ -1,4 +1,4 @@
-//! Contains methods on the built-in `Type` type used for representing a type in the source program.
+//! Contains methods on the built-in [`Type`] type used for representing a type in the source program.
 
 use crate::cmp::Eq;
 use crate::option::Option;
@@ -456,7 +456,7 @@ impl Type {
     pub comptime fn is_bool(self) -> bool {}
     // docs:end:is_bool
 
-    /// Returns `true` if this type is `Field`.
+    /// Returns `true` if this type is [`Field`].
     ///
     /// Example:
     ///

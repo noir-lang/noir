@@ -69,9 +69,9 @@
 
 <div class="comments">
 <p>The unary <code>-</code> operator.</p>
-<p>Implemented for <code>Field</code> and the signed integer types. Negating a field element gives its additive
-inverse modulo the field's prime. Negating the minimum value of a signed type fails, because the
-result doesn't fit.</p>
+<p>Implemented for <a href="../../std/primitive.Field.html"><code>Field</code></a> and the signed integer types. Negating a field element gives its
+additive inverse modulo the field's prime. Negating the minimum value of a signed type fails,
+because the result doesn't fit.</p>
 <p>Example:</p>
 <pre><code><span class="kw">assert_eq</span>(-(<span class="number">5_i8</span>), -<span class="number">5</span>);
 

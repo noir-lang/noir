@@ -109,7 +109,7 @@
 <div class="comments">
 <p>A a compile-time, dynamically-sized string type.</p>
 <p>Compared to <a href="../std/primitive.str.html"><code>str</code></a><code>&lt;N&gt;</code> and <a href="../std/primitive.fmtstr.html"><code>fmtstr</code></a><code>&lt;N, T&gt;</code>,
-<code>CtString</code> is useful because its size does not need to be specified in its type. This
+<a href="../std/primitive.CtString.html"><code>CtString</code></a> is useful because its size does not need to be specified in its type. This
 can be used for formatting items at compile-time or general string handling in <code>comptime</code>
 code.</p>
 <p>Since <a href="../std/primitive.fmtstr.html"><code>fmtstr</code></a>s can be converted into <code>CtString</code>s, you can make use of their formatting
@@ -144,7 +144,7 @@ afterward.</p></div>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a new <code>CtString</code> with the formatted string <code>s</code> appended to the end.</p>
-<p>Values interpolated into <code>s</code> are formatted the same way as in <code>println</code>, so a <code>Field</code> is
+<p>Values interpolated into <code>s</code> are formatted the same way as in <code>println</code>, so a <a href="../std/primitive.Field.html"><code>Field</code></a> is
 written in hexadecimal.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;

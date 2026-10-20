@@ -307,7 +307,7 @@ returns true.</p>
 <div class="padded-description"><div class="comments">
 <p>Flatten each element in the vector into one value, separated by <code>separator</code>.</p>
 <p>The elements must implement <a href="../std/append/trait.Append.html"><code>Append</code></a>. Runtime code doesn't support vectors of vectors, so
-this is mostly used at comptime, for example to join <code>Quoted</code> values.</p>
+this is mostly used at comptime, for example to join <a href="../std/primitive.Quoted.html"><code>Quoted</code></a> values.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> fields = @[<span class="kw">quote</span> { x }, <span class="kw">quote</span> { y }];

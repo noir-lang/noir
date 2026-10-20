@@ -7,14 +7,14 @@
 /// Example:
 ///
 /// ```noir
-/// let input = "kevlovesrust".as_bytes();
+/// let input = "hello, world".as_bytes();
 /// let iv = "0000000000000000".as_bytes();
 /// let key = "0000000000000000".as_bytes();
 ///
 /// let ciphertext = std::aes128::aes128_encrypt(input, iv, key);
 /// assert_eq(
 ///     ciphertext,
-///     [244, 14, 126, 172, 171, 40, 208, 186, 173, 184, 226, 105, 238, 122, 205, 191],
+///     [111, 184, 119, 247, 120, 133, 199, 176, 39, 84, 23, 18, 180, 106, 198, 111],
 /// );
 /// ```
 // docs:start:aes128

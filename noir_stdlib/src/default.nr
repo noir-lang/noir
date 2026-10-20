@@ -4,7 +4,7 @@ use crate::meta::derive_via;
 /// This is most often a zeroed value or an empty container, but there
 /// are no actual restrictions on what an implementation could return.
 ///
-/// The standard library's implementations return zero for `Field` and the integer types,
+/// The standard library's implementations return zero for [`Field`] and the integer types,
 /// `false` for `bool`, an empty vector, and arrays and tuples whose elements are all default
 /// values. Deriving it with `#[derive(Default)]` sets every field of a struct to its default.
 ///

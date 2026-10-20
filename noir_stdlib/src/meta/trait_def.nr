@@ -2,7 +2,7 @@ use crate::cmp::Eq;
 use crate::hash::{Hash, Hasher};
 
 impl TraitDefinition {
-    /// Returns this trait as a trait constraint, such as `Eq` or `Into<T>`.
+    /// Returns this trait as a trait constraint, such as [`Eq`](crate::cmp::Eq) or `Into<T>`.
     ///
     /// Generics on the trait are kept as they are, without being instantiated.
     ///

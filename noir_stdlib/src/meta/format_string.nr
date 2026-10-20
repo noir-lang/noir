@@ -1,10 +1,10 @@
 use super::ctstring::AsCtString;
 
 impl<let N: u32, T> fmtstr<N, T> {
-    /// Returns the format string contents (that is, without the leading and trailing double quotes) as a `Quoted` value.
+    /// Returns the format string contents (that is, without the leading and trailing double quotes) as a [`Quoted`] value.
     ///
     /// Interpolated values are formatted as in `println` and the result is lexed into tokens, so a
-    /// `Field` holding `5` is written `0x05` and becomes the integer token `5`.
+    /// [`Field`] holding `5` is written `0x05` and becomes the integer token `5`.
     ///
     /// Example:
     ///
@@ -19,10 +19,10 @@ impl<let N: u32, T> fmtstr<N, T> {
     pub comptime fn quoted_contents(self) -> Quoted {}
     // docs:end:quoted_contents
 
-    /// Returns the format string contents (with the leading and trailing double quotes) as a `Quoted` string literal (not a format string literal).
+    /// Returns the format string contents (with the leading and trailing double quotes) as a [`Quoted`] string literal (not a format string literal).
     ///
-    /// Values interpolated into the string are formatted the same way as in `println`, so a `Field`
-    /// is written in hexadecimal.
+    /// Values interpolated into the string are formatted the same way as in `println`, so a
+    /// [`Field`] is written in hexadecimal.
     ///
     /// Example:
     ///

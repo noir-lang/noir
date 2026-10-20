@@ -213,7 +213,8 @@ impl TypeDefinition {
 
     /// Returns this type applied to the given generic arguments.
     ///
-    /// Returns `Option::none()` if the number of generic arguments is wrong.
+    /// Returns [`Option::none()`](crate::option::Option::none) if the number of generic arguments
+    /// is wrong.
     ///
     /// Example:
     ///

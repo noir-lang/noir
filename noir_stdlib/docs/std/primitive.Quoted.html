@@ -118,7 +118,8 @@
 <div class="padded-methods"><code id="as_expr" class="code-header">pub comptime fn <a href="#as_expr" class="fn">as_expr</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Expr.html" class="primitive">Expr</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>Parses this token stream as an expression. Returns <code>Option::none()</code> if it doesn't parse.</p>
+<p>Parses this token stream as an expression.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if it doesn't parse.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> call = <span class="kw">quote</span> { foo(<span class="number">1</span>) }.as_expr().unwrap();
@@ -130,7 +131,8 @@
 
 <div class="padded-description"><div class="comments">
 <p>Interprets this token stream as a path to a module.</p>
-<p>Returns <code>Option::none()</code> if it isn't a path or no module is found at it.</p>
+<p>Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if it isn't a path or no module is
+found at it.</p>
 <p>Example:</p>
 <pre><code><span class="kw">mod</span> shapes {
     <span class="kw">pub</span> <span class="kw">mod</span> circle {}
@@ -148,7 +150,7 @@
 
 <div class="padded-description"><div class="comments">
 <p>Interprets this token stream as a trait constraint without its object type.</p>
-<p>For example <code>Eq</code> or <code>Into&lt;Field&gt;</code>.</p>
+<p>For example <a href="../std/cmp/trait.Eq.html"><code>Eq</code></a> or <code>Into&lt;Field&gt;</code>.</p>
 <p>Compilation fails if the tokens don't parse as a trait constraint or name a trait that isn't in
 scope.</p>
 <p>Example:</p>
@@ -173,7 +175,7 @@ numeric generic slot such as an array length.</p>
 </div><code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Location.html" class="primitive">Location</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns the source location spanning the tokens of this stream, or <code>Option::none()</code> if it is empty.</p>
+<p>Returns the source location spanning the tokens of this stream, or <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if it is empty.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">assert</span>(<span class="kw">quote</span> { x + <span class="number">1</span> }.location().is_some());

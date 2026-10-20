@@ -10,10 +10,11 @@ use crate::option::Option;
 /// it doesn't make results wrong.
 ///
 /// All methods are `unconstrained`, except the constructors `with_hasher`,
-/// `with_hasher_and_capacity` and `Default::default`. Calling them from constrained code needs an
-/// `unsafe` block, and their results are not constrained afterward: nothing proves, for example,
-/// that a value returned by `get` was inserted under that key. Check any result that constrained
-/// code relies on. Comparing two maps with `==` fails in constrained code.
+/// `with_hasher_and_capacity` and [`Default::default`](crate::default::Default::default). Calling
+/// them from constrained code needs an `unsafe` block, and their results are not constrained
+/// afterward: nothing proves, for example, that a value returned by `get` was inserted under that
+/// key. Check any result that constrained code relies on. Comparing two maps with `==` fails in
+/// constrained code.
 ///
 /// The standard library has no public hasher, so this example defines a minimal one, `MyHasher`.
 /// The examples on this type's methods use it too. Real code should use a well-distributed hasher,

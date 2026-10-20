@@ -1,7 +1,7 @@
 /// The unary `!` operator.
 ///
 /// Implemented for `bool`, where it is logical negation, and for the integer types, where it flips
-/// every bit. `Field` doesn't implement it.
+/// every bit. [`Field`] doesn't implement it.
 ///
 /// Example:
 ///
@@ -73,7 +73,7 @@ impl Not for i64 {
 
 /// The `|` operator: bitwise or.
 ///
-/// Implemented for `bool` and the integer types. `Field` doesn't implement it.
+/// Implemented for `bool` and the integer types. [`Field`] doesn't implement it.
 ///
 /// Example:
 ///
@@ -142,7 +142,7 @@ impl BitOr for i64 {
 
 /// The `&` operator: bitwise and.
 ///
-/// Implemented for `bool` and the integer types. `Field` doesn't implement it.
+/// Implemented for `bool` and the integer types. [`Field`] doesn't implement it.
 ///
 /// Example:
 ///
@@ -211,7 +211,7 @@ impl BitAnd for i64 {
 
 /// The `^` operator: bitwise exclusive or.
 ///
-/// Implemented for `bool` and the integer types. `Field` doesn't implement it.
+/// Implemented for `bool` and the integer types. [`Field`] doesn't implement it.
 ///
 /// Example:
 ///

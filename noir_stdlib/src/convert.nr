@@ -1,7 +1,7 @@
 /// Create a new `Self` value from the given `T` value
 ///
 /// The standard library implements `From` only for conversions that can't lose information:
-/// widening an integer to a larger type of the same signedness, an unsigned integer to `Field`,
+/// widening an integer to a larger type of the same signedness, an unsigned integer to [`Field`],
 /// and `bool` to an integer or `Field`. For conversions that can truncate, use `as` or
 /// [`AsPrimitive`]. Implementing `From` also provides [`Into`] in the other direction.
 ///
@@ -41,7 +41,7 @@ impl<T> From<T> for T {
 
 /// Convert a `Self` value into a `T` value
 ///
-/// `Into` is implemented automatically for every [`From`] conversion, so implement `From` rather
+/// `Into` is implemented automatically for every [`From`] conversion, so implement [`From`] rather
 /// than `Into`. The target type usually has to be given by a type annotation.
 ///
 /// Example:
@@ -251,7 +251,7 @@ impl From<bool> for Field {
 /// A generic interface for casting between primitive types, so generic code can cast with
 /// `T: AsPrimitive<U>`.
 ///
-/// It is implemented between every pair of `bool` and integer types, and between `Field` and
+/// It is implemented between every pair of `bool` and integer types, and between [`Field`] and
 /// `bool` or the unsigned integer types. There is no implementation between `Field` and the
 /// signed integer types.
 ///

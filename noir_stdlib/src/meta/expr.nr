@@ -1,4 +1,4 @@
-//! Contains methods on the built-in `Expr` type for quoted, syntactically valid expressions.
+//! Contains methods on the built-in [`Expr`] type for quoted, syntactically valid expressions.
 
 use crate::meta::op::BinaryOp;
 use crate::meta::op::UnaryOp;
@@ -1223,7 +1223,7 @@ impl Expr {
     /// Decomposes an `assert_eq(lhs, rhs, message)` expression.
     ///
     /// Returns the left- and right-hand sides and the optional message.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1271,7 +1271,7 @@ impl Expr {
     /// Decomposes a binary operation `<lhs> <op> <rhs>`.
     ///
     /// Returns the left-hand side, the operator and the right-hand side.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1295,7 +1295,7 @@ impl Expr {
     comptime fn as_binary_op_raw(self) -> Option<(Expr, BinaryOp, Expr)> {}
 
     /// Returns each statement of a block `{ stmt1; stmt2; ...; stmtN }`.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1327,7 +1327,7 @@ impl Expr {
     // docs:end:as_bool
 
     /// Decomposes a cast `expr as type` into the expression and the type it is cast to.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1349,7 +1349,7 @@ impl Expr {
     comptime fn as_cast_raw(self) -> Option<(Expr, UnresolvedType)> {}
 
     /// Returns each statement of a `comptime { stmt1; stmt2; ...; stmtN }` block.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1369,7 +1369,7 @@ impl Expr {
     /// Decomposes a constructor `Type { field1: expr1, ..., fieldN: exprN }`.
     ///
     /// Returns the type and the fields.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1397,7 +1397,7 @@ impl Expr {
     ///
     /// Returns the loop variable, the iterable and the body. A loop over a range is decomposed by
     /// [`Expr::as_for_range`].
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1424,7 +1424,7 @@ impl Expr {
     /// Decomposes a `for` loop over a range.
     ///
     /// Returns the loop variable, the range start and end, whether the range is inclusive, and the body.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1452,7 +1452,7 @@ impl Expr {
     comptime fn as_for_range_raw(self) -> Option<(Quoted, Expr, Expr, bool, Expr)> {}
 
     /// Decomposes a function call `foo(arg1, ..., argN)` into the function and its arguments.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1478,9 +1478,9 @@ impl Expr {
 
     /// Decomposes an `if condition { then_branch } else { else_branch }` expression.
     ///
-    /// Returns the condition, the then branch and the else branch, which is `Option::none()` when there
-    /// is no `else`.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns the condition, the then branch and the else branch, which is
+    /// [`Option::none()`](crate::option::Option::none) when there is no `else`. Returns
+    /// `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1503,7 +1503,7 @@ impl Expr {
     comptime fn as_if_raw(self) -> Option<(Expr, Expr, Option<Expr>)> {}
 
     /// Decomposes an index `collection[index]` into the collection and the index.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1525,7 +1525,7 @@ impl Expr {
     comptime fn as_index_raw(self) -> Option<(Expr, Expr)> {}
 
     /// Returns the value of an integer literal.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Negative integers are encoded as the equivalent negative field value, so `-1i8` has a value of
     /// `-1` rather than the two's complement encoding `255`.
@@ -1579,7 +1579,7 @@ impl Expr {
     /// Decomposes a `let` statement.
     ///
     /// Returns the pattern as an `Expr`, the optional type annotation and the assigned expression.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1602,8 +1602,8 @@ impl Expr {
 
     /// Decomposes a member access `foo.bar`.
     ///
-    /// Returns the struct or tuple expression and the member name as a `Quoted` value.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns the struct or tuple expression and the member name as a [`Quoted`] value.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1627,7 +1627,7 @@ impl Expr {
     /// Decomposes a method call `foo.bar::<generic1, ..., genericM>(arg1, ..., argN)`.
     ///
     /// Returns the receiver, the method name, the generic arguments and the arguments.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1656,7 +1656,7 @@ impl Expr {
     comptime fn as_method_call_raw(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])> {}
 
     /// Decomposes a repeated-element array `[elem; length]` into the element and the length.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1680,7 +1680,7 @@ impl Expr {
     comptime fn as_repeated_element_array_raw(self) -> Option<(Expr, Expr)> {}
 
     /// Decomposes a repeated-element vector `@[elem; length]` into the element and the length.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1704,7 +1704,7 @@ impl Expr {
     comptime fn as_repeated_element_vector_raw(self) -> Option<(Expr, Expr)> {}
 
     /// Returns each element of a vector literal `@[elem1, ..., elemN]`.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1722,7 +1722,7 @@ impl Expr {
     // docs:end:as_vector
 
     /// Returns each element of a tuple `(field1, ..., fieldN)`.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1739,7 +1739,7 @@ impl Expr {
     // docs:end:as_tuple
 
     /// Decomposes a unary operation `<op> <rhs>` into the operator and the right-hand side.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// An immutable reference `&x` isn't exposed to comptime code, so it also returns
     /// `Option::none()`.
@@ -1766,7 +1766,7 @@ impl Expr {
     comptime fn as_unary_op_raw(self) -> Option<(UnaryOp, Expr)> {}
 
     /// Returns each statement of an `unsafe { stmt1; ...; stmtN }` block.
-    /// Returns `Option::none()` if this expression is anything else.
+    /// Returns [`Option::none()`](crate::option::Option::none) if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1833,7 +1833,7 @@ impl Expr {
     pub comptime fn is_continue(self) -> bool {}
     // docs:end:is_continue
 
-    /// Returns this expression as a `Quoted` value. It's the same as `quote { $self }`.
+    /// Returns this expression as a [`Quoted`] value. It's the same as `quote { $self }`.
     ///
     /// Two `Quoted` values are equal when they print the same. An expression prints with its own
     /// parentheses, so `x + y` re-quoted through this method equals `quote { (x + y) }`, not
@@ -1856,7 +1856,7 @@ impl Expr {
         quote { $self }
     }
 
-    /// Resolves and type-checks this expression and returns the result as a `TypedExpr`.
+    /// Resolves and type-checks this expression and returns the result as a [`TypedExpr`].
     ///
     /// The `in_function` argument specifies where the expression is resolved:
     /// - If it's `none`, the expression is resolved in the function where `resolve` was called

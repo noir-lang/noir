@@ -62,9 +62,9 @@
 }
 </code></pre>
 <div class="comments">
-<p>Scalar for the embedded curve represented as low and high limbs
-By definition, the scalar field of the embedded curve is base field of the proving system curve.
-It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.</p>
+<p>Scalar for the embedded curve represented as low and high limbs By definition, the scalar field of the embedded curve is base field of the proving system curve.
+It may not fit into a <a href="../../std/primitive.Field.html"><code>Field</code></a> element, so it is represented with two <code>Field</code> elements; its low
+and high limbs.</p>
 <p>The scalar's value is <code>lo + hi * 2^128</code>. Each limb must be less than <code>2^128</code>, and the value must
 be less than the embedded curve's order; <a href="../../std/embedded_curve_ops/fn.multi_scalar_mul.html"><code>multi_scalar_mul</code></a> fails at execution otherwise.
 Constructing a scalar does not check either condition.</p>
@@ -96,7 +96,7 @@ Constructing a scalar does not check either condition.</p>
 <p>Create a scalar from the given bn254 field value</p>
 <p>The value is split into its low and high 128 bits. The split is fully constrained: both
 limbs are range checked, and they are checked to be the canonical decomposition of <code>scalar</code>.
-Every <code>Field</code> is a valid scalar, because the BN254 scalar field is smaller than the
+Every <a href="../../std/primitive.Field.html"><code>Field</code></a> is a valid scalar, because the BN254 scalar field is smaller than the
 Grumpkin scalar field.</p>
 <p>Only available when compiling for the BN254 field.</p>
 <p>Example:</p>

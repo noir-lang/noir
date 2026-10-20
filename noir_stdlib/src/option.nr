@@ -6,10 +6,11 @@ use crate::hash::{Hash, Hasher};
 /// Use `Option::some(value)` to construct a value or `Option::none()` to record the absence of one.
 ///
 /// `Option` is in the prelude. A `None` still holds a value of type `T` internally, and only
-/// [`Option::unwrap_unchecked`] exposes it. `Option::none()` sets it to the zeroed value of `T`, but
-/// nothing constrains it in general: an `Option` returned by unconstrained code or passed in as a
-/// program input can hold any value in a `None`. `Option` implements `Eq`,
-/// `Ord` (with `None` less than any `Some`), `Hash` and `Default` (returning `None`).
+/// [`Option::unwrap_unchecked`] exposes it. `Option::none()` sets it to the zeroed value of `T`,
+/// but nothing constrains it in general: an `Option` returned by unconstrained code or passed in as
+/// a program input can hold any value in a `None`. `Option` implements [`Eq`](crate::cmp::Eq),
+/// [`Ord`](crate::cmp::Ord) (with `None` less than any `Some`), [`Hash`](crate::hash::Hash) and
+/// [`Default`](crate::default::Default) (returning `None`).
 ///
 /// Example:
 ///
