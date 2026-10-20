@@ -364,7 +364,6 @@ fn i2804_method_call_on_a_bounded_generic_finds_a_blanket_impl() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2772, rustc: E0034
 #[test]
-#[ignore = "noir-claude#2772"]
 fn i2772_self_path_call_of_a_method_that_a_supertrait_also_declares_is_ambiguous() {
     let src = r#"
     trait Validate { fn check(x: Field) -> Field; }
@@ -382,7 +381,6 @@ fn i2772_self_path_call_of_a_method_that_a_supertrait_also_declares_is_ambiguous
 
 /// https://github.com/noir-lang/noir-claude/issues/2772, rustc: E0034
 #[test]
-#[ignore = "noir-claude#2772"]
 fn i2772_self_path_call_of_a_method_that_a_where_clause_also_declares_is_ambiguous() {
     let src = r#"
     trait Validate { fn check(x: Field) -> Field; }

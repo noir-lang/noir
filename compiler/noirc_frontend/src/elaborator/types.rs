@@ -1490,33 +1490,6 @@ impl Elaborator<'_> {
         Some(typ.substitute(&instantiation_bindings).follow_bindings())
     }
 
-    /// This resolves `Self::some_static_method`, inside an impl block (where we don't have a concrete `self_type`)
-    /// or inside a trait default method.
-    ///
-    /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method_by_self(
-        &self,
-        path: &TypedPath,
-        trait_id: TraitId,
-    ) -> Option<TraitPathResolution> {
-        // Reached only for a plain `Self::…` prefix, so the only thing left to distinguish is the
-        // single-segment `Self::item` form (a longer `Self::A::b` is left to the bounds fallback).
-        debug_assert!(path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name());
-        if path.segments.len() != 2 {
-            return None;
-        }
-
-        let method = &path.segments[1].ident;
-        let the_trait = self.interner.get_trait(trait_id);
-        // Allow referring to trait constants via Self:: as well
-        let definition = the_trait.find_method_or_constant(method.as_str(), self.interner)?;
-        let constraint = the_trait.as_constraint(path.location);
-        let trait_method = TraitItem { definition, constraint, assumed: true };
-        let method = TraitPathResolutionMethod::TraitItem(trait_method);
-        Some(TraitPathResolution { method, item: None, errors: Vec::new() })
-    }
-
     /// Resolves the last segment of a `Trait::item` path against a prefix already resolved to a
     /// trait. The segment is either a trait static method (`Trait::method`) or an associated
     /// constant (`Trait::CONST`); returns `None` if it is neither.
@@ -2246,8 +2219,9 @@ impl Elaborator<'_> {
         self.resolve_self_as_concrete_type(path, last_segment, turbofish)
     }
 
-    /// `Self::…` inside a trait definition. `Self` is the trait, so the last segment resolves to an
-    /// assumed constraint on the current trait, falling back to a supertrait reached through it.
+    /// `Self::…` inside a trait definition. `Self` is bounded by the trait itself, and by the
+    /// item's `where Self:` bounds, so the last segment is an item of one of those (or of a
+    /// supertrait reached through them), like `T::item` for a bounded generic `T`.
     pub(super) fn resolve_self_in_trait(
         &mut self,
         path: TypedPath,
@@ -2255,23 +2229,13 @@ impl Elaborator<'_> {
         last_segment: TypedPathSegment,
         turbofish: Option<Turbofish>,
     ) -> Option<VariableResolution> {
-        if let Some(resolution) = self.resolve_trait_static_method_by_self(&path, trait_id) {
-            return self.variable_from_trait_resolution(path.location, resolution);
+        if path.segments.len() != 2 {
+            self.push_err(PathResolutionError::Unresolved(last_segment.ident.clone()));
+            return None;
         }
-        // Fall back to a supertrait reached through the assumed `Self` bound.
-        if let Some(bounds) = self.matching_generic_bounds(&path) {
-            return self.resolve_bounded_generic_item(
-                bounds,
-                &last_segment,
-                turbofish,
-                path.location,
-            );
-        }
-        // `Self` here is the trait itself, so the last segment can only be a trait static method or
-        // associated constant (handled above); anything else names nothing. Report the last
-        // segment rather than the in-scope `Self`.
-        self.push_err(PathResolutionError::Unresolved(last_segment.ident.clone()));
-        None
+        let mut bounds = vec![self.interner.get_trait(trait_id).as_constraint(path.location)];
+        bounds.extend(self.matching_generic_bounds(&path).unwrap_or_default());
+        self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
     }
 
     /// Resolve `Self::method` (or `Self::AssocType::method`) by resolving the `Self` prefix as a
