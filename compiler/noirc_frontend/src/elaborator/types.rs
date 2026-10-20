@@ -3642,9 +3642,14 @@ impl Elaborator<'_> {
         else {
             return None;
         };
-        trait_methods.iter().find_map(|(func_id, _, _)| {
+        // A method of an impl for all types `T` (`impl<T> Foo for T`) isn't bound directly: its
+        // self type `T` says nothing about `object_type`, so it is the trait constraint that binds
+        // `T` to it.
+        trait_methods.iter().find_map(|(func_id, _, impl_self_type)| {
             let meta = self.interner.function_meta(func_id);
-            (meta.trait_id.is_none() && meta.trait_impl == Some(impl_id)).then_some(*func_id)
+            let for_all_types = matches!(impl_self_type.follow_bindings(), Type::TypeVariable(_));
+            (meta.trait_id.is_none() && meta.trait_impl == Some(impl_id) && !for_all_types)
+                .then_some(*func_id)
         })
     }
 
