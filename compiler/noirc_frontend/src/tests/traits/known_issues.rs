@@ -408,7 +408,6 @@ const CHECKED_AND_RAW: &str = r#"
 
 /// https://github.com/noir-lang/noir-claude/issues/2793, rustc: E0034
 #[test]
-#[ignore = "noir-claude#2793"]
 fn i2793_method_call_sees_a_where_clause_spelled_through_an_alias() {
     let src = format!(
         "{CHECKED_AND_RAW}
@@ -420,7 +419,6 @@ fn i2793_method_call_sees_a_where_clause_spelled_through_an_alias() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2793, rustc: E0034
 #[test]
-#[ignore = "noir-claude#2793"]
 fn i2793_generic_path_call_sees_a_where_clause_spelled_through_an_alias() {
     let src = format!(
         "{CHECKED_AND_RAW}
