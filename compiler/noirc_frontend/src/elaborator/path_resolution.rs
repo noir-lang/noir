@@ -70,7 +70,7 @@ pub(crate) enum PathResolutionItem {
     PrimitiveFunction(PrimitiveType, Option<Turbofish>, FuncId),
     /// An associated constant accessed via `Type::CONSTANT` syntax, for example `Foo::N`, with
     /// the type it is accessed through (`Foo<u8>` for `Foo::<u8>::N`).
-    TraitConstant(TypeId, Type, TraitId, DefinitionId),
+    TraitConstant(Type, TraitId, DefinitionId),
 }
 
 impl PathResolutionItem {
@@ -147,14 +147,12 @@ impl PathResolutionItem {
                 let name = interner.function_name(func_id);
                 format!("function `{name}`")
             }
-            PathResolutionItem::TraitConstant(type_id, _, trait_id, def_id) => {
-                let datatype = interner.get_type(*type_id);
-                let datatype = datatype.borrow();
+            PathResolutionItem::TraitConstant(self_type, trait_id, def_id) => {
                 let trait_ = interner.get_trait(*trait_id);
                 let def_info = interner.definition(*def_id);
                 format!(
                     "associated constant `{}` from trait `{}` on type `{}`",
-                    def_info.name, trait_.name, datatype.name
+                    def_info.name, trait_.name, self_type
                 )
             }
         }
@@ -573,7 +571,12 @@ impl Elaborator<'_> {
         turbofish: Option<Turbofish>,
     ) -> Result<PathResolutionItem, ResolverError> {
         let Type::DataType(datatype, _) = typ else {
-            return Err(PathResolutionError::Unresolved(last_segment.ident.clone()).into());
+            // A type without a module of its own (a primitive) only has the associated constants
+            // of its trait impls.
+            return match self.try_resolve_trait_constant(typ, &last_segment.ident) {
+                Some(result) => result.map_err(Into::into),
+                None => Err(PathResolutionError::Unresolved(last_segment.ident.clone()).into()),
+            };
         };
         let type_id = datatype.borrow().id;
 
@@ -584,7 +587,7 @@ impl Elaborator<'_> {
             last_segment,
             type_id.module_id(),
             IntermediatePathResolutionItem::Type(type_id, turbofish),
-            Some((type_id, typ)),
+            Some(typ),
             PathResolutionMode::MarkAsUsed,
             &mut errors,
         )?;
@@ -809,7 +812,7 @@ impl Elaborator<'_> {
                         &intermediate_item
                     {
                         self_type = self.data_type_as_self_type(*type_id, turbofish.as_ref());
-                        Some((*type_id, &self_type))
+                        Some(&self_type)
                     } else {
                         None
                     };
@@ -1013,7 +1016,7 @@ impl Elaborator<'_> {
         member: &TypedPathSegment,
         module: ModuleId,
         intermediate_item: IntermediatePathResolutionItem,
-        associated_constant: Option<(TypeId, &Type)>,
+        associated_constant: Option<&Type>,
         mode: PathResolutionMode,
         errors: &mut Vec<PathResolutionError>,
     ) -> Result<PathResolutionItem, PathResolutionError> {
@@ -1031,24 +1034,21 @@ impl Elaborator<'_> {
         }
 
         match associated_constant {
-            Some((type_id, self_type)) => {
-                self.resolve_associated_constant_or_unresolved(type_id, self_type, &member.ident)
+            Some(self_type) => {
+                self.resolve_associated_constant_or_unresolved(self_type, &member.ident)
             }
             None => Err(PathResolutionError::Unresolved(member.ident.clone())),
         }
     }
 
-    /// A segment that named the data type `self_type` but is not an enum-variant constructor in its
-    /// module scope may still be a trait associated constant (`Type::CONST`) on it; otherwise it is
-    /// unresolved. `type_id` is the data type, carried into the resulting
-    /// [`PathResolutionItem::TraitConstant`]. Shared by the segment loop and [`Self::use_value_in_type`].
+    /// A segment on `self_type` that is not an enum-variant constructor in its module scope may
+    /// still be a trait associated constant (`Type::CONST`) on it; otherwise it is unresolved. Shared by the segment loop and [`Self::use_value_in_type`].
     fn resolve_associated_constant_or_unresolved(
         &self,
-        type_id: TypeId,
         self_type: &Type,
         ident: &Ident,
     ) -> Result<PathResolutionItem, PathResolutionError> {
-        if let Some(result) = self.try_resolve_trait_constant(type_id, self_type, ident) {
+        if let Some(result) = self.try_resolve_trait_constant(self_type, ident) {
             return result;
         }
         Err(self.unresolved_associated_item_error(self_type, ident))
@@ -1088,7 +1088,6 @@ impl Elaborator<'_> {
     /// or `None` if no matching constant was found.
     fn try_resolve_trait_constant(
         &self,
-        type_id: TypeId,
         self_type: &Type,
         ident: &Ident,
     ) -> Option<Result<PathResolutionItem, PathResolutionError>> {
@@ -1118,7 +1117,7 @@ impl Elaborator<'_> {
                 // Exactly one matching constant with trait in scope
                 let (def_id, trait_id, _impl_id) = in_scope[0];
                 let self_type = self_type.clone();
-                Some(Ok(PathResolutionItem::TraitConstant(type_id, self_type, *trait_id, *def_id)))
+                Some(Ok(PathResolutionItem::TraitConstant(self_type, *trait_id, *def_id)))
             }
             _ => {
                 // Multiple matching constants - ambiguous. If all candidates are from the

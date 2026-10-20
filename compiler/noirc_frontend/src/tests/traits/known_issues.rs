@@ -996,7 +996,6 @@ fn i2645_associated_constant_shorthand_solves_the_impls_where_clause() {
 
 /// https://github.com/noir-lang/noir-claude/issues/1619
 #[test]
-#[ignore = "noir-claude#1619"]
 fn i1619_associated_constant_of_a_primitive_type_is_found() {
     let src = r#"
     trait HasN { let N: u32; }
