@@ -1262,6 +1262,14 @@ impl Elaborator<'_> {
                 &mut bindings,
             );
         }
+        // Inside a trait's own method its generics are the caller's too, so `<Self as Foo<[T; 2]>>`
+        // binds `T` to `[T; 2]`: the constraint is already written in the caller's `T`, and
+        // replacing it there again would give `Foo<[[T; 2]; 2]>`.
+        let caller_terms: Vec<_> = bindings
+            .iter()
+            .filter(|(id, (_, _, typ))| typ.occurs(**id))
+            .map(|(id, _)| *id)
+            .collect();
 
         // If a global variable hasn't been defined yet, then we are most likely dealing with a self-dependency-cycle.
         let definition = self.interner.definition(ident.id);
@@ -1325,7 +1333,11 @@ impl Elaborator<'_> {
             self.instantiate(t, bindings, generics, &direct_generic_ids, location);
 
         if let ImplKind::TraitItem(mut method) = ident.impl_kind {
-            method.constraint.apply_instantiation_bindings(&bindings);
+            let mut constraint_bindings = bindings.clone();
+            for id in &caller_terms {
+                constraint_bindings.remove(id);
+            }
+            method.constraint.apply_instantiation_bindings(&constraint_bindings);
             if method.assumed {
                 let trait_generics = method.constraint.trait_bound.trait_generics.clone();
                 let object_type = method.constraint.typ;
