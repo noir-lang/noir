@@ -105,7 +105,7 @@
 <div id="page-content">
 <div class="comments">
 <p>A compile-time type which represents a trait definition such as <code>trait Foo { .. }</code>.</p>
-<p>A <code>TraitDefinition</code> is passed as the first argument to a macro attribute on top of a trait:</p>
+<p>A <a href="../std/primitive.TraitDefinition.html"><code>TraitDefinition</code></a> is passed as the first argument to a macro attribute on top of a trait:</p>
 <pre><code>#[attr]
 <span class="kw">trait</span> Foo {}
 
@@ -118,7 +118,7 @@
 <div class="padded-methods"><code id="as_trait_constraint" class="code-header">pub comptime fn <a href="#as_trait_constraint" class="fn">as_trait_constraint</a>(_self: Self) -> <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns this trait as a trait constraint, such as <code>Eq</code> or <code>Into&lt;T&gt;</code>.</p>
+<p>Returns this trait as a trait constraint, such as <a href="../std/cmp/trait.Eq.html"><code>Eq</code></a> or <code>Into&lt;T&gt;</code>.</p>
 <p>Generics on the trait are kept as they are, without being instantiated.</p>
 <p>Example:</p>
 <pre><code>#[check]

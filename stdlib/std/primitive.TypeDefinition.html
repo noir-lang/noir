@@ -115,7 +115,7 @@
 <div id="page-content">
 <div class="comments">
 <p>A compile-time type which represents a type definition such as <code>struct Foo { ... }</code>.</p>
-<p>A <code>TypeDefinition</code> is passed as the first argument to a macro attribute on top of a struct:</p>
+<p>A <a href="../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a> is passed as the first argument to a macro attribute on top of a struct:</p>
 <pre><code>#[attr]
 <span class="kw">struct</span> Foo {}
 
@@ -166,7 +166,8 @@ on a type defined inside a <code>contract</code>.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns this type applied to the given generic arguments.</p>
-<p>Returns <code>Option::none()</code> if the number of generic arguments is wrong.</p>
+<p>Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if the number of generic arguments
+is wrong.</p>
 <p>Example:</p>
 <pre><code>#[check]
 <span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {

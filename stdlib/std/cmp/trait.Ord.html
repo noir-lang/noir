@@ -88,7 +88,7 @@ or greater-than the other object.</p>
 <code>bool</code> (<code>false &lt; true</code>), and arrays, vectors and tuples of <code>Ord</code> types, which compare their
 elements in order, lexicographically. Deriving it with <code>#[derive(Ord)]</code> compares the fields
 of a struct in the order they are declared.</p>
-<p><code>Field</code> doesn't implement <code>Ord</code>, because field elements have no ordering compatible with
+<p><a href="../../std/primitive.Field.html"><code>Field</code></a> doesn't implement <code>Ord</code>, because field elements have no ordering compatible with
 field arithmetic. To compare their integer values, use
 <a href="../../std/primitive.Field.html#lt"><code>Field::lt</code></a>.</p>
 <p>Example:</p>

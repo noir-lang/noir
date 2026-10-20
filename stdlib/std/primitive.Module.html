@@ -113,7 +113,7 @@
 <div id="page-content">
 <div class="comments">
 <p>A compile-time type which represents a module in this source program.</p>
-<p>A <code>Module</code> is passed as the first argument to a macro attribute on top of a module:</p>
+<p>A <a href="../std/primitive.Module.html"><code>Module</code></a> is passed as the first argument to a macro attribute on top of a module:</p>
 <pre><code>#[attr]
 <span class="kw">mod</span> foo {}
 
@@ -283,7 +283,7 @@ to report a diagnostic at the module.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the name of this module, without its path.</p>
-<p>A crate's root module has no name, so it returns an empty <code>Quoted</code>.</p>
+<p>A crate's root module has no name, so it returns an empty <a href="../std/primitive.Quoted.html"><code>Quoted</code></a>.</p>
 <p>Example:</p>
 <pre><code>#[check]
 <span class="kw">pub</span> <span class="kw">mod</span> shapes {
@@ -297,7 +297,7 @@ to report a diagnostic at the module.</p>
 </div><code id="parent" class="code-header">pub comptime fn <a href="#parent" class="fn">parent</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns the module this module is declared in, or <code>Option::none()</code> for a crate's root module.</p>
+<p>Returns the module this module is declared in, or <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> for a crate's root module.</p>
 <p>Example:</p>
 <pre><code>#[check]
 <span class="kw">pub</span> <span class="kw">mod</span> shapes {

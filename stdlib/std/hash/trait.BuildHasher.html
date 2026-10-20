@@ -70,8 +70,9 @@
 <div class="comments">
 <p>A factory for <a href="../../std/hash/trait.Hasher.html"><code>Hasher</code></a>s.</p>
 <p>Hash-based collections take a <code>BuildHasher</code> so that each one can create fresh hashers of a
-chosen type. <a href="../../std/hash/struct.BuildHasherDefault.html"><code>BuildHasherDefault</code></a> builds any hasher that implements <code>Default</code>; implement this
-trait directly when building a hasher needs some state, such as a starting value.</p>
+chosen type. <a href="../../std/hash/struct.BuildHasherDefault.html"><code>BuildHasherDefault</code></a> builds any hasher that implements
+<a href="../../std/default/trait.Default.html"><code>Default</code></a>; implement this trait directly when building a hasher needs
+some state, such as a starting value.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::hash::{BuildHasher, Hasher};
 

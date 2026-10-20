@@ -69,10 +69,11 @@
 hashed with hashers built by <code>B</code>, a <a href="../../../std/hash/trait.BuildHasher.html"><code>BuildHasher</code></a>. A weak hasher only makes lookups slower;
 it doesn't make results wrong.</p>
 <p>All methods are <code>unconstrained</code>, except the constructors <code>with_hasher</code>,
-<code>with_hasher_and_capacity</code> and <code>Default::default</code>. Calling them from constrained code needs an
-<code>unsafe</code> block, and their results are not constrained afterward: nothing proves, for example,
-that a value returned by <code>get</code> was inserted under that key. Check any result that constrained
-code relies on. Comparing two maps with <code>==</code> fails in constrained code.</p>
+<code>with_hasher_and_capacity</code> and <a href="../../../std/default/trait.Default.html#default"><code>Default::default</code></a>. Calling
+them from constrained code needs an <code>unsafe</code> block, and their results are not constrained
+afterward: nothing proves, for example, that a value returned by <code>get</code> was inserted under that
+key. Check any result that constrained code relies on. Comparing two maps with <code>==</code> fails in
+constrained code.</p>
 <p>The standard library has no public hasher, so this example defines a minimal one, <code>MyHasher</code>.
 The examples on this type's methods use it too. Real code should use a well-distributed hasher,
 such as <code>poseidon::poseidon2::Poseidon2Hasher</code> from the
