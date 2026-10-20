@@ -1748,6 +1748,13 @@ impl Elaborator<'_> {
             );
         };
 
+        // `Self` in an impl is the impl's own self type (`S<T>`), not the type its path names with
+        // fresh generics (`S<_>`).
+        let typ = match self.item.impl_context.self_type() {
+            Some(self_type) if is_self_prefix && turbofish.is_none() => self_type.clone(),
+            _ => typ,
+        };
+
         // Kept for the fallbacks below (the method-lookup branches consume `turbofish` and
         // `path_resolution`).
         let fallback_turbofish = turbofish.clone();
@@ -1798,7 +1805,15 @@ impl Elaborator<'_> {
         // the type (or, if the prefix was a broken type alias whose type is `Type::Error`, reported
         // there as an unresolved member). Failing that, it may be a method of an impl for all types
         // `T` (`impl<T> Foo for T`). The value's error is reported if it is none of these.
-        if let Some(resolution) = trait_resolution {
+        if let Some(mut resolution) = trait_resolution {
+            // A `Self::method` that resolves to a method of the impl's own self type binds that
+            // impl's generics to the enclosing impl's, like an inherent `Self::method`.
+            if is_self_prefix
+                && fallback_turbofish.is_none()
+                && let Some(PathResolutionItem::Method(_, None, func_id)) = resolution.item
+            {
+                resolution.item = Some(PathResolutionItem::SelfMethod(func_id));
+            }
             return self.variable_from_trait_resolution(location, resolution);
         }
         let value =
