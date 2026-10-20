@@ -790,7 +790,6 @@ fn i2549_well_typed_qualified_call_in_a_default_method_is_accepted() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2741
 #[test]
-#[ignore = "noir-claude#2741"]
 fn i2741_generic_impl_after_a_concrete_one_of_the_same_type_is_registered() {
     let src = r#"
     trait Other {}
