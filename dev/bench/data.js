@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792509336701,
+  "lastUpdate": 1792509621483,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22996,48 +22996,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "def58a0b803b0da73aa4553ffeee6228a4842108",
-          "message": "chore(brillig): share the vector push codegen between push_back and push_front (#13987)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-10-15T09:09:15Z",
-          "tree_id": "4566e9e8d801857e16f7742abbbb0b071fd48233",
-          "url": "https://github.com/noir-lang/noir/commit/def58a0b803b0da73aa4553ffeee6228a4842108"
-        },
-        "date": 1792056678107,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168268,
-            "range": "± 3109",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137064,
-            "range": "± 720",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652802,
-            "range": "± 2040",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25089,6 +25047,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645847,
             "range": "± 2373",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dc94d703c56767aa1ea1094325c2df597ad7b6e2",
+          "message": "fix(nargo): make `nargo doc --deny-warnings` fail on broken links, and use it on the stdlib in CI (#14067)",
+          "timestamp": "2026-10-20T14:53:58Z",
+          "tree_id": "036c9180c5803189e638b43863068c6d83cab374",
+          "url": "https://github.com/noir-lang/noir/commit/dc94d703c56767aa1ea1094325c2df597ad7b6e2"
+        },
+        "date": 1792509514785,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 178696,
+            "range": "± 525",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 148305,
+            "range": "± 2436",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2413345,
+            "range": "± 2798",
             "unit": "ns/iter"
           }
         ]
