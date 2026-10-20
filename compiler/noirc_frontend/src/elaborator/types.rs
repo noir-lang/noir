@@ -2779,6 +2779,16 @@ impl Elaborator<'_> {
                 if let TypeBinding::Bound(binding) = var.binding() {
                     return self.comparator_operand_type_rules(other, binding, op, location);
                 }
+                match self
+                    .unify_unknown_operand_with_known(var, other, lhs_type, rhs_type, location)
+                {
+                    Some(true) => {
+                        return self
+                            .comparator_operand_type_rules(lhs_type, rhs_type, op, location);
+                    }
+                    Some(false) => return Ok((Bool, false)),
+                    None => (),
+                }
 
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
                 Ok((Bool, use_impl))
@@ -2809,6 +2819,34 @@ impl Elaborator<'_> {
                 Ok((Bool, true))
             }
         }
+    }
+
+    /// Unifies the operands of a binary operator when `variable`, one of them, is unbound and the
+    /// other operand's type is known. The variable then has that type, so the caller checks the
+    /// operator against that type's own rules.
+    ///
+    /// Returns `None` if the other operand's type isn't known either. Otherwise returns whether
+    /// the variable got bound. If it didn't, the mismatch has already been reported here.
+    fn unify_unknown_operand_with_known(
+        &mut self,
+        variable: &crate::TypeVariable,
+        other: &Type,
+        lhs_type: &Type,
+        rhs_type: &Type,
+        location: Location,
+    ) -> Option<bool> {
+        if matches!(other.follow_bindings(), Type::TypeVariable(_)) {
+            return None;
+        }
+        self.unify(lhs_type, rhs_type, |elaborator| {
+            elaborator.new_type_mismatch_with_source_error(
+                rhs_type,
+                lhs_type,
+                Source::Binary,
+                location,
+            )
+        });
+        Some(!variable.binding().is_unbound())
     }
 
     /// Handles the `TypeVariable` case for checking binary operators.
@@ -2886,6 +2924,15 @@ impl Elaborator<'_> {
             (TypeVariable(int), other) | (other, TypeVariable(int)) => {
                 if let TypeBinding::Bound(binding) = int.binding() {
                     return self.infix_operand_type_rules(binding, op, other, location);
+                }
+                match self
+                    .unify_unknown_operand_with_known(int, other, lhs_type, rhs_type, location)
+                {
+                    Some(true) => {
+                        return self.infix_operand_type_rules(lhs_type, op, rhs_type, location);
+                    }
+                    Some(false) => return Ok((Error, false)),
+                    None => (),
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
                 Ok((other.clone(), use_impl))
