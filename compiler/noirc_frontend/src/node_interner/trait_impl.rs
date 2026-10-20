@@ -815,7 +815,28 @@ impl NodeInterner {
                 .positions(|(kind, ..)| matches!(kind, TraitImplKind::Assumed { .. }))
                 .collect();
 
-            if query_is_rigid && let [index] = real_impl_indexes[..] {
+            // A `where` clause naming the function's generics (`where u8: Tr<Out = T>`) is what
+            // the function was written against even for a rigid query, as in Rust: it decides
+            // the associated types to the function's generics. One naming none (`where u8: Tr`)
+            // only repeats what the real impl says.
+            let generic_assumed_indexes: Vec<usize> = assumed_impl_indexes
+                .iter()
+                .copied()
+                .filter(|index| {
+                    let TraitImplKind::Assumed { trait_generics, .. } = &matching_impls[*index].0
+                    else {
+                        return false;
+                    };
+                    trait_generics.named.iter().any(|named| mentions_generic_parameter(&named.typ))
+                })
+                .collect();
+
+            if query_is_rigid && let [index] = generic_assumed_indexes[..] {
+                let (impl_, fresh_bindings, instantiation_bindings, _) =
+                    matching_impls.swap_remove(index);
+                *type_bindings = fresh_bindings;
+                Ok((impl_, instantiation_bindings))
+            } else if query_is_rigid && let [index] = real_impl_indexes[..] {
                 let (impl_, fresh_bindings, instantiation_bindings, _) =
                     matching_impls.swap_remove(index);
                 *type_bindings = fresh_bindings;
@@ -1022,6 +1043,17 @@ impl NodeInterner {
 }
 
 /// Whether `typ` is an integer literal's still unknown type.
+/// Whether `typ` mentions a generic parameter (`T`, not an associated item like
+/// `<T as Foo>::Out`).
+fn mentions_generic_parameter(typ: &Type) -> bool {
+    let mut found = false;
+    typ.visit(&mut |typ| {
+        found |= matches!(typ, Type::NamedGeneric(generic) if !generic.is_associated());
+        !found
+    });
+    found
+}
+
 fn is_integer_type_variable(typ: &Type) -> bool {
     match typ.follow_bindings() {
         Type::TypeVariable(variable) => {
