@@ -1686,3 +1686,79 @@ fn type_path_selects_an_associated_constant_over_a_blanket_impl_method_of_the_sa
     }
     ");
 }
+
+#[test]
+fn type_path_call_of_a_blanket_impl_method_has_the_paths_type() {
+    let src = r#"
+    trait Bar {
+        fn check(x: Field) -> Self;
+    }
+    impl Bar for S {
+        fn check(x: Field) -> Self { S { x } }
+    }
+    impl Bar for u32 {
+        fn check(_x: Field) -> Self { 0 }
+    }
+    trait Guard {
+        fn guard(x: Field) -> Self;
+    }
+    impl<T: Bar> Guard for T {
+        fn guard(x: Field) -> Self { T::check(x) }
+    }
+    pub struct S { x: Field }
+
+    fn main(x: Field) {
+        let _: u32 = S::guard(x);
+                     ^^^^^^^^^^^ Expected type u32, found type S
+        let f = S::guard;
+        let _: u32 = f(x);
+                     ^^^^ Expected type u32, found type S
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_path_call_of_a_blanket_impl_method_runs_the_paths_types_impl() {
+    let src = r#"
+    trait Bar {
+        fn check(x: Field) -> Self;
+    }
+    impl Bar for S {
+        fn check(x: Field) -> Self {
+            assert(x == 0);
+            S { x }
+        }
+    }
+    impl Bar for u32 {
+        fn check(_x: Field) -> Self { 0 }
+    }
+    trait Guard {
+        fn guard(x: Field) -> Self;
+    }
+    impl<T: Bar> Guard for T {
+        fn guard(x: Field) -> Self { T::check(x) }
+    }
+    pub struct S { x: Field }
+
+    fn main(x: Field) -> pub Field {
+        S::guard(x).x
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: Field) -> pub Field {
+        guard$f1(x$l0).0
+    }
+    fn guard$f1(x$l1: Field) -> (Field,) {
+        check$f2(x$l1)
+    }
+    fn check$f2(x$l2: Field) -> (Field,) {
+        assert((x$l2 == 0));;
+        {
+            let x$l3 = x$l2;
+            (x$l3)
+        }
+    }
+    ");
+}

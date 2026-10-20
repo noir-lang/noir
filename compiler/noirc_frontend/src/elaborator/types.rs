@@ -3569,8 +3569,10 @@ impl Elaborator<'_> {
     /// select no other impl for `object_type`.
     ///
     /// A default body an impl inherits shares the trait's `FuncId`, whose `Self` the trait
-    /// constraint binds. A call another impl can serve goes through the trait constraint too,
-    /// which selects that impl or reports the ambiguity.
+    /// constraint binds. So does an impl for all types `T` (`impl<T> Foo for T`), whose self type
+    /// says nothing about `object_type`: bound directly, its `T` would be inferred from how the
+    /// result is used. A call another impl can serve goes through the trait constraint too, which
+    /// selects that impl or reports the ambiguity.
     fn directly_bound_impl_method(
         &self,
         object_type: &Type,
@@ -3582,7 +3584,8 @@ impl Elaborator<'_> {
             return None;
         }
         if let Some(impl_id) = meta.trait_impl
-            && self.interner.another_impl_applies(object_type, impl_id)
+            && (self.interner.is_impl_for_all_types(impl_id)
+                || self.interner.another_impl_applies(object_type, impl_id))
         {
             return None;
         }
