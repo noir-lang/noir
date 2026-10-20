@@ -86,6 +86,8 @@ pub enum WildcardAllowed {
 /// type resolution. The variant is used to produce a position-specific error message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImplTraitDisallowedContext {
+    /// Anywhere other than a whole function parameter or return type.
+    NestedType,
     StructField,
     EnumVariant,
     Global,
@@ -242,6 +244,7 @@ impl Elaborator<'_> {
     ) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
+        let impl_trait_is_return_type = std::mem::take(&mut self.item.impl_trait_is_return_type);
         let location = typ.location;
         let (named_path_location, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
@@ -289,6 +292,13 @@ impl Elaborator<'_> {
                     self.push_err(ResolverError::ImplTraitTypeDisallowed {
                         location: path.location,
                         context,
+                    });
+                    return Type::Error;
+                }
+                if !impl_trait_is_return_type {
+                    self.push_err(ResolverError::ImplTraitTypeDisallowed {
+                        location: path.location,
+                        context: ImplTraitDisallowedContext::NestedType,
                     });
                     return Type::Error;
                 }
