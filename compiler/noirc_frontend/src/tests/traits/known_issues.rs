@@ -1042,7 +1042,6 @@ fn i1935_trait_where_clause_naming_a_later_trait_is_accepted() {
 
 /// https://github.com/noir-lang/noir-claude/issues/1935
 #[test]
-#[ignore = "noir-claude#1935"]
 fn i1935_impl_of_a_trait_whose_where_clause_names_a_later_trait() {
     let src = r#"
     trait Sz<U> where U: N2 { fn base(self) -> Field; }
