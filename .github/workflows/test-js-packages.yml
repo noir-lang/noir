@@ -945,7 +945,7 @@ jobs:
       - name: nargo doc on stdlib
         working-directory: ./noir_stdlib
         run: |
-          nargo doc
+          nargo doc --deny-warnings
           rm -rf ./docs
           mv ./target/docs .
           if ! git diff --exit-code; then
