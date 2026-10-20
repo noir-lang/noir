@@ -118,7 +118,7 @@
 <span class="kw">mod</span> foo {}
 
 <span class="kw">comptime</span> <span class="kw">fn</span> attr(module: Module) {
-    println(module.name()); <span class="comment">// outputs "quote { foo }"</span>
+    <span class="kw">assert_eq</span>(module.name(), <span class="kw">quote</span> { foo });
 }</code></pre>
 <p>It can also be obtained using <a href="../std/primitive.Quoted.html#as_module"><code>Quoted::as_module</code></a>:</p>
 <pre><code><span class="kw">mod</span> foo {}
@@ -126,7 +126,7 @@
 <span class="kw">fn</span> main() {
     <span class="kw">comptime</span> {
         <span class="kw">let</span> module = <span class="kw">quote</span> { foo }.as_module().unwrap();
-        println(module.name()); <span class="comment">// outputs "quote { foo }"</span>
+        <span class="kw">assert_eq</span>(module.name(), <span class="kw">quote</span> { foo });
     }
 }</code></pre></div>
 <h2>Implementations</h2>

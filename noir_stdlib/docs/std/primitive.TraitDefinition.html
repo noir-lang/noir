@@ -107,10 +107,15 @@
 <p>A compile-time type which represents a trait definition such as <code>trait Foo { .. }</code>.</p>
 <p>A <a href="../std/primitive.TraitDefinition.html"><code>TraitDefinition</code></a> is passed as the first argument to a macro attribute on top of a trait:</p>
 <pre><code>#[attr]
-<span class="kw">trait</span> Foo {}
+<span class="kw">pub</span> <span class="kw">trait</span> Foo {}
+
+<span class="kw">pub</span> <span class="kw">struct</span> Bar {}
+
+<span class="kw">impl</span> Foo <span class="kw">for</span> Bar {}
 
 <span class="kw">comptime</span> <span class="kw">fn</span> attr(trait_definition: TraitDefinition) {
-    println(trait_definition); <span class="comment">// outputs "Foo"</span>
+    <span class="kw">let</span> constraint = trait_definition.as_trait_constraint();
+    <span class="kw">assert</span>(<span class="kw">quote</span> { Bar }.as_type().implements(constraint));
 }</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.TraitDefinition.html" class="primitive">TraitDefinition</a></code></h3>

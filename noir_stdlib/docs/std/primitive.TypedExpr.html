@@ -105,8 +105,8 @@
 <pre><code><span class="kw">fn</span> main() {
     <span class="kw">comptime</span> {
         <span class="kw">let</span> expr = <span class="kw">quote</span> { [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].len() }.as_expr().unwrap();
-        <span class="kw">let</span> typ = expr.resolve(Option::none());
-        println(typ.get_type().unwrap()); <span class="comment">// outputs "u32"</span>
+        <span class="kw">let</span> typed = expr.resolve(Option::none());
+        <span class="kw">assert_eq</span>(typed.get_type().unwrap(), <span class="kw">quote</span> { u32 }.as_type());
     }
 }</code></pre></div>
 <h2>Implementations</h2>
