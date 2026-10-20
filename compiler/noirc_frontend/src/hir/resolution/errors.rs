@@ -1059,6 +1059,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     crate::elaborator::types::ImplTraitDisallowedContext::StructField => {
                         "struct field types"
                     }
+                    crate::elaborator::types::ImplTraitDisallowedContext::NestedType => {
+                        "this position, only as a whole parameter or return type"
+                    }
                     crate::elaborator::types::ImplTraitDisallowedContext::EnumVariant => {
                         "enum variant types"
                     }
