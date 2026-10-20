@@ -69,6 +69,13 @@ struct LocalTraitConstraint {
 
     /// Where [`Elaborator::select_where_possible`] has got with this constraint.
     progress: Progress,
+
+    /// True for a where-clause bound of a referenced function that names no generic. Such a
+    /// bound is checked where it is declared (see
+    /// [`Elaborator::check_where_clauses_without_generics`]), which reports it if it fails, so a
+    /// failure here is not reported again. It is still solved here, for the associated types it
+    /// may bind.
+    checked_at_declaration: bool,
 }
 
 /// How far solving a queued constraint while its function is being checked has got. Whatever
@@ -150,11 +157,35 @@ impl Elaborator<'_> {
         expr: ExprId,
         select_impl: bool,
     ) {
+        let checked_at_declaration = false;
+        self.push_local_trait_constraint(constraint, expr, select_impl, checked_at_declaration);
+    }
+
+    /// [`Self::push_trait_constraint`] for a bound of the where clause of the function referenced
+    /// by `expr`, instantiated for that reference.
+    pub(super) fn push_where_clause_constraint(
+        &mut self,
+        constraint: TraitConstraint,
+        expr: ExprId,
+        checked_at_declaration: bool,
+    ) {
+        let select_impl = false;
+        self.push_local_trait_constraint(constraint, expr, select_impl, checked_at_declaration);
+    }
+
+    fn push_local_trait_constraint(
+        &mut self,
+        constraint: TraitConstraint,
+        expr: ExprId,
+        select_impl: bool,
+        checked_at_declaration: bool,
+    ) {
         self.get_function_context_mut().trait_constraints.push(LocalTraitConstraint {
             constraint,
             expr,
             select_impl,
             progress: Progress::New,
+            checked_at_declaration,
         });
     }
 
@@ -286,6 +317,7 @@ impl Elaborator<'_> {
                         self.select_impl(local.expr, impl_kind, instantiation_bindings);
                     }
                 }
+                Err(_) if local.checked_at_declaration => (),
                 Err(error) => {
                     let location = self.interner.expr_location(&local.expr);
                     self.push_trait_constraint_error(&local.constraint.typ, error, location);

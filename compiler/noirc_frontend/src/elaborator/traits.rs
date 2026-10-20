@@ -1841,7 +1841,7 @@ impl BoundSet {
 
 /// Whether [`Elaborator::check_where_clauses_without_generics`] can decide `constraint`: its object
 /// type and trait arguments name no generic or type variable, and nothing in it failed to resolve.
-fn is_checkable_bound(constraint: &TraitConstraint) -> bool {
+pub(super) fn is_checkable_bound(constraint: &TraitConstraint) -> bool {
     let generics = &constraint.trait_bound.trait_generics;
     let types = std::iter::once(&constraint.typ).chain(&generics.ordered);
     let named = generics.named.iter().map(|named| &named.typ);
