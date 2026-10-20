@@ -904,7 +904,6 @@ fn i2756_impl_where_clause_projecting_through_a_later_impl_matches_the_trait() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2735
 #[test]
-#[ignore = "noir-claude#2735"]
 fn i2735_impl_header_projecting_through_a_later_impl_is_resolved() {
     let src = r#"
     trait C { type T; }
@@ -923,7 +922,6 @@ fn i2735_impl_header_projecting_through_a_later_impl_is_resolved() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2735
 #[test]
-#[ignore = "noir-claude#2735"]
 fn i2735_impl_for_an_array_length_from_a_later_impl_is_resolved() {
     let src = r#"
     trait C { let N: u32; }
@@ -932,7 +930,7 @@ fn i2735_impl_for_an_array_length_from_a_later_impl_is_resolved() {
     struct S {}
     struct Z {}
     impl C for S { let N: u32 = <Z as D>::M; }
-    impl E for [u8; <S as C>::N] { fn get(self) -> u32 { self.len() } }
+    impl E for [u8; <S as C>::N] { fn get(self) -> u32 { <S as C>::N } }
     impl D for Z { let M: u32 = 4; }
     fn main() -> pub u32 { let a: [u8; 4] = [0; 4]; a.get() }
     "#;
