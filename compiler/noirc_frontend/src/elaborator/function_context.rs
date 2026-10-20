@@ -70,14 +70,22 @@ struct LocalTraitConstraint {
     /// Where [`Elaborator::select_where_possible`] has got with this constraint.
     progress: Progress,
 
-    /// True for a where-clause bound of a referenced function that names no generic
-    /// written in the source, not even in an associated-type argument (see
-    /// `is_decided_at_declaration`).
-    /// Such a bound is checked where it is declared (see
-    /// [`Elaborator::check_where_clauses_without_generics`]), which reports it if it fails, so a
-    /// failure here is not reported again. It is still solved here, for the associated types it
-    /// may bind.
+    /// True for a where-clause bound of a referenced function that
+    /// [`Elaborator::check_where_clauses_without_generics`] also checks where it is declared. A
+    /// failure here is held back until that check has run, and dropped if it reported the bound.
     checked_at_declaration: bool,
+}
+
+/// A failure of a where-clause bound where its function is used, waiting for the bound to be
+/// checked where it is declared. See
+/// [`ElaborationSession::where_clause_failures_pending_declaration_check`](super::session::ElaborationSession).
+pub(super) struct PendingWhereClauseFailure {
+    /// Where the bound is declared.
+    pub(super) bound: Location,
+    pub(super) object_type: Type,
+    pub(super) error: ImplSearchErrorKind,
+    /// Where the bound's function is used.
+    pub(super) location: Location,
 }
 
 /// How far solving a queued constraint while its function is being checked has got. Whatever
@@ -319,7 +327,15 @@ impl Elaborator<'_> {
                         self.select_impl(local.expr, impl_kind, instantiation_bindings);
                     }
                 }
-                Err(_) if local.checked_at_declaration => (),
+                Err(error) if local.checked_at_declaration => {
+                    let failure = PendingWhereClauseFailure {
+                        bound: local.constraint.trait_bound.location,
+                        object_type: local.constraint.typ,
+                        error,
+                        location: self.interner.expr_location(&local.expr),
+                    };
+                    self.session.where_clause_failures_pending_declaration_check.push(failure);
+                }
                 Err(error) => {
                     let location = self.interner.expr_location(&local.expr);
                     self.push_trait_constraint_error(&local.constraint.typ, error, location);

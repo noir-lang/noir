@@ -205,6 +205,9 @@ pub struct Elaborator<'context> {
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: &'context mut Deferred<GlobalId, UnresolvedGlobal>,
 
+    /// See [`CheckState::where_clause_bounds_failing_at_declaration`].
+    where_clause_bounds_failing_at_declaration: &'context mut std::collections::HashSet<Location>,
+
     /// State describing the item currently being elaborated. Swapped as a unit by
     /// [`Elaborator::with_item_context`] so that elaborating one item cannot disturb another's.
     item: ItemContext,
@@ -277,6 +280,9 @@ impl<'context> Elaborator<'context> {
         evaluation_tracker: Option<&'context mut EvaluationTracker>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         unresolved_globals: &'context mut Deferred<GlobalId, UnresolvedGlobal>,
+        where_clause_bounds_failing_at_declaration: &'context mut std::collections::HashSet<
+            Location,
+        >,
         crate_id: CrateId,
         options: ElaboratorOptions<'context>,
         session: ElaborationSession,
@@ -295,6 +301,7 @@ impl<'context> Elaborator<'context> {
             evaluation_tracker,
             required_unstable_features,
             unresolved_globals,
+            where_clause_bounds_failing_at_declaration,
             item: ItemContext::new(ModuleContext::in_module(initial_module)),
             crate_id,
             resolving_ids: BTreeSet::new(),
@@ -328,6 +335,7 @@ impl<'context> Elaborator<'context> {
             comptime_io.evaluation_tracker.as_mut(),
             &context.required_unstable_features,
             &mut state.unresolved_globals,
+            &mut state.where_clause_bounds_failing_at_declaration,
             crate_id,
             options,
             ElaborationSession::default(),

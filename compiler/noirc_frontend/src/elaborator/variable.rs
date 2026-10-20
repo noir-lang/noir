@@ -4,7 +4,7 @@
 use itertools::Itertools;
 
 use super::Elaborator;
-use super::traits::is_decided_at_declaration;
+use super::traits::is_checkable_bound;
 use crate::TypeAlias;
 use crate::ast::{Expression, ExpressionKind, GenericTypeArgs, Ident, Path, PathKind, TypePath};
 use crate::elaborator::TypedPath;
@@ -1384,7 +1384,7 @@ impl Elaborator<'_> {
         if let Some(function) = func_id {
             let function = self.function_meta(function);
             for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>() {
-                let checked_at_declaration = is_decided_at_declaration(&constraint);
+                let checked_at_declaration = is_checkable_bound(&constraint);
                 constraint.apply_instantiation_bindings(&bindings);
 
                 // This constraint shouldn't lead to choosing a trait impl method

@@ -22,7 +22,10 @@ use rustc_hash::FxHashSet as HashSet;
 
 use crate::hir::comptime::ComptimeScopes;
 
-use super::{ElaborateReason, Elaborator, deferred::DeferredItems};
+use super::{
+    ElaborateReason, Elaborator, deferred::DeferredItems,
+    function_context::PendingWhereClauseFailure,
+};
 
 /// State that spans every [`Elaborator`] taking part in one elaboration, including the fresh
 /// elaborators created to elaborate items on behalf of comptime code.
@@ -71,6 +74,12 @@ pub(crate) struct ElaborationSession {
     /// by every item that carries it (an impl's bound is copied into each of its methods) and
     /// again when each function body is elaborated, so this keeps the warning to one per bound.
     pub(super) reported_unneeded_trait_constraints: HashSet<Location>,
+
+    /// Failures, where a function is used, of where-clause bounds that
+    /// [`Elaborator::check_where_clauses_without_generics`] also checks where they are declared.
+    /// That check runs once the crate is elaborated, and each failure is reported then unless
+    /// the check reported its bound.
+    pub(super) where_clause_failures_pending_declaration_check: Vec<PendingWhereClauseFailure>,
 }
 
 impl Elaborator<'_> {

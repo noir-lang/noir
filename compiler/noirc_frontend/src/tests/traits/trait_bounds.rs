@@ -1936,6 +1936,22 @@ fn where_clause_bound_with_a_generic_only_in_an_associated_type_is_checked_where
 }
 
 #[test]
+fn where_clause_bound_passed_on_to_a_generic_helper_is_reported_where_the_function_is_used() {
+    let src = r#"
+    trait Foo { type Bar; fn make(x: Field) -> Self::Bar; }
+    impl Foo for u32 { type Bar = Field; fn make(x: Field) -> Field { x } }
+    fn id<T, C>(x: Field) -> C where T: Foo<Bar = C> { T::make(x) }
+    pub fn conv<B>(x: Field) -> B where u32: Foo<Bar = B> { id::<u32, B>(x) }
+    fn main(x: Field) -> pub u8 {
+        conv::<u8>(x)
+        ^^^^^^^^^^ No matching impl found for `u32: Foo<Bar = u8>`
+        ~~~~~~~~~~ No impl for `u32: Foo<Bar = u8>`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn false_where_clause_bound_with_a_concrete_associated_type_is_reported_only_at_the_bound() {
     let src = r#"
     trait Foo { type Bar; }

@@ -719,6 +719,21 @@ impl Elaborator<'_> {
         {
             self.check_where_clause_bound_without_generics(constraint);
         }
+
+        // A bound that holds where it is declared can still fail where its function is used:
+        // an associated type it sets to a generic is only fixed there, and only some errors are
+        // reported here. Such a failure is reported at the use.
+        let pending =
+            std::mem::take(&mut self.session.where_clause_failures_pending_declaration_check);
+        for failure in pending {
+            if !self.where_clause_bounds_failing_at_declaration.contains(&failure.bound) {
+                self.push_trait_constraint_error(
+                    &failure.object_type,
+                    failure.error,
+                    failure.location,
+                );
+            }
+        }
     }
 
     /// The where clauses of this crate's inherent impls, trait impls and traits, in declaration
@@ -789,6 +804,7 @@ impl Elaborator<'_> {
         let location = constraint.trait_bound.location;
         if let Some(error) = NoMatchingImplFoundError::new(self.interner, failing, location) {
             self.push_err(TypeCheckError::NoMatchingImplFound(error));
+            self.where_clause_bounds_failing_at_declaration.insert(location);
         }
     }
 
@@ -1847,30 +1863,6 @@ pub(super) fn is_checkable_bound(constraint: &TraitConstraint) -> bool {
     let named = generics.named.iter().map(|named| &named.typ);
     types.clone().all(|typ| !typ.contains_type_variable())
         && types.chain(named).all(|typ| !contains_error_type(typ))
-}
-
-/// Whether [`Elaborator::check_where_clauses_without_generics`] decides `constraint` exactly, so
-/// a failure of any instance of it has already been reported there: on top of
-/// [`is_checkable_bound`], its associated-type arguments name no explicit generic. The
-/// declaration-site check widens such an argument to a fresh type variable, so it says nothing
-/// about the type the generic is instantiated with where the function is used. The implicit
-/// generic standing for an associated type the bound leaves out does not count: the bound places
-/// no requirement on it, so it is equally free at both sites.
-pub(super) fn is_decided_at_declaration(constraint: &TraitConstraint) -> bool {
-    is_checkable_bound(constraint)
-        && constraint
-            .trait_bound
-            .trait_generics
-            .named
-            .iter()
-            .all(|named| !contains_explicit_named_generic(&named.typ))
-}
-
-/// Whether `typ` mentions an unbound [`Type::NamedGeneric`] that was written in the source.
-fn contains_explicit_named_generic(typ: &Type) -> bool {
-    let typ = typ.follow_bindings();
-    matches!(typ, Type::NamedGeneric(NamedGeneric { implicit: false, .. }))
-        || typ.any_child(contains_explicit_named_generic)
 }
 
 /// Whether `typ` mentions [`Type::Error`], for which an error has already been reported.

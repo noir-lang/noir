@@ -70,6 +70,12 @@ pub struct CheckState {
     /// Globals which are registered but not elaborated yet. Every elaborator of the run shares
     /// them, so that a global one of them elaborates is not elaborated again by another.
     pub(crate) unresolved_globals: Deferred<GlobalId, UnresolvedGlobal>,
+
+    /// Where-clause bounds that `Elaborator::check_where_clauses_without_generics` reported as
+    /// failing where they are declared, by location. A bound of a dependency's function is
+    /// checked while the dependency is elaborated, so this has to outlive that crate's
+    /// elaborator.
+    pub(crate) where_clause_bounds_failing_at_declaration: HashSet<Location>,
 }
 
 #[derive(Debug)]

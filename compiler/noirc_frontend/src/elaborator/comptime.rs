@@ -165,6 +165,7 @@ impl<'context> Elaborator<'context> {
             self.evaluation_tracker.as_deref_mut(),
             self.required_unstable_features,
             self.unresolved_globals,
+            self.where_clause_bounds_failing_at_declaration,
             self.crate_id,
             self.options,
             session,
