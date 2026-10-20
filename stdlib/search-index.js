@@ -45,7 +45,7 @@ window.searchIndex = [
   {"name":"LambdaExpression","path":"std::meta::expr","kind":"struct","url":"std/meta/expr/struct.LambdaExpression.html","desc":"A lambda expression decomposed by [`Expr::as_lambda`]."},
   {"name":"LambdaParameter","path":"std::meta::expr","kind":"struct","url":"std/meta/expr/struct.LambdaParameter.html","desc":"A parameter in a [`LambdaExpression`]."},
   {"name":"LetExpression","path":"std::meta::expr","kind":"struct","url":"std/meta/expr/struct.LetExpression.html","desc":"A let expression decomposed by [`Expr::as_let`]."},
-  {"name":"Location","path":"std","kind":"primitive","url":"std/primitive.Location.html","desc":""},
+  {"name":"Location","path":"std","kind":"primitive","url":"std/primitive.Location.html","desc":"A compile-time type which represents a source location in this program."},
   {"name":"MemberAccessExpression","path":"std::meta::expr","kind":"struct","url":"std/meta/expr/struct.MemberAccessExpression.html","desc":"A member access decomposed by [`Expr::as_member_access`]."},
   {"name":"MethodCallExpression","path":"std::meta::expr","kind":"struct","url":"std/meta/expr/struct.MethodCallExpression.html","desc":"A method call decomposed by [`Expr::as_method_call`]."},
   {"name":"Module","path":"std","kind":"primitive","url":"std/primitive.Module.html","desc":"A compile-time type which represents a module in this source program."},

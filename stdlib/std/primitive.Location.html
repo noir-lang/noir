@@ -98,6 +98,23 @@
 <input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
 <div id="search-results" hidden></div>
 <div id="page-content">
+<div class="comments">
+<p>A compile-time type which represents a source location in this program.</p>
+<p><code>FunctionDefinition</code>, <code>Module</code>, <code>TraitDefinition</code>, <code>TypeDefinition</code> and <code>TypedExpr</code> each have a
+<code>location</code> method. Pass the result to <a href="../std/meta/fn.error.html"><code>std::meta::error</code></a> or
+<a href="../std/meta/fn.warn.html"><code>std::meta::warn</code></a> to report a diagnostic at that item or expression.</p>
+<p>Two locations are equal when they refer to the same source span.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">let</span> location: Location = f.location();
+    <span class="kw">assert_eq</span>(location, f.location());
+    <span class="kw">assert</span>(location != f.module().location());
+}</code></pre></div>
 <h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-Location"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.Location.html" class="primitive">Location</a></code></h3>
 
