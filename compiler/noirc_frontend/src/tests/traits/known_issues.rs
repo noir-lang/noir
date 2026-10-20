@@ -166,7 +166,6 @@ const BOUND_AND_CHECKER: &str = r#"
 
 /// https://github.com/noir-lang/noir-claude/issues/1308: `Self` is `W<T>`, so `check` takes a `T`.
 #[test]
-#[ignore = "noir-claude#1308"]
 fn i1308_self_path_call_in_a_trait_impl_is_typed_by_the_impls_self() {
     let src = format!(
         "{BOUND_AND_CHECKER}
@@ -179,7 +178,6 @@ fn i1308_self_path_call_in_a_trait_impl_is_typed_by_the_impls_self() {
 
 /// https://github.com/noir-lang/noir-claude/issues/1308
 #[test]
-#[ignore = "noir-claude#1308"]
 fn i1308_self_path_call_in_an_inherent_impl_is_typed_by_the_impls_self() {
     let src = format!(
         "{BOUND_AND_CHECKER}
@@ -191,7 +189,6 @@ fn i1308_self_path_call_in_an_inherent_impl_is_typed_by_the_impls_self() {
 
 /// https://github.com/noir-lang/noir-claude/issues/1308
 #[test]
-#[ignore = "noir-claude#1308"]
 fn i1308_self_path_call_in_one_of_several_impls_uses_that_impl() {
     let src = r#"
     struct S<T> { x: T }
@@ -463,7 +460,6 @@ fn i2769_type_path_call_skips_an_inaccessible_inherent_method_for_a_trait_method
 
 /// https://github.com/noir-lang/noir-claude/issues/1999
 #[test]
-#[ignore = "noir-claude#1999"]
 fn i1999_self_path_call_of_an_inherent_method_uses_the_impls_self() {
     let src = r#"
     struct Foo<T> { x: T }
