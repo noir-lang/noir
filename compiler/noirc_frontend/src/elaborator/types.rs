@@ -2037,7 +2037,7 @@ impl Elaborator<'_> {
         }
 
         let (hir_method_reference, error) =
-            self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.location);
+            self.get_trait_method_in_scope(typ, &trait_methods, method_name, last_segment.location);
         let Some(hir_method_reference) = hir_method_reference else {
             // The method matches multiple traits (in scope, or none in scope), so there's no single
             // method to resolve to. Report the ambiguity here rather than deferring to module-based
@@ -3419,7 +3419,12 @@ impl Elaborator<'_> {
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
-            return self.return_trait_method_in_scope(&trait_methods, method_name, call_location);
+            return self.return_trait_method_in_scope(
+                object_type,
+                &trait_methods,
+                method_name,
+                call_location,
+            );
         }
 
         // If we couldn't find any trait methods, search in
@@ -3427,7 +3432,12 @@ impl Elaborator<'_> {
         let generic_methods =
             self.lookup_generic_methods(object_type, method_name, check_self_param);
         if !generic_methods.is_empty() {
-            return self.return_trait_method_in_scope(&generic_methods, method_name, call_location);
+            return self.return_trait_method_in_scope(
+                object_type,
+                &generic_methods,
+                method_name,
+                call_location,
+            );
         }
 
         // No trait method applies. Fall back to the inaccessible inherent method (if any) so the
@@ -3452,11 +3462,13 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn return_trait_method_in_scope(
         &mut self,
+        object_type: &Type,
         trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
     ) -> Option<HirMethodReference> {
-        let (method, error) = self.get_trait_method_in_scope(trait_methods, method_name, location);
+        let (method, error) =
+            self.get_trait_method_in_scope(object_type, trait_methods, method_name, location);
         if let Some(error) = error {
             self.push_err(error);
         }
@@ -3466,6 +3478,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn get_trait_method_in_scope(
         &mut self,
+        object_type: &Type,
         trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
@@ -3494,7 +3507,13 @@ impl Elaborator<'_> {
                 // This is the backwards-compatible case where there's a single trait but it's not in scope
                 let trait_id = *traits.iter().next().unwrap();
                 let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
-                let method = self.trait_hir_method_reference(trait_id, method_name, location);
+                let method = self.trait_hir_method_reference(
+                    object_type,
+                    trait_id,
+                    trait_methods,
+                    method_name,
+                    location,
+                );
                 let error = PathResolutionError::TraitMethodNotInScope {
                     ident: Ident::new(method_name.into(), location),
                     trait_name,
@@ -3525,17 +3544,31 @@ impl Elaborator<'_> {
         }
 
         let trait_id = traits_in_scope[0].0;
-        let method = self.trait_hir_method_reference(trait_id, method_name, location);
+        let method = self.trait_hir_method_reference(
+            object_type,
+            trait_id,
+            trait_methods,
+            method_name,
+            location,
+        );
         let error = None;
         (Some(method), error)
     }
 
     fn trait_hir_method_reference(
         &self,
+        object_type: &Type,
         trait_id: TraitId,
+        trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
     ) -> HirMethodReference {
+        if let Some(func_id) =
+            self.impl_method_selected_at_call(object_type, trait_id, trait_methods)
+        {
+            return HirMethodReference::FuncId(func_id);
+        }
+
         // The trait's generics at this call are unknowns that type checking solves.
         let trait_ = self.interner.get_trait(trait_id);
         let fresh = |generic: &crate::ResolvedGeneric| {
@@ -3554,6 +3587,42 @@ impl Elaborator<'_> {
             trait_id,
             trait_generics,
             assumed,
+        })
+    }
+
+    /// The method of the impl the impl search selects for `object_type` at this call, when it can
+    /// already decide: the call then refers to that impl's method directly. When it can't decide
+    /// yet (a type it depends on is still unknown, an enclosing `where` clause applies, or
+    /// several impls match), the call refers to the trait's method and a constraint decides the
+    /// impl once types are known.
+    fn impl_method_selected_at_call(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+        trait_methods: &[(FuncId, TraitId, Type)],
+    ) -> Option<FuncId> {
+        let trait_ = self.interner.get_trait(trait_id);
+        let fresh = |generic: &crate::ResolvedGeneric| {
+            self.interner.next_type_variable_with_kind(generic.kind().into_owned())
+        };
+        let ordered = vecmap(&trait_.generics, fresh);
+        let (impl_kind, _, _) = self
+            .interner
+            .try_lookup_trait_implementation(
+                object_type,
+                trait_id,
+                &ordered,
+                &[],
+                TraitLookupMode::Default,
+            )
+            .ok()?;
+        let (TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _)) = impl_kind
+        else {
+            return None;
+        };
+        trait_methods.iter().find_map(|(func_id, _, _)| {
+            let meta = self.interner.function_meta(func_id);
+            (meta.trait_id.is_none() && meta.trait_impl == Some(impl_id)).then_some(*func_id)
         })
     }
 
