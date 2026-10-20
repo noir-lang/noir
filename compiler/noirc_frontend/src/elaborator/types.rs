@@ -3451,27 +3451,19 @@ impl Elaborator<'_> {
             return Some(HirMethodReference::FuncId(method_id));
         }
 
-        // Next lookup all matching trait methods.
-        let trait_methods = self.lookup_trait_methods(object_type, method_name, check_self_param);
-
-        // If there's at least one matching trait method we need to see if only one is in scope.
+        // Next, the trait methods: those of the type's own impls and those of impls for all types
+        // `T` (`impl<T> Foo for T`) are candidates alike, so the traits in scope choose among them.
+        let mut trait_methods =
+            self.lookup_trait_methods(object_type, method_name, check_self_param);
+        trait_methods.extend(self.lookup_generic_methods(
+            object_type,
+            method_name,
+            check_self_param,
+        ));
         if !trait_methods.is_empty() {
             return self.return_trait_method_in_scope(
                 object_type,
                 &trait_methods,
-                method_name,
-                call_location,
-            );
-        }
-
-        // If we couldn't find any trait methods, search in
-        // impls for all types `T`, e.g. `impl<T> Foo for T`
-        let generic_methods =
-            self.lookup_generic_methods(object_type, method_name, check_self_param);
-        if !generic_methods.is_empty() {
-            return self.return_trait_method_in_scope(
-                object_type,
-                &generic_methods,
                 method_name,
                 call_location,
             );
