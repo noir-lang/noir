@@ -803,24 +803,32 @@ impl NodeInterner {
                     !generic.substitute(type_bindings).contains_unbound_type_variable()
                 });
 
-            let real_impl_indexes: Vec<usize> = matching_impls
+            // A `where` clause is what the function was written against, so a single one that
+            // matches decides the query, as in Rust. For a rigid query it only does when it
+            // names the function's generics (`where u8: Tr<Out = T>`); one naming none
+            // (`where u8: Tr`) only repeats what the single real impl says.
+            let decides = |kind: &TraitImplKind| match kind {
+                TraitImplKind::Assumed { trait_generics, .. } => {
+                    !query_is_rigid
+                        || trait_generics
+                            .named
+                            .iter()
+                            .any(|named| mentions_generic_parameter(&named.typ))
+                }
+                TraitImplKind::Normal(_) | TraitImplKind::Prepared(..) => false,
+            };
+            let deciding: Vec<usize> =
+                matching_impls.iter().positions(|(kind, ..)| decides(kind)).collect();
+            let real_impls: Vec<usize> = matching_impls
                 .iter()
-                .positions(|(kind, ..)| {
-                    matches!(kind, TraitImplKind::Normal(_) | TraitImplKind::Prepared(..))
-                })
+                .positions(|(kind, ..)| !matches!(kind, TraitImplKind::Assumed { .. }))
                 .collect();
-
-            let assumed_impl_indexes: Vec<usize> = matching_impls
-                .iter()
-                .positions(|(kind, ..)| matches!(kind, TraitImplKind::Assumed { .. }))
-                .collect();
-
-            if query_is_rigid && let [index] = real_impl_indexes[..] {
-                let (impl_, fresh_bindings, instantiation_bindings, _) =
-                    matching_impls.swap_remove(index);
-                *type_bindings = fresh_bindings;
-                Ok((impl_, instantiation_bindings))
-            } else if !query_is_rigid && let [index] = assumed_impl_indexes[..] {
+            let selected = match (&deciding[..], &real_impls[..]) {
+                ([index], _) => Some(*index),
+                ([], [index]) if query_is_rigid => Some(*index),
+                _ => None,
+            };
+            if let Some(index) = selected {
                 let (impl_, fresh_bindings, instantiation_bindings, _) =
                     matching_impls.swap_remove(index);
                 *type_bindings = fresh_bindings;
@@ -1022,6 +1030,17 @@ impl NodeInterner {
 }
 
 /// Whether `typ` is an integer literal's still unknown type.
+/// Whether `typ` mentions a generic parameter (`T`, not an associated item like
+/// `<T as Foo>::Out`).
+fn mentions_generic_parameter(typ: &Type) -> bool {
+    let mut found = false;
+    typ.visit(&mut |typ| {
+        found |= matches!(typ, Type::NamedGeneric(generic) if !generic.is_associated());
+        !found
+    });
+    found
+}
+
 fn is_integer_type_variable(typ: &Type) -> bool {
     match typ.follow_bindings() {
         Type::TypeVariable(variable) => {
