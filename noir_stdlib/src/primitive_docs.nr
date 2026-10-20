@@ -65,7 +65,7 @@ mod primitive_Field {}
 /// A a compile-time, dynamically-sized string type.
 ///
 /// Compared to [`str`]`<N>` and [`fmtstr`]`<N, T>`,
-/// `CtString` is useful because its size does not need to be specified in its type. This
+/// [`CtString`] is useful because its size does not need to be specified in its type. This
 /// can be used for formatting items at compile-time or general string handling in `comptime`
 /// code.
 ///
@@ -77,7 +77,7 @@ mod primitive_CtString {}
 
 /// A compile-time, quoted, syntactically valid expression.
 ///
-/// An `Expr` can be obtained using [`Quoted::as_expr`]:
+/// An [`Expr`] can be obtained using [`Quoted::as_expr`]:
 ///
 /// ```
 /// fn main() {
@@ -107,7 +107,7 @@ mod primitive_fmtstr {}
 
 /// A compile-time type which represents a function definition in this source program.
 ///
-/// A `FunctionDefinition` is passed as the first argument to a macro attribute on
+/// A [`FunctionDefinition`] is passed as the first argument to a macro attribute on
 /// top of a function:
 ///
 /// ```
@@ -123,7 +123,7 @@ mod primitive_FunctionDefinition {}
 
 /// A compile-time type which represents a module in this source program.
 ///
-/// A `Module` is passed as the first argument to a macro attribute on top of a module:
+/// A [`Module`] is passed as the first argument to a macro attribute on top of a module:
 ///
 /// ```
 /// #[attr]
@@ -171,9 +171,10 @@ mod primitive_str {}
 /// A compile-time type which represents a trait constraint that can be used to search for a trait implementation.
 ///
 /// This is similar syntactically to just the trait itself, but can also contain generic arguments.
-/// E.g. `Eq`, `Default`, `BuildHasher<Poseidon2Hasher>`.
+/// E.g. [`Eq`](crate::cmp::Eq), [`Default`](crate::default::Default),
+/// `BuildHasher<Poseidon2Hasher>`.
 ///
-/// A `TraitConstraint` can be obtained using [`Quoted::as_trait_constraint`]:
+/// A [`TraitConstraint`] can be obtained using [`Quoted::as_trait_constraint`]:
 ///
 /// ```
 /// fn main() {
@@ -188,7 +189,7 @@ mod primitive_TraitConstraint {}
 
 /// A compile-time type which represents a trait definition such as `trait Foo { .. }`.
 ///
-/// A `TraitDefinition` is passed as the first argument to a macro attribute on top of a trait:
+/// A [`TraitDefinition`] is passed as the first argument to a macro attribute on top of a trait:
 ///
 /// ```
 /// #[attr]
@@ -222,7 +223,7 @@ mod primitive_Type {}
 
 /// A compile-time type which represents a type definition such as `struct Foo { ... }`.
 ///
-/// A `TypeDefinition` is passed as the first argument to a macro attribute on top of a struct:
+/// A [`TypeDefinition`] is passed as the first argument to a macro attribute on top of a struct:
 ///
 /// ```
 /// #[attr]
@@ -237,7 +238,7 @@ mod primitive_TypeDefinition {}
 
 /// A compile-time type which represents a resolved and type-checked expression.
 ///
-/// A `TypedExpr` can be obtained using [`Expr::resolve`]:
+/// A [`TypedExpr`] can be obtained using [`Expr::resolve`]:
 ///
 /// ```
 /// fn main() {

@@ -129,7 +129,7 @@
 <div id="page-content">
 <div class="comments">
 <p>A compile-time, quoted, syntactically valid expression.</p>
-<p>An <code>Expr</code> can be obtained using <a href="../std/primitive.Quoted.html#as_expr"><code>Quoted::as_expr</code></a>:</p>
+<p>An <a href="../std/primitive.Expr.html"><code>Expr</code></a> can be obtained using <a href="../std/primitive.Quoted.html#as_expr"><code>Quoted::as_expr</code></a>:</p>
 <pre><code><span class="kw">fn</span> main() {
     <span class="kw">comptime</span> {
         <span class="kw">let</span> expr = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> }.as_expr().unwrap();
@@ -166,7 +166,7 @@
 <div class="padded-description"><div class="comments">
 <p>Decomposes an <code>assert_eq(lhs, rhs, message)</code> expression.</p>
 <p>Returns the left- and right-hand sides and the optional message.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert_eq</span>(x, y) }.as_expr().unwrap().as_assert_eq().unwrap();
@@ -189,7 +189,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 <div class="padded-description"><div class="comments">
 <p>Decomposes a binary operation <code>&lt;lhs&gt; &lt;op&gt; &lt;rhs&gt;</code>.</p>
 <p>Returns the left-hand side, the operator and the right-hand side.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> op = <span class="kw">quote</span> { x &lt; y }.as_expr().unwrap().as_binary_op().unwrap();
@@ -201,7 +201,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns each statement of a block <code>{ stmt1; stmt2; ...; stmtN }</code>.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> statements = <span class="kw">quote</span> { { foo(); bar() } }.as_expr().unwrap().as_block().unwrap();
@@ -221,7 +221,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes a cast <code>expr as type</code> into the expression and the type it is cast to.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> cast = <span class="kw">quote</span> { x <span class="kw">as</span> u8 }.as_expr().unwrap().as_cast().unwrap();
@@ -231,7 +231,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns each statement of a <code>comptime { stmt1; stmt2; ...; stmtN }</code> block.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> statements = <span class="kw">quote</span> { <span class="kw">comptime</span> { foo(); bar() } }.as_expr().unwrap().as_comptime().unwrap();
@@ -244,7 +244,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 <div class="padded-description"><div class="comments">
 <p>Decomposes a constructor <code>Type { field1: expr1, ..., fieldN: exprN }</code>.</p>
 <p>Returns the type and the fields.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> constructor = <span class="kw">quote</span> { Point { x: <span class="number">1</span>, y: <span class="number">2</span> } }.as_expr().unwrap().as_constructor().unwrap();
@@ -256,7 +256,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 <p>Decomposes a <code>for</code> loop over an expression such as an array.</p>
 <p>Returns the loop variable, the iterable and the body. A loop over a range is decomposed by
 <a href="../std/primitive.Expr.html#as_for_range"><code>Expr::as_for_range</code></a>.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> x <span class="kw">in</span> array {} }.as_expr().unwrap().as_for().unwrap();
@@ -270,7 +270,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 <div class="padded-description"><div class="comments">
 <p>Decomposes a <code>for</code> loop over a range.</p>
 <p>Returns the loop variable, the range start and end, whether the range is inclusive, and the body.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..<span class="number">3</span> {} }.as_expr().unwrap().as_for_range().unwrap();
@@ -280,7 +280,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes a function call <code>foo(arg1, ..., argN)</code> into the function and its arguments.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> call = <span class="kw">quote</span> { foo(<span class="number">42</span>) }.as_expr().unwrap().as_function_call().unwrap();
@@ -293,9 +293,9 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes an <code>if condition { then_branch } else { else_branch }</code> expression.</p>
-<p>Returns the condition, the then branch and the else branch, which is <code>Option::none()</code> when there
-is no <code>else</code>.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+<p>Returns the condition, the then branch and the else branch, which is
+<a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> when there is no <code>else</code>. Returns
+<code>Option::none()</code> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> if_expr = <span class="kw">quote</span> { <span class="kw">if</span> c { a } }.as_expr().unwrap().as_if().unwrap();
@@ -306,7 +306,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes an index <code>collection[index]</code> into the collection and the index.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> index = <span class="kw">quote</span> { array[<span class="number">0</span>] }.as_expr().unwrap().as_index().unwrap();
@@ -316,7 +316,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the value of an integer literal.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Negative integers are encoded as the equivalent negative field value, so <code>-1i8</code> has a value of
 <code>-1</code> rather than the two's complement encoding <code>255</code>.</p>
 <p>Example:</p>
@@ -339,7 +339,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 <div class="padded-description"><div class="comments">
 <p>Decomposes a <code>let</code> statement.</p>
 <p>Returns the pattern as an <code>Expr</code>, the optional type annotation and the assigned expression.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> let_expr = <span class="kw">quote</span> { <span class="kw">let</span> x = <span class="number">1</span>; }.as_expr().unwrap().as_let().unwrap();
@@ -349,8 +349,8 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes a member access <code>foo.bar</code>.</p>
-<p>Returns the struct or tuple expression and the member name as a <code>Quoted</code> value.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+<p>Returns the struct or tuple expression and the member name as a <a href="../std/primitive.Quoted.html"><code>Quoted</code></a> value.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> access = <span class="kw">quote</span> { point.x }.as_expr().unwrap().as_member_access().unwrap();
@@ -361,7 +361,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 <div class="padded-description"><div class="comments">
 <p>Decomposes a method call <code>foo.bar::&lt;generic1, ..., genericM&gt;(arg1, ..., argN)</code>.</p>
 <p>Returns the receiver, the method name, the generic arguments and the arguments.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> call = <span class="kw">quote</span> { foo.bar(<span class="number">1</span>) }.as_expr().unwrap().as_method_call().unwrap();
@@ -373,7 +373,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes a repeated-element array <code>[elem; length]</code> into the element and the length.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> array = <span class="kw">quote</span> { [<span class="number">0</span>; <span class="number">4</span>] }.as_expr().unwrap().as_repeated_element_array().unwrap();
@@ -387,7 +387,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes a repeated-element vector <code>@[elem; length]</code> into the element and the length.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> vector = <span class="kw">quote</span> { @[<span class="number">0</span>; <span class="number">4</span>] }.as_expr().unwrap().as_repeated_element_vector().unwrap();
@@ -399,7 +399,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns each element of a vector literal <code>@[elem1, ..., elemN]</code>.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> elements = <span class="kw">quote</span> { @[<span class="number">1</span>, <span class="number">2</span>] }.as_expr().unwrap().as_vector().unwrap();
@@ -411,7 +411,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns each element of a tuple <code>(field1, ..., fieldN)</code>.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> elements = <span class="kw">quote</span> { (x, <span class="number">1</span>) }.as_expr().unwrap().as_tuple().unwrap();
@@ -422,7 +422,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes a unary operation <code>&lt;op&gt; &lt;rhs&gt;</code> into the operator and the right-hand side.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>An immutable reference <code>&amp;x</code> isn't exposed to comptime code, so it also returns
 <code>Option::none()</code>.</p>
 <p>Example:</p>
@@ -436,7 +436,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns each statement of an <code>unsafe { stmt1; ...; stmtN }</code> block.
-Returns <code>Option::none()</code> if this expression is anything else.</p>
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> block = <span class="kw">quote</span> { <span class="comment">/* Safety: example */</span> <span class="kw">unsafe</span> { foo() } }.as_expr().unwrap();
@@ -479,7 +479,7 @@ Returns <code>Option::none()</code> if this expression is anything else.</p>
 </div><code id="quoted" class="code-header">pub comptime fn <a href="#quoted" class="fn">quoted</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns this expression as a <code>Quoted</code> value. It's the same as <code>quote { $self }</code>.</p>
+<p>Returns this expression as a <a href="../std/primitive.Quoted.html"><code>Quoted</code></a> value. It's the same as <code>quote { $self }</code>.</p>
 <p>Two <code>Quoted</code> values are equal when they print the same. An expression prints with its own
 parentheses, so <code>x + y</code> re-quoted through this method equals <code>quote { (x + y) }</code>, not
 <code>quote { x + y }</code>.</p>
@@ -494,7 +494,7 @@ parentheses, so <code>x + y</code> re-quoted through this method equals <code>qu
 </div><code id="resolve" class="code-header">pub comptime fn <a href="#resolve" class="fn">resolve</a>(self, in_function: <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>&gt;) -> <a href="../std/primitive.TypedExpr.html" class="primitive">TypedExpr</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Resolves and type-checks this expression and returns the result as a <code>TypedExpr</code>.</p>
+<p>Resolves and type-checks this expression and returns the result as a <a href="../std/primitive.TypedExpr.html"><code>TypedExpr</code></a>.</p>
 <p>The <code>in_function</code> argument specifies where the expression is resolved:</p>
 <ul>
 <li>If it's <code>none</code>, the expression is resolved in the function where <code>resolve</code> was called</li>

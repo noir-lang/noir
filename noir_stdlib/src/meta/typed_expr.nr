@@ -1,8 +1,9 @@
-//! Contains methods on the built-in `TypedExpr` type for resolved and type-checked expressions.
+//! Contains methods on the built-in [`TypedExpr`] type for resolved and type-checked expressions.
 use crate::option::Option;
 
 impl TypedExpr {
-    /// If this expression refers to a function definitions, returns it. Otherwise returns `Option::none()`.
+    /// If this expression refers to a function definitions, returns it.
+    /// Otherwise returns [`Option::none()`](crate::option::Option::none).
     ///
     /// Example:
     ///
@@ -45,7 +46,7 @@ impl TypedExpr {
 
     /// Returns the source location of this expression.
     ///
-    /// An `Expr` doesn't keep the location of the tokens it was parsed from, so for a `TypedExpr`
+    /// An [`Expr`] doesn't keep the location of the tokens it was parsed from, so for a `TypedExpr`
     /// returned by [`Expr::resolve`] this is the location of the receiver of that call: `expr` in
     /// `expr.resolve(...)`. See <https://github.com/noir-lang/noir/issues/14043>.
     ///

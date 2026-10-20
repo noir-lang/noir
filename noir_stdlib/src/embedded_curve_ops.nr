@@ -2,8 +2,7 @@ use crate::cmp::Eq;
 use crate::hash::Hash;
 use crate::ops::arith::{Add, Neg, Sub};
 
-/// A point on the embedded elliptic curve
-/// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
+/// A point on the embedded elliptic curve By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir [`Field`].
 /// x and y denotes the Weierstrass coordinates of the point.
 ///
 /// For BN254 the embedded curve is Grumpkin, `y^2 = x^3 - 17`. The point at infinity is
@@ -158,9 +157,9 @@ impl Hash for EmbeddedCurvePoint {
     }
 }
 
-/// Scalar for the embedded curve represented as low and high limbs
-/// By definition, the scalar field of the embedded curve is base field of the proving system curve.
-/// It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.
+/// Scalar for the embedded curve represented as low and high limbs By definition, the scalar field of the embedded curve is base field of the proving system curve.
+/// It may not fit into a [`Field`] element, so it is represented with two `Field` elements; its low
+/// and high limbs.
 ///
 /// The scalar's value is `lo + hi * 2^128`. Each limb must be less than `2^128`, and the value must
 /// be less than the embedded curve's order; [`multi_scalar_mul`] fails at execution otherwise.
@@ -201,7 +200,7 @@ impl EmbeddedCurveScalar {
     ///
     /// The value is split into its low and high 128 bits. The split is fully constrained: both
     /// limbs are range checked, and they are checked to be the canonical decomposition of `scalar`.
-    /// Every `Field` is a valid scalar, because the BN254 scalar field is smaller than the
+    /// Every [`Field`] is a valid scalar, because the BN254 scalar field is smaller than the
     /// Grumpkin scalar field.
     ///
     /// Only available when compiling for the BN254 field.

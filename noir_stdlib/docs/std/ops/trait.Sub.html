@@ -74,10 +74,10 @@
 
 <div class="comments">
 <p>The binary <code>-</code> operator.</p>
-<p>Implemented for <code>Field</code> and the integer types. <code>Field</code> subtraction is modulo the field's prime,
-so <code>0 - 1</code> is the largest field element. Integer subtraction fails if the result doesn't fit in
-the type, for example when an unsigned subtraction would go below zero; use <a href="../../std/ops/trait.WrappingSub.html"><code>WrappingSub</code></a> to wrap
-around instead.</p>
+<p>Implemented for <a href="../../std/primitive.Field.html"><code>Field</code></a> and the integer types. <code>Field</code> subtraction is modulo the field's
+prime, so <code>0 - 1</code> is the largest field element. Integer subtraction fails if the result doesn't
+fit in the type, for example when an unsigned subtraction would go below zero; use
+<a href="../../std/ops/trait.WrappingSub.html"><code>WrappingSub</code></a> to wrap around instead.</p>
 <p>Example:</p>
 <pre><code><span class="kw">assert_eq</span>(<span class="number">5_u8</span> - <span class="number">3</span>, <span class="number">2</span>);
 

@@ -71,10 +71,11 @@
 <p>Represents a value of type T or its absence.
 Use <code>Option::some(value)</code> to construct a value or <code>Option::none()</code> to record the absence of one.</p>
 <p><code>Option</code> is in the prelude. A <code>None</code> still holds a value of type <code>T</code> internally, and only
-<a href="../../std/option/struct.Option.html#unwrap_unchecked"><code>Option::unwrap_unchecked</code></a> exposes it. <code>Option::none()</code> sets it to the zeroed value of <code>T</code>, but
-nothing constrains it in general: an <code>Option</code> returned by unconstrained code or passed in as a
-program input can hold any value in a <code>None</code>. <code>Option</code> implements <code>Eq</code>,
-<code>Ord</code> (with <code>None</code> less than any <code>Some</code>), <code>Hash</code> and <code>Default</code> (returning <code>None</code>).</p>
+<a href="../../std/option/struct.Option.html#unwrap_unchecked"><code>Option::unwrap_unchecked</code></a> exposes it. <code>Option::none()</code> sets it to the zeroed value of <code>T</code>,
+but nothing constrains it in general: an <code>Option</code> returned by unconstrained code or passed in as
+a program input can hold any value in a <code>None</code>. <code>Option</code> implements <a href="../../std/cmp/trait.Eq.html"><code>Eq</code></a>,
+<a href="../../std/cmp/trait.Ord.html"><code>Ord</code></a> (with <code>None</code> less than any <code>Some</code>), <a href="../../std/hash/trait.Hash.html"><code>Hash</code></a> and
+<a href="../../std/default/trait.Default.html"><code>Default</code></a> (returning <code>None</code>).</p>
 <p>Example:</p>
 <pre><code><span class="kw">fn</span> find_even(values: [u32; <span class="number">3</span>]) -&gt; Option&lt;u32&gt; {
     <span class="kw">let</span> <span class="kw">mut</span> result = Option::none();

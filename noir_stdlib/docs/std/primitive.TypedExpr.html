@@ -101,7 +101,7 @@
 <div id="page-content">
 <div class="comments">
 <p>A compile-time type which represents a resolved and type-checked expression.</p>
-<p>A <code>TypedExpr</code> can be obtained using <a href="../std/primitive.Expr.html#resolve"><code>Expr::resolve</code></a>:</p>
+<p>A <a href="../std/primitive.TypedExpr.html"><code>TypedExpr</code></a> can be obtained using <a href="../std/primitive.Expr.html#resolve"><code>Expr::resolve</code></a>:</p>
 <pre><code><span class="kw">fn</span> main() {
     <span class="kw">comptime</span> {
         <span class="kw">let</span> expr = <span class="kw">quote</span> { [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].len() }.as_expr().unwrap();
@@ -115,7 +115,8 @@
 <div class="padded-methods"><code id="as_function_definition" class="code-header">pub comptime fn <a href="#as_function_definition" class="fn">as_function_definition</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression refers to a function definitions, returns it. Otherwise returns <code>Option::none()</code>.</p>
+<p>If this expression refers to a function definitions, returns it.
+Otherwise returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">fn</span> double(x: u32) -&gt; u32 {
     x * <span class="number">2</span>
@@ -145,7 +146,7 @@
 
 <div class="padded-description"><div class="comments">
 <p>Returns the source location of this expression.</p>
-<p>An <code>Expr</code> doesn't keep the location of the tokens it was parsed from, so for a <code>TypedExpr</code>
+<p>An <a href="../std/primitive.Expr.html"><code>Expr</code></a> doesn't keep the location of the tokens it was parsed from, so for a <code>TypedExpr</code>
 returned by <a href="../std/primitive.Expr.html#resolve"><code>Expr::resolve</code></a> this is the location of the receiver of that call: <code>expr</code> in
 <code>expr.resolve(...)</code>. See <a href="https://github.com/noir-lang/noir/issues/14043">https://github.com/noir-lang/noir/issues/14043</a>.</p>
 <p>Pass it to <a href="../std/meta/fn.error.html"><code>std::meta::error</code></a> or <a href="../std/meta/fn.warn.html"><code>std::meta::warn</code></a>

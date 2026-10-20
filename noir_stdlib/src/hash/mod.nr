@@ -358,7 +358,7 @@ comptime fn poseidon2_config_state_size() -> u32 {}
 ///
 /// `hash` writes the value to the hasher as a sequence of `Field`s. Two values that are equal
 /// must write the same sequence. The implementations in the standard library write integers and
-/// `bool`s as a single `Field`, arrays and tuples as their elements in order, and vectors as
+/// `bool`s as a single [`Field`], arrays and tuples as their elements in order, and vectors as
 /// their length followed by their elements.
 ///
 /// The trait can be derived with `#[derive(Hash)]`, which hashes each field of a struct in order.
@@ -446,7 +446,7 @@ comptime fn derive_hash(s: TypeDefinition) -> Quoted {
 // docs:end:derive_hash
 
 // TODO: consider making the types generic here ([u8], [Field], etc.)
-/// A hash function that accepts input one `Field` at a time.
+/// A hash function that accepts input one [`Field`] at a time.
 ///
 /// Values that implement [`Hash`] write themselves to a `Hasher` with [`Hasher::write`], and
 /// [`Hasher::finish`] returns the hash of everything written. Hashers are used by hash-based
@@ -580,8 +580,9 @@ pub trait Hasher {
 /// A factory for [`Hasher`]s.
 ///
 /// Hash-based collections take a `BuildHasher` so that each one can create fresh hashers of a
-/// chosen type. [`BuildHasherDefault`] builds any hasher that implements `Default`; implement this
-/// trait directly when building a hasher needs some state, such as a starting value.
+/// chosen type. [`BuildHasherDefault`] builds any hasher that implements
+/// [`Default`](crate::default::Default); implement this trait directly when building a hasher needs
+/// some state, such as a starting value.
 ///
 /// Example:
 ///

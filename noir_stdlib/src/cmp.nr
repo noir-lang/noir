@@ -3,7 +3,7 @@ use crate::meta::derive_via;
 
 /// Compare two values for equality
 ///
-/// `Eq` provides the `==` and `!=` operators. It is implemented for `Field`, the integer types,
+/// `Eq` provides the `==` and `!=` operators. It is implemented for [`Field`], the integer types,
 /// `bool`, `str`, arrays, vectors and tuples of `Eq` types, and can be derived with
 /// `#[derive(Eq)]`, which compares every field of a struct.
 ///
@@ -306,7 +306,7 @@ impl Ordering {
 /// elements in order, lexicographically. Deriving it with `#[derive(Ord)]` compares the fields
 /// of a struct in the order they are declared.
 ///
-/// `Field` doesn't implement `Ord`, because field elements have no ordering compatible with
+/// [`Field`] doesn't implement `Ord`, because field elements have no ordering compatible with
 /// field arithmetic. To compare their integer values, use
 /// [`Field::lt`].
 ///

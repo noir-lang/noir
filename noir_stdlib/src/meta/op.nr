@@ -113,7 +113,7 @@ impl UnaryOp {
         self.op == 3
     }
 
-    /// Returns this operator as a `Quoted` value, to splice into generated code.
+    /// Returns this operator as a [`Quoted`] value, to splice into generated code.
     ///
     /// Example:
     ///
@@ -483,7 +483,7 @@ impl BinaryOp {
         self.op == 15
     }
 
-    /// Returns this operator as a `Quoted` value, to splice into generated code.
+    /// Returns this operator as a [`Quoted`] value, to splice into generated code.
     ///
     /// Example:
     ///

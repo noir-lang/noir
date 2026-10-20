@@ -244,10 +244,10 @@ the array, then the second, and so on. For a given call the expected result woul
 
 <div class="padded-description"><div class="comments">
 <p>Returns a new array sorted in ascending order. The original array remains untouched.</p>
-<p>It works for any element type that implements <code>Ord</code>, using <code>&lt;=</code>. The type must also implement
-<code>Eq</code>, because the result is checked against the input in the same way as <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a>'s.
-<code>Field</code> doesn't implement <code>Ord</code>, so to sort fields, or to sort by another order, use
-<code>sort_via</code>.</p>
+<p>It works for any element type that implements <a href="../std/cmp/trait.Ord.html"><code>Ord</code></a>, using <code>&lt;=</code>. The type
+must also implement <a href="../std/cmp/trait.Eq.html"><code>Eq</code></a>, because the result is checked against the input
+in the same way as <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a>'s. <a href="../std/primitive.Field.html"><code>Field</code></a> doesn't implement <code>Ord</code>, so to sort
+fields, or to sort by another order, use <code>sort_via</code>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> arr = [<span class="number">42_u32</span>, <span class="number">32</span>];
 <span class="kw">let</span> sorted = arr.sort();

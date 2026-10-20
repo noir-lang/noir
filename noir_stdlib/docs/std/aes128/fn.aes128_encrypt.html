@@ -46,14 +46,14 @@
 function only encrypts: it does not authenticate the ciphertext, and the caller is responsible
 for choosing a fresh, unpredictable <code>iv</code> for each encryption with the same <code>key</code>.</p>
 <p>Example:</p>
-<pre><code><span class="kw">let</span> input = <span class="string">"kevlovesrust"</span>.as_bytes();
+<pre><code><span class="kw">let</span> input = <span class="string">"hello, world"</span>.as_bytes();
 <span class="kw">let</span> iv = <span class="string">"0000000000000000"</span>.as_bytes();
 <span class="kw">let</span> key = <span class="string">"0000000000000000"</span>.as_bytes();
 
 <span class="kw">let</span> ciphertext = std::aes128::aes128_encrypt(input, iv, key);
 <span class="kw">assert_eq</span>(
     ciphertext,
-    [<span class="number">244</span>, <span class="number">14</span>, <span class="number">126</span>, <span class="number">172</span>, <span class="number">171</span>, <span class="number">40</span>, <span class="number">208</span>, <span class="number">186</span>, <span class="number">173</span>, <span class="number">184</span>, <span class="number">226</span>, <span class="number">105</span>, <span class="number">238</span>, <span class="number">122</span>, <span class="number">205</span>, <span class="number">191</span>],
+    [<span class="number">111</span>, <span class="number">184</span>, <span class="number">119</span>, <span class="number">247</span>, <span class="number">120</span>, <span class="number">133</span>, <span class="number">199</span>, <span class="number">176</span>, <span class="number">39</span>, <span class="number">84</span>, <span class="number">23</span>, <span class="number">18</span>, <span class="number">180</span>, <span class="number">106</span>, <span class="number">198</span>, <span class="number">111</span>],
 );</code></pre></div>
 </div>
 </main>

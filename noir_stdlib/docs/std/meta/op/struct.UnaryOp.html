@@ -116,7 +116,7 @@ It is returned by <a href="../../../std/meta/expr/struct.UnaryOpExpression.html#
 </div><code id="quoted" class="code-header">pub comptime fn <a href="#quoted" class="fn">quoted</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns this operator as a <code>Quoted</code> value, to splice into generated code.</p>
+<p>Returns this operator as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> value, to splice into generated code.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> op = <span class="kw">quote</span> { !x }.as_expr().unwrap().as_unary_op().unwrap().operator().quoted();
