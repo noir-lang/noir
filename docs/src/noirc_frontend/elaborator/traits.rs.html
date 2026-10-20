@@ -1841,7 +1841,7 @@
 <a href=#1841 id=1841 data-nosnippet>1841</a>
 <a href=#1842 id=1842 data-nosnippet>1842</a><span class="doccomment">/// Whether [`Elaborator::check_where_clauses_without_generics`] can decide `constraint`: its object
 <a href=#1843 id=1843 data-nosnippet>1843</a>/// type and trait arguments name no generic or type variable, and nothing in it failed to resolve.
-<a href=#1844 id=1844 data-nosnippet>1844</a></span><span class="kw">fn </span>is_checkable_bound(constraint: <span class="kw-2">&amp;</span>TraitConstraint) -&gt; bool {
+<a href=#1844 id=1844 data-nosnippet>1844</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>is_checkable_bound(constraint: <span class="kw-2">&amp;</span>TraitConstraint) -&gt; bool {
 <a href=#1845 id=1845 data-nosnippet>1845</a>    <span class="kw">let </span>generics = <span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics;
 <a href=#1846 id=1846 data-nosnippet>1846</a>    <span class="kw">let </span>types = std::iter::once(<span class="kw-2">&amp;</span>constraint.typ).chain(<span class="kw-2">&amp;</span>generics.ordered);
 <a href=#1847 id=1847 data-nosnippet>1847</a>    <span class="kw">let </span>named = generics.named.iter().map(|named| <span class="kw-2">&amp;</span>named.typ);
