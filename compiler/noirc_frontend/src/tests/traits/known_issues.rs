@@ -1110,7 +1110,6 @@ fn i1918_generic_functions_returning_impl_trait_have_their_concrete_types_at_the
 
 /// https://github.com/noir-lang/noir-claude/issues/1904
 #[test]
-#[ignore = "noir-claude#1904"]
 fn i1904_impl_trait_nested_in_a_return_type_is_rejected() {
     let src = r#"
     trait Foo { fn f(self) -> Field; }
@@ -1119,6 +1118,29 @@ fn i1904_impl_trait_nested_in_a_return_type_is_rejected() {
     fn main(x: Field) -> pub Field { let _a = mk(); x }
     "#;
     assert_rejected(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/1904
+#[test]
+fn i1904_impl_trait_nested_in_a_parameter_type_is_rejected() {
+    let src = r#"
+    trait Foo { fn f(self) -> Field; }
+    impl Foo for Field { fn f(self) -> Field { self } }
+    fn take(a: (impl Foo, Field)) -> Field { a.1 }
+    fn main(x: Field) -> pub Field { take((x, x)) }
+    "#;
+    assert_rejected_with(src, "`impl Trait` is not allowed");
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/1904
+#[test]
+fn i1904_impl_trait_in_a_let_annotation_is_rejected() {
+    let src = r#"
+    trait Foo { fn f(self) -> Field; }
+    impl Foo for Field { fn f(self) -> Field { self } }
+    fn main(x: Field) -> pub Field { let a: impl Foo = x; a.f() }
+    "#;
+    assert_rejected_with(src, "`impl Trait` is not allowed");
 }
 
 /// https://github.com/noir-lang/noir-claude/issues/2689

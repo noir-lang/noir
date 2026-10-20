@@ -365,7 +365,9 @@ impl Elaborator<'_> {
 
         // Resolve return type
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
+        self.item.impl_trait_is_return_type = true;
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
+        self.item.impl_trait_is_return_type = false;
 
         let is_crate_root = self.is_at_crate_root();
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
