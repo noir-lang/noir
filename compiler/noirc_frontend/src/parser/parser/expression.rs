@@ -1730,6 +1730,16 @@ mod tests {
     }
 
     #[test]
+    fn parses_call_with_turbofish_whose_first_argument_is_as_trait_path() {
+        let src = "load_array::<<T as Deserialize>::N>(input)";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Call(call) = expr.kind else {
+            panic!("Expected call expression");
+        };
+        assert_eq!(call.func.to_string(), "load_array::<<T as Deserialize>::N>");
+    }
+
+    #[test]
     fn parses_macro_call() {
         let src = "foo!(1, 2)";
         let expr = parse_expression_no_errors(src);
@@ -1778,6 +1788,16 @@ mod tests {
         assert!(!method_call.is_macro_call);
         assert_eq!(method_call.arguments.len(), 2);
         assert_eq!(method_call.generics.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn parses_method_call_with_turbofish_whose_first_argument_is_as_trait_path() {
+        let src = "foo.bar::<<T as Deserialize>::N>()";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::MethodCall(method_call) = expr.kind else {
+            panic!("Expected method call expression");
+        };
+        assert_eq!(method_call.generics.unwrap()[0].to_string(), "<T as Deserialize>::N");
     }
 
     #[test]
