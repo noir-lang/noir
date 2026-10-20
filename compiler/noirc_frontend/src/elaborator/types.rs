@@ -1512,6 +1512,34 @@ impl Elaborator<'_> {
         // Allow referring to trait constants via Self:: as well
         let definition = the_trait.find_method_or_constant(method.as_str(), self.interner)?;
         let constraint = the_trait.as_constraint(path.location);
+
+        // A supertrait, or another bound on `Self`, declaring an item of the same name makes
+        // `Self::item` ambiguous.
+        let mut visited = BTreeSet::new();
+        let mut matches = self.find_methods_or_constants_in_trait(
+            method.as_str(),
+            constraint.clone(),
+            the_trait,
+            &mut visited,
+        );
+        for bound in self.matching_generic_bounds(path).unwrap_or_default() {
+            let bound_trait = self.interner.get_trait(bound.trait_bound.trait_id);
+            matches.extend(self.find_methods_or_constants_in_trait(
+                method.as_str(),
+                bound,
+                bound_trait,
+                &mut visited,
+            ));
+        }
+        if matches.len() > 1 {
+            let ident = method.clone();
+            let traits =
+                vecmap(matches, |(_, trait_id)| self.fully_qualified_trait_path_by_id(trait_id));
+            let errors = vec![PathResolutionError::MultipleTraitsInScope { ident, traits }];
+            let method = TraitPathResolutionMethod::MultipleTraitsInScope;
+            return Some(TraitPathResolution { method, item: None, errors });
+        }
+
         let trait_method = TraitItem { definition, constraint, assumed: true };
         let method = TraitPathResolutionMethod::TraitItem(trait_method);
         Some(TraitPathResolution { method, item: None, errors: Vec::new() })
