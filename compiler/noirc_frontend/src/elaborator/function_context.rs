@@ -40,6 +40,9 @@ pub(super) struct FunctionContext {
     /// case of checking generic arguments)
     trait_constraints: Vec<LocalTraitConstraint>,
 
+    /// The indexes in `trait_constraints` of the constraints no impl has been selected for yet.
+    unsolved_trait_constraints: Vec<usize>,
+
     /// All `ExprId` in a function that correspond to integer literals.
     /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
     integer_literal_expr_ids: Vec<ExprId>,
@@ -90,8 +93,8 @@ enum Progress {
     /// Tried while the impl to use was undecided. The type variables it was waiting on, so it is
     /// only tried again once one of them is bound.
     Stalled(Vec<TypeVariable>),
-    /// An impl was selected and its bindings applied.
-    Selected,
+    /// An impl was selected and its bindings applied, with the impl's instantiation bindings.
+    Selected(TraitImplKind, TypeBindings),
 }
 
 impl Progress {
@@ -103,7 +106,7 @@ impl Progress {
             Progress::Stalled(waiting_on) => {
                 waiting_on.iter().any(|var| !var.binding().is_unbound())
             }
-            Progress::Selected => false,
+            Progress::Selected(..) => false,
         }
     }
 }
@@ -181,7 +184,9 @@ impl Elaborator<'_> {
         select_impl: bool,
         declared_bound: Option<TraitConstraint>,
     ) {
-        self.get_function_context_mut().trait_constraints.push(LocalTraitConstraint {
+        let context = self.get_function_context_mut();
+        context.unsolved_trait_constraints.push(context.trait_constraints.len());
+        context.trait_constraints.push(LocalTraitConstraint {
             constraint,
             expr,
             select_impl,
@@ -204,7 +209,9 @@ impl Elaborator<'_> {
             return typ;
         }
         let context = self.function_context.last().expect("no function context");
-        let constraints = vecmap(&context.trait_constraints, |local| local.constraint.clone());
+        let constraints = vecmap(&context.unsolved_trait_constraints, |index| {
+            context.trait_constraints[*index].constraint.clone()
+        });
         self.select_own_impls(&constraints);
         typ.follow_bindings()
     }
@@ -234,10 +241,14 @@ impl Elaborator<'_> {
     pub(super) fn select_where_possible(&mut self) {
         let context = self.function_context.last_mut().expect("no function context");
         let mut to_try = Vec::new();
-        for (index, local) in context.trait_constraints.iter().enumerate() {
+        for index in &context.unsolved_trait_constraints {
+            let local = &context.trait_constraints[*index];
             if local.progress.may_advance() {
-                to_try.push((index, local.constraint.clone()));
+                to_try.push((*index, local.constraint.clone()));
             }
+        }
+        if to_try.is_empty() {
+            return;
         }
         for (index, constraint) in to_try {
             let bound = &constraint.trait_bound;
@@ -248,9 +259,9 @@ impl Elaborator<'_> {
                 &bound.trait_generics.named,
                 TraitLookupMode::Default,
             ) {
-                Ok((_, bindings, _)) => {
+                Ok((impl_kind, bindings, instantiation_bindings)) => {
                     Type::apply_type_bindings(bindings);
-                    Progress::Selected
+                    Progress::Selected(impl_kind, instantiation_bindings)
                 }
                 // Errors are reported by the check at the end of the function. A constraint whose
                 // types can't change any more is never tried again.
@@ -258,6 +269,11 @@ impl Elaborator<'_> {
             };
             self.get_function_context_mut().trait_constraints[index].progress = progress;
         }
+        let context = self.get_function_context_mut();
+        let constraints = &context.trait_constraints;
+        context
+            .unsolved_trait_constraints
+            .retain(|index| !matches!(constraints[*index].progress, Progress::Selected(..)));
     }
 
     /// Push an `ExprId` that corresponds to an integer literal.
@@ -284,7 +300,9 @@ impl Elaborator<'_> {
     pub(super) fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
         self.bind_type_variables_from_trait_constraints(&context.trait_constraints);
-        let constraints = vecmap(&context.trait_constraints, |local| local.constraint.clone());
+        let constraints = vecmap(&context.unsolved_trait_constraints, |index| {
+            context.trait_constraints[*index].constraint.clone()
+        });
         self.select_own_impls(&constraints);
         self.check_defaultable_type_variables(context.defaultable_type_variables);
         self.check_integer_literal_fit_their_type(context.integer_literal_expr_ids);
@@ -312,7 +330,9 @@ impl Elaborator<'_> {
     ) {
         let current_trait_self = self.item.impl_context.trait_self_type();
         for local in trait_constraints {
-            let _ = local.constraint.find_impl(self.interner, current_trait_self.as_ref());
+            if !matches!(local.progress, Progress::Selected(..)) {
+                let _ = local.constraint.find_impl(self.interner, current_trait_self.as_ref());
+            }
         }
     }
 
@@ -339,7 +359,13 @@ impl Elaborator<'_> {
         let current_trait_self = self.item.impl_context.trait_self_type();
 
         for local in trait_constraints {
-            match local.constraint.find_impl(self.interner, current_trait_self.as_ref()) {
+            let selected = match local.progress {
+                Progress::Selected(impl_kind, instantiation_bindings) => {
+                    Ok((impl_kind, instantiation_bindings))
+                }
+                _ => local.constraint.find_impl(self.interner, current_trait_self.as_ref()),
+            };
+            match selected {
                 Ok((impl_kind, instantiation_bindings)) => {
                     if local.select_impl {
                         self.select_impl(local.expr, impl_kind, instantiation_bindings);
