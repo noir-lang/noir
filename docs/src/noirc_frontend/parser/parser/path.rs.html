@@ -123,7 +123,7 @@
 <a href=#123 id=123 data-nosnippet>123</a>
 <a href=#124 id=124 data-nosnippet>124</a>                <span class="kw">let </span>generics = <span class="kw">if </span>allow_turbofish
 <a href=#125 id=125 data-nosnippet>125</a>                    &amp;&amp; <span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::DoubleColon)
-<a href=#126 id=126 data-nosnippet>126</a>                    &amp;&amp; <span class="self">self</span>.next_is(<span class="kw-2">&amp;</span>Token::Less)
+<a href=#126 id=126 data-nosnippet>126</a>                    &amp;&amp; <span class="self">self</span>.next_is_less()
 <a href=#127 id=127 data-nosnippet>127</a>                {
 <a href=#128 id=128 data-nosnippet>128</a>                    <span class="self">self</span>.bump();
 <a href=#129 id=129 data-nosnippet>129</a>                    <span class="self">self</span>.parse_path_generics(<span class="kw-2">&amp;</span>ParserErrorReason::AssociatedTypesNotAllowedInPaths)
@@ -160,7 +160,7 @@
 <a href=#160 id=160 data-nosnippet>160</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#161 id=161 data-nosnippet>161</a>        on_named_arg_error: <span class="kw-2">&amp;</span>ParserErrorReason,
 <a href=#162 id=162 data-nosnippet>162</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;UnresolvedType&gt;&gt; {
-<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">if </span><span class="self">self</span>.token.token() != <span class="kw-2">&amp;</span>Token::Less {
+<a href=#163 id=163 data-nosnippet>163</a>        <span class="kw">if </span>!<span class="self">self</span>.at_less() {
 <a href=#164 id=164 data-nosnippet>164</a>            <span class="kw">return </span><span class="prelude-val">None</span>;
 <a href=#165 id=165 data-nosnippet>165</a>        }
 <a href=#166 id=166 data-nosnippet>166</a>

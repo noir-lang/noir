@@ -142,7 +142,7 @@
 <a href=#142 id=142 data-nosnippet>142</a>
 <a href=#143 id=143 data-nosnippet>143</a>        <span class="comment">// Allow `Type::&lt;Generic&gt;` and `Type&lt;Generic&gt;` as it's common to confuse them.
 <a href=#144 id=144 data-nosnippet>144</a>        // The formatter will remove the double colon.
-<a href=#145 id=145 data-nosnippet>145</a>        </span><span class="kw">if </span><span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::DoubleColon) &amp;&amp; <span class="self">self</span>.next_is(<span class="kw-2">&amp;</span>Token::Less) {
+<a href=#145 id=145 data-nosnippet>145</a>        </span><span class="kw">if </span><span class="self">self</span>.at(<span class="kw-2">&amp;</span>Token::DoubleColon) &amp;&amp; <span class="self">self</span>.next_is_less() {
 <a href=#146 id=146 data-nosnippet>146</a>            <span class="self">self</span>.bump();
 <a href=#147 id=147 data-nosnippet>147</a>        }
 <a href=#148 id=148 data-nosnippet>148</a>
