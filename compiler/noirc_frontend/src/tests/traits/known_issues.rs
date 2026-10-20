@@ -972,7 +972,6 @@ fn i2705_associated_type_result_decided_by_an_earlier_constraint() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2645
 #[test]
-#[ignore = "noir-claude#2645"]
 fn i2645_associated_constant_shorthand_solves_the_impls_where_clause() {
     let src = r#"
     pub trait Foo { let K: u32; }
