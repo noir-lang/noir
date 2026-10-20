@@ -430,7 +430,6 @@ fn i2793_generic_path_call_sees_a_where_clause_spelled_through_an_alias() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2769
 #[test]
-#[ignore = "noir-claude#2769"]
 fn i2769_type_path_call_skips_an_inaccessible_inherent_method_for_a_trait_method() {
     let src = r#"
     mod inner {
