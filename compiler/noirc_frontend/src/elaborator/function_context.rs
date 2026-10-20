@@ -372,6 +372,7 @@ impl Elaborator<'_> {
                     }
                 }
                 Err(_) if self.reported_at_declaration(local.declared_bound.as_ref()) => (),
+                Err(error) if self.where_clause_failure_reported_at_declaration(&error) => (),
                 Err(error) => {
                     let location = self.interner.expr_location(&local.expr);
                     self.push_trait_constraint_error(&local.constraint.typ, error, location);
@@ -385,6 +386,27 @@ impl Elaborator<'_> {
     fn reported_at_declaration(&self, declared_bound: Option<&TraitConstraint>) -> bool {
         declared_bound
             .is_some_and(|bound| self.where_clause_bound_without_generics_error(bound).is_some())
+    }
+
+    /// Whether `error` fails because of an impl's where-clause bound without generics that is
+    /// reported as failing where it is declared (see
+    /// [`Elaborator::check_where_clauses_without_generics`]), so the failure isn't reported again.
+    fn where_clause_failure_reported_at_declaration(&self, error: &ImplSearchErrorKind) -> bool {
+        let (ImplSearchErrorKind::NoImplFound(constraints)
+        | ImplSearchErrorKind::NoMatching(constraints)) = error
+        else {
+            return false;
+        };
+        // The last constraint is the one searched for; the ones before it are the where-clause
+        // bounds that failed on the way.
+        let Some((_, where_clause_bounds)) = constraints.split_last() else { return false };
+        where_clause_bounds.iter().any(|bound| {
+            let location = bound.trait_bound.location;
+            self.interner.declared_impl_where_clause_bound(location).is_some_and(|declared| {
+                super::traits::is_checkable_bound(declared)
+                    && self.where_clause_bound_without_generics_error(declared).is_some()
+            })
+        })
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

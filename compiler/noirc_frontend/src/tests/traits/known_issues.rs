@@ -82,7 +82,6 @@ fn assert_rejected_or_compiles(src: &str) {
 
 /// https://github.com/noir-lang/noir-claude/issues/2742
 #[test]
-#[ignore = "noir-claude#2742"]
 fn i2742_method_call_uses_the_enclosing_where_clause() {
     let src = r#"
     trait A {}
@@ -98,7 +97,6 @@ fn i2742_method_call_uses_the_enclosing_where_clause() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2742
 #[test]
-#[ignore = "noir-claude#2742"]
 fn i2742_method_call_under_a_where_clause_runs_each_instantiations_impl() {
     let src = r#"
     trait A { fn a() -> Field; }
@@ -127,7 +125,6 @@ const OWN_AND_BLANKET_LIMIT: &str = r#"
 
 /// https://github.com/noir-lang/noir-claude/issues/2792 (e11)
 #[test]
-#[ignore = "noir-claude#2792"]
 fn i2792_type_path_call_on_an_unknown_generic_uses_the_where_clause() {
     let src = format!(
         "{OWN_AND_BLANKET_LIMIT}
@@ -139,7 +136,6 @@ fn i2792_type_path_call_on_an_unknown_generic_uses_the_where_clause() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2792 (e0)
 #[test]
-#[ignore = "noir-claude#2792"]
 fn i2792_self_path_call_in_a_generic_impl_uses_the_where_clause() {
     let src = format!(
         "{OWN_AND_BLANKET_LIMIT}
@@ -152,7 +148,6 @@ fn i2792_self_path_call_in_a_generic_impl_uses_the_where_clause() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2792 (e12), rustc: E0283
 #[test]
-#[ignore = "noir-claude#2792"]
 fn i2792_type_path_call_that_several_impls_can_serve_is_ambiguous() {
     let src = format!("{OWN_AND_BLANKET_LIMIT}\nfn main() -> pub u64 {{ S::max() }}");
     assert_rejected(&src);
@@ -665,7 +660,6 @@ fn i2798_impl_for_an_arithmetic_generic_overlaps_a_concrete_one() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2771: `S: Baz` fails whatever `T` is.
 #[test]
-#[ignore = "noir-claude#2771"]
 fn i2771_impl_with_a_failing_where_bound_after_an_undecided_one_does_not_apply() {
     let src = r#"
     struct S { v: u32 }
