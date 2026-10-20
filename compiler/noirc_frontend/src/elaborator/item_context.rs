@@ -60,6 +60,10 @@ pub(super) struct ItemContext {
     /// This is stored as a field rather than checked at the call site so that it
     /// propagates through recursive `resolve_type` calls.
     pub(super) impl_trait_is_disallowed: Option<ImplTraitDisallowedContext>,
+
+    /// Set while resolving a function's return type, for its outermost type only: `impl Trait`
+    /// is a whole return (or parameter) type, never part of one (`[impl Foo; 2]`).
+    pub(super) impl_trait_is_return_type: bool,
 }
 
 impl ItemContext {
@@ -74,6 +78,7 @@ impl ItemContext {
             body: BodyContext::default(),
             in_comptime_context: false,
             impl_trait_is_disallowed: None,
+            impl_trait_is_return_type: false,
         }
     }
 
