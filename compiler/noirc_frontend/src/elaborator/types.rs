@@ -3674,7 +3674,8 @@ impl Elaborator<'_> {
         }
 
         for constraint in &func_trait_constraints {
-            if *object_type == constraint.typ
+            // A bound may name the type through an alias (`Id<T>: Foo`).
+            if *object_type == *constraint.typ.follow_bindings_shallow()
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
