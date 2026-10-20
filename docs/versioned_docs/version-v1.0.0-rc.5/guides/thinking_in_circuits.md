@@ -66,7 +66,7 @@ Fortunately for Noir developers, when needing a particular function a Rust imple
 
 A few things to do when converting Rust code to Noir:
 - `println!` is not a macro, use `println` function (same for `assert_eq`)
-- No early `return` in function. Use `assert` to constrain values instead
+- No early `return` in function. Use constrain via assertion instead
 - No boolean operators (`&&`, `||`). Use bitwise operators (`&`, `|`) with boolean values
 - No type `usize`. Use types `u8`, `u32`, `u64`, ...
 - `main` return must be public, `pub`
@@ -81,7 +81,7 @@ The following points help refine our understanding over time.
 A Noir program makes a statement that can be verified.
 :::
 
-It compiles to a structure that represents the calculation, and can assert results within the calculation at any stage (via [`assert`](../language/assert.md)).
+It compiles to a structure that represents the calculation, and can assert results within the calculation at any stage (via the `constrain` keyword).
 
 A Noir program compiles to an Abstract Circuit Intermediate Representation which is:
  - Conceptually a tree structure
@@ -186,7 +186,7 @@ Unless you're well into the depth of gate optimization, this advanced section ca
 
 When conditional logic is compiled into gates, it is predicated with boolean expressions like X, where `X * V1() + (1-X) * V2()` is calculated. This returns `V1()` when `X` is true or `V2()` if `X` is false.
 
-If a function is guaranteed to never fail an assertion no matter the inputs, or roughly considered "pure", it can use the attribute `#[no_predicates]`, telling the compiler to not add such predicates. This can beneficially be used in say hashing functions to reduce the gate count when they intuitively must be written/used inside an `if`.
+If a function is guaranteed to never fail an assertion no matter the inputs, or roughly considered "pure", it can use the macro `#[no_predicates]`, telling the compiler to not add such predicates. This can beneficially be used in say hashing functions to reduce the gate count when they intuitively must be written/used inside an `if`.
 
 :::note
 If a function may call other predicated functions, do not mark it with `#[no_predicates]`.

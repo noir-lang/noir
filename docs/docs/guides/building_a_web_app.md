@@ -15,14 +15,14 @@ You can find the complete app code for this guide [here](https://github.com/noir
 
 Before we start, we want to make sure we have Node installed. If you don't have it already you can install it [here](https://nodejs.org/en/download), we recommend using [Yarn](https://yarnpkg.com/getting-started/install) as our package manager for this tutorial.
 
-We'll also need version 1.0.0-rc.6 nargo installed, see the Noir [installation guide](../installation.md) for details.
+We'll also need version 1.0.0-beta.20 nargo installed, see the Noir [installation guide](../installation.md) for details.
 
 We'll keep this barebones. Doing the bare minimum is not only simple, but also allows you to easily adapt it to almost any frontend framework.
 
 This means we can start with the dependencies even on an empty folder:
 
 ```bash
-yarn add @noir-lang/noir_js@1.0.0-rc.6 @aztec/bb.js@5.0.0 buffer vite vite-plugin-node-polyfills@0.28.0
+yarn add @noir-lang/noir_js@1.0.0-beta.20 @aztec/bb.js@3.0.0-nightly.20251104 buffer vite vite-plugin-node-polyfills@0.17.0
 ```
 
 Wait, what are these dependencies?
@@ -32,7 +32,7 @@ Wait, what are these dependencies?
 
 :::info
 
-In this guide, we will install versions pinned to 1.0.0-rc.6. These work with Barretenberg version 5.0.0, so we are using that version too. You can also try older or later versions.
+In this guide, we will install versions pinned to 1.0.0-beta.20. These work with Barretenberg version 3.0.0-nightly.20251104, so we are using that version too. You can also try older or later versions.
 
 :::
 
