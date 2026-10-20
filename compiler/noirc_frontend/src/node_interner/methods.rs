@@ -91,9 +91,17 @@ impl Methods {
         typ: &Type,
         check_self_param: bool,
         interner: &NodeInterner,
+        skip_failing_where_clauses: bool,
     ) -> Option<FuncId> {
         for method in &self.direct {
-            if Self::method_matches(typ, check_self_param, method.method, &method.typ, interner) {
+            if Self::method_matches(
+                typ,
+                check_self_param,
+                method.method,
+                &method.typ,
+                interner,
+                skip_failing_where_clauses,
+            ) {
                 return Some(method.method);
             }
         }
@@ -107,11 +115,19 @@ impl Methods {
         typ: &Type,
         check_self_param: bool,
         interner: &NodeInterner,
+        skip_failing_where_clauses: bool,
     ) -> Vec<FuncId> {
         self.direct
             .iter()
             .filter(|method| {
-                Self::method_matches(typ, check_self_param, method.method, &method.typ, interner)
+                Self::method_matches(
+                    typ,
+                    check_self_param,
+                    method.method,
+                    &method.typ,
+                    interner,
+                    skip_failing_where_clauses,
+                )
             })
             .map(|method| method.method)
             .collect()
@@ -128,11 +144,19 @@ impl Methods {
         typ: &Type,
         check_self_param: bool,
         interner: &NodeInterner,
+        skip_failing_where_clauses: bool,
     ) -> Vec<Type> {
         self.direct
             .iter()
             .filter(|method| {
-                Self::method_matches(typ, check_self_param, method.method, &method.typ, interner)
+                Self::method_matches(
+                    typ,
+                    check_self_param,
+                    method.method,
+                    &method.typ,
+                    interner,
+                    skip_failing_where_clauses,
+                )
             })
             .map(|method| method.typ.clone())
             .collect()
@@ -143,6 +167,7 @@ impl Methods {
         typ: &Type,
         has_self_param: bool,
         interner: &NodeInterner,
+        skip_failing_where_clauses: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
         let mut results = Vec::new();
 
@@ -151,7 +176,14 @@ impl Methods {
             let method_type = interner.instantiate_trait_impl_self_type(trait_impl_method.impl_id);
             let trait_id = trait_impl_method.trait_id;
 
-            if Self::method_matches(typ, has_self_param, method, &method_type, interner) {
+            if Self::method_matches(
+                typ,
+                has_self_param,
+                method,
+                &method_type,
+                interner,
+                skip_failing_where_clauses,
+            ) {
                 results.push((method, trait_id, method_type));
             }
         }
@@ -166,11 +198,23 @@ impl Methods {
         interner: &'a NodeInterner,
     ) -> impl Iterator<Item = (FuncId, Option<TraitId>)> + 'a {
         self.iter(interner).filter_map(move |(method, method_type, trait_id)| {
-            if Self::method_matches(typ, has_self_param, method, &method_type, interner) {
+            if Self::method_matches(typ, has_self_param, method, &method_type, interner, false) {
                 Some((method, trait_id))
             } else {
                 None
             }
+        })
+    }
+
+    /// Whether some method here applies to `typ` and its impl's where clause can hold for it.
+    pub(super) fn has_method_whose_where_clause_may_hold(
+        &self,
+        typ: &Type,
+        check_self_param: bool,
+        interner: &NodeInterner,
+    ) -> bool {
+        self.iter(interner).any(|(method, method_type, _)| {
+            Self::method_matches(typ, check_self_param, method, &method_type, interner, true)
         })
     }
 
@@ -206,7 +250,11 @@ impl Methods {
         method: FuncId,
         method_type: &Type,
         interner: &NodeInterner,
+        skip_failing_where_clauses: bool,
     ) -> bool {
+        if skip_failing_where_clauses && !interner.method_impl_where_clause_may_hold(method, typ) {
+            return false;
+        }
         let func_meta = interner.function_meta(&method);
         let function_typ = &func_meta.typ;
         match function_typ.instantiate(interner).0 {

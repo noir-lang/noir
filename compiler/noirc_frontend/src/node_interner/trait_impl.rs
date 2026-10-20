@@ -12,7 +12,7 @@ use crate::{
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::traits::{Impl, NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
-    node_interner::{ImplId, ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
+    node_interner::{FuncId, ImplId, ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
 };
 
 use super::NodeInterner;
@@ -797,6 +797,50 @@ impl NodeInterner {
             .values()
             .flatten()
             .find(|bound| bound.trait_bound.location == location)
+    }
+
+    /// Whether the where clause of the impl `method` belongs to can hold for a receiver or path
+    /// of type `typ`: false only when one of its bounds is known to fail for it. A method of an
+    /// impl that can't apply isn't a candidate for a call.
+    pub(crate) fn method_impl_where_clause_may_hold(&self, method: FuncId, typ: &Type) -> bool {
+        let meta = self.function_meta(&method);
+        let (impl_type, generics, where_clause) = if let Some(impl_id) = meta.trait_impl {
+            let Some(trait_impl) = self.try_get_trait_implementation(impl_id) else {
+                return true;
+            };
+            let Some(where_clause) = self.trait_impl_where_clauses.get(&impl_id) else {
+                return true;
+            };
+            let trait_impl = trait_impl.borrow();
+            (trait_impl.typ.clone(), trait_impl.generics.clone(), where_clause.clone())
+        } else if let Some(impl_id) = meta.impl_id {
+            let impl_ = self.get_impl(impl_id);
+            let generics = vecmap(&impl_.generics, |generic| generic.type_var.clone());
+            (impl_.typ.clone(), generics, impl_.where_clause.clone())
+        } else {
+            return true;
+        };
+        if where_clause.is_empty() {
+            return true;
+        }
+        let (impl_type, instantiation_bindings) =
+            impl_type.substitute_type_vars_with_fresh_type_vars(&generics, self);
+        let mut bindings = TypeBindings::default();
+        let unified = typ.try_unify(&impl_type, &mut bindings).is_ok()
+            || matches!(typ.follow_bindings(), Type::Reference(element, _)
+                if element.try_unify(&impl_type, &mut bindings).is_ok());
+        if !unified {
+            return true;
+        }
+        match self.validate_where_clause(
+            &where_clause,
+            &mut bindings,
+            &instantiation_bindings,
+            IMPL_SEARCH_RECURSION_LIMIT,
+        ) {
+            Ok(()) => true,
+            Err((_, error)) => error.is_undecided(),
+        }
     }
 
     /// Verifies that each constraint in the given where clause is valid.

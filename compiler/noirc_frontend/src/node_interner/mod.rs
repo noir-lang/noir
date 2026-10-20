@@ -1084,7 +1084,8 @@ impl NodeInterner {
         let key = get_type_method_key(typ)?;
 
         let methods = self.methods.get(&key).and_then(|h| h.get(method_name))?;
-        methods.find_direct_method(typ, check_self_param, self)
+        let skip = self.skips_failing_where_clauses(typ, method_name, check_self_param);
+        methods.find_direct_method(typ, check_self_param, self, skip)
     }
 
     /// Returns every direct (inherent) method named `method_name` that applies to `typ`.
@@ -1098,7 +1099,8 @@ impl NodeInterner {
         let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
             return Vec::new();
         };
-        methods.find_direct_methods(typ, check_self_param, self)
+        let skip = self.skips_failing_where_clauses(typ, method_name, check_self_param);
+        methods.find_direct_methods(typ, check_self_param, self, skip)
     }
 
     /// Returns true if any method (direct or trait impl) is registered under `method_name`
@@ -1128,7 +1130,8 @@ impl NodeInterner {
             return Vec::new();
         };
         let check_self_param = false;
-        methods.matching_direct_method_types(typ, check_self_param, self)
+        let skip = self.skips_failing_where_clauses(typ, method_name, check_self_param);
+        methods.matching_direct_method_types(typ, check_self_param, self, skip)
     }
 
     /// Returns the `FuncId`s of all direct (inherent) methods already registered for
@@ -1160,7 +1163,10 @@ impl NodeInterner {
             self.methods
                 .get(&key)
                 .and_then(|h| h.get(method_name))
-                .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
+                .map(|methods| {
+                    let skip = self.skips_failing_where_clauses(typ, method_name, has_self_arg);
+                    methods.find_trait_methods(typ, has_self_arg, self, skip)
+                })
                 .unwrap_or_default()
         } else {
             Vec::new()
@@ -1182,6 +1188,22 @@ impl NodeInterner {
             .map(|m| m.method)
             .chain(methods.trait_impl_methods.iter().map(|m| m.method))
             .collect()
+    }
+
+    /// Whether a method lookup for `typ` leaves out methods of impls whose where clause fails for
+    /// it: it does when another method named `method_name` applies, so that one is chosen. When
+    /// none applies, the failing methods stay candidates and the unmet bound is the reported error.
+    fn skips_failing_where_clauses(
+        &self,
+        typ: &Type,
+        method_name: &str,
+        check_self_param: bool,
+    ) -> bool {
+        let own_methods =
+            get_type_method_key(typ).and_then(|key| self.methods.get(&key)?.get(method_name));
+        own_methods.into_iter().chain(self.generic_methods(method_name)).any(|methods| {
+            methods.has_method_whose_where_clause_may_hold(typ, check_self_param, self)
+        })
     }
 
     /// The methods named `method_name` of impls for all types `T`, e.g. `impl<T> Foo for T`.
@@ -1214,7 +1236,10 @@ impl NodeInterner {
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
         self.generic_methods(method_name)
-            .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
+            .map(|methods| {
+                let skip = self.skips_failing_where_clauses(typ, method_name, has_self_arg);
+                methods.find_trait_methods(typ, has_self_arg, self, skip)
+            })
             .unwrap_or_default()
     }
 
