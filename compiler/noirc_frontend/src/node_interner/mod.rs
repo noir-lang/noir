@@ -898,7 +898,13 @@ impl NodeInterner {
     /// * `Err` if the function returning the `impl Trait` needs to be elaborated first
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Result<Type, FuncId> {
         let typ = self.definition_type(def_id);
-        if let Type::Function(args, ret, env, unconstrained) = &typ {
+        // A generic function's type is quantified over its generics, which its body's type is
+        // written in as well.
+        let (generics, function) = match &typ {
+            Type::Forall(generics, function) => (Some(generics), function.as_ref()),
+            function => (None, function),
+        };
+        if let Type::Function(args, ret, env, unconstrained) = function {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref()
                 && let DefinitionKind::Function(func_id) = def.kind
@@ -910,7 +916,10 @@ impl NodeInterner {
                 let ret_type = self.id_type(func_body);
                 let new_type =
                     Type::Function(args.clone(), Box::new(ret_type), env.clone(), *unconstrained);
-                return Ok(new_type);
+                return Ok(match generics {
+                    Some(generics) => Type::Forall(generics.clone(), Box::new(new_type)),
+                    None => new_type,
+                });
             }
         }
         Ok(typ)

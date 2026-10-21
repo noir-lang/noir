@@ -1065,7 +1065,6 @@ fn i1711_impl_method_generic_of_another_kind_than_the_traits_is_rejected() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2624
 #[test]
-#[ignore = "noir-claude#2624"]
 fn i2624_trait_method_returning_impl_trait_does_not_crash_the_compiler() {
     let src = r#"
     trait Show { fn show(self) -> Field; }
@@ -1082,7 +1081,6 @@ fn i2624_trait_method_returning_impl_trait_does_not_crash_the_compiler() {
 /// https://github.com/noir-lang/noir-claude/issues/1918: `a::<u8>()` is an `A` and `b::<u8>()` a
 /// `B`, as for non-generic functions.
 #[test]
-#[ignore = "noir-claude#1918"]
 fn i1918_generic_functions_returning_impl_trait_have_their_concrete_types_at_the_call() {
     let src = r#"
     trait Foo { fn get(self) -> Field; }
