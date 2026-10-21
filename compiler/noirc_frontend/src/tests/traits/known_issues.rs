@@ -589,6 +589,76 @@ fn i1062_grandparent_associated_type_fixed_by_a_parent_bound_is_used_in_a_defaul
     assert_accepted(src);
 }
 
+/// https://github.com/noir-lang/noir-claude/issues/2778: a generic shadows a module of its name.
+#[test]
+fn i2778_generic_associated_type_path_is_not_a_same_named_module() {
+    let src = r#"
+    trait Check { fn check(x: u32); }
+    pub struct Lt10 {}
+    impl Check for Lt10 { fn check(x: u32) { assert(x < 10, "x out of range"); } }
+    trait Validator { type C: Check; }
+    pub struct Strict {}
+    impl Validator for Strict { type C = Lt10; }
+    mod V {
+        pub struct C {}
+        impl C { pub fn check(_x: u32) {} }
+    }
+    fn verify<V: Validator>(x: u32) { V::C::check(x); }
+    fn main(x: u32) { verify::<Strict>(x); }
+    "#;
+    assert_runs(src, &["x out of range"], &[]);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2778
+#[test]
+fn i2778_generic_in_a_where_clause_is_not_a_same_named_module() {
+    let src = r#"
+    trait Check<K> { fn check(x: u32); }
+    pub struct Lt10 {}
+    trait Validator { type K; }
+    pub struct Strict {}
+    impl Validator for Strict { type K = Lt10; }
+    pub struct Ver {}
+    impl Check<Lt10> for Ver { fn check(x: u32) { assert(x < 10, "x out of range"); } }
+    mod V { pub struct K {} }
+    impl Check<V::K> for Ver { fn check(_x: u32) {} }
+    fn verify<V: Validator, C>(x: u32) where C: Check<V::K> { C::check(x); }
+    fn main(x: u32) { verify::<Strict, Ver>(x); }
+    "#;
+    assert_runs(src, &["x out of range"], &[]);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2778
+#[test]
+fn i2778_method_of_a_generics_associated_type_is_found() {
+    let src = r#"
+    trait Mk { fn mk() -> Field; }
+    struct P {}
+    impl Mk for P { fn mk() -> Field { 42 } }
+    trait Tr { type A: Mk; }
+    struct S {}
+    impl Tr for S { type A = P; }
+    fn g<T: Tr>() -> Field { T::A::mk() }
+    fn main() -> pub Field { g::<S>() }
+    "#;
+    assert_accepted(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2778
+#[test]
+fn i2778_method_of_selfs_associated_type_in_a_default_method_is_found() {
+    let src = r#"
+    trait Mk { fn mk() -> Field; }
+    struct P {}
+    impl Mk for P { fn mk() -> Field { 42 } }
+    trait Tr { type A: Mk; fn g() -> Field { Self::A::mk() } }
+    struct S {}
+    impl Tr for S { type A = P; }
+    fn main() -> pub Field { S::g() }
+    "#;
+    assert_accepted(src);
+}
+
 // --- B. Impl search, where clauses, overlap --------------------------------------------------
 
 /// https://github.com/noir-lang/noir-claude/issues/1958 (R1), rustc: E0119
