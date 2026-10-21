@@ -192,7 +192,7 @@ smallvec = "1.15.1"
 
 arbitrary = "1.4.1"
 arbtest = "0.3.2"
-bit-vec = "0.9"
+bit-vec = "0.10"
 cfg-if = "1.0.0"
 dirs = "^7.0.0"
 env_logger = "0.11.6"
@@ -229,15 +229,15 @@ color-eyre = "0.6.2"
 rand = "^0.10.1"
 rangemap = "1.7.1"
 # The `fork` and `timeout` feature doesn't compile with Wasm (wait-timeout doesn't find the `imp` module).
-proptest = { version = "1.11.0", default-features = false, features = [
+proptest = { version = "1.12.0", default-features = false, features = [
     "std",
     "bit-set",
 ] }
 proptest-derive = "^0.9.0"
 rayon = "1.8.0"
 sha2 = "0.11.0"
-k256 = "0.14.0-rc.10"
-p256 = "0.14.0-rc.10"
+k256 = "0.14.0"
+p256 = "0.14.0"
 strum = "0.28"
 strum_macros = "0.28"
 tokio = "1.52"
