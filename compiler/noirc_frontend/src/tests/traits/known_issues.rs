@@ -661,6 +661,34 @@ fn i2778_method_of_selfs_associated_type_in_a_default_method_is_found() {
 
 // --- B. Impl search, where clauses, overlap --------------------------------------------------
 
+/// https://github.com/noir-lang/noir-claude/issues/2743: each of the 37 distinct bounds is solved
+/// once, not once per path to it (about 4^10).
+#[test]
+fn i2743_a_bound_reached_through_many_impls_is_solved_once() {
+    let src = r#"
+    pub struct Wrap<T> { inner: T }
+    pub trait Tr0 {}
+    impl Tr0 for Field {}
+    impl<T> Tr0 for Wrap<T> where T: Tr0, T: Tr1, T: Tr2, T: Tr3 {}
+    pub trait Tr1 {}
+    impl Tr1 for Field {}
+    impl<T> Tr1 for Wrap<T> where T: Tr0, T: Tr1, T: Tr2, T: Tr3 {}
+    pub trait Tr2 {}
+    impl Tr2 for Field {}
+    impl<T> Tr2 for Wrap<T> where T: Tr0, T: Tr1, T: Tr2, T: Tr3 {}
+    pub trait Tr3 {}
+    impl Tr3 for Field {}
+    impl<T> Tr3 for Wrap<T> where T: Tr0, T: Tr1, T: Tr2, T: Tr3 {}
+    fn need<X>(x: X) -> X where X: Tr0 { x }
+    fn main(x: Field) -> pub Field {
+        let w: Wrap<Wrap<Wrap<Wrap<Wrap<Wrap<Wrap<Wrap<Wrap<Field>>>>>>>>> = Wrap { inner: Wrap { inner: Wrap { inner: Wrap { inner: Wrap { inner: Wrap { inner: Wrap { inner: Wrap { inner: Wrap { inner: x } } } } } } } } };
+        let _ = need(w);
+        x
+    }
+    "#;
+    assert_accepted(src);
+}
+
 /// https://github.com/noir-lang/noir-claude/issues/1958 (R1), rustc: E0119
 #[test]
 fn i1958_impl_overlapping_a_blanket_impl_through_a_generic_is_rejected() {
