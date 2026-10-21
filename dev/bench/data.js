@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792586431091,
+  "lastUpdate": 1792586574108,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23006,48 +23006,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "2124471412c41c68c0e050dff111102d37634d8a",
-          "message": "chore(brillig): pin the debug_show black box trace format with a test (#13984)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-10-15T17:12:23Z",
-          "tree_id": "69fa20364a99eea3842f00f63329c14497baae07",
-          "url": "https://github.com/noir-lang/noir/commit/2124471412c41c68c0e050dff111102d37634d8a"
-        },
-        "date": 1792085665178,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 196895,
-            "range": "± 1398",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 167142,
-            "range": "± 6316",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2675468,
-            "range": "± 4504",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f01c4408482dbdbc6739d83c23d6bf9dcdf26b82",
           "message": "chore: run stdlib doc comment examples in CI and support attributes on noir code blocks (#14005)",
           "timestamp": "2026-10-15T17:49:38Z",
@@ -25089,6 +25047,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1677761,
             "range": "± 33983",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9b4eaf3b3c3423375f83507082338afbf6e9a24e",
+          "message": "chore(deps): bump launch-editor from 2.14.1 to 2.14.2 in /docs (#14078)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-21T12:18:17Z",
+          "tree_id": "d0787ff29e10c2d7520db8a72c7efe2a064def5d",
+          "url": "https://github.com/noir-lang/noir/commit/9b4eaf3b3c3423375f83507082338afbf6e9a24e"
+        },
+        "date": 1792586478529,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167289,
+            "range": "± 625",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137216,
+            "range": "± 433",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646011,
+            "range": "± 25247",
             "unit": "ns/iter"
           }
         ]
