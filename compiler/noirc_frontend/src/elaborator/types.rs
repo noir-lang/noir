@@ -1552,7 +1552,19 @@ impl Elaborator<'_> {
         let name = last_segment.ident.as_str();
         let method_func_id = the_trait.method_ids.get(name).copied();
         let associated_constant = the_trait.associated_constant_ids.get(name).copied();
-        let constraint = the_trait.as_constraint(location);
+        // `Trait::item` is `<_ as Trait<_>>::item`: the type and the trait's arguments are unknowns
+        // of this use.
+        let fresh = |generic: &crate::ResolvedGeneric| {
+            self.interner.next_type_variable_with_kind(generic.kind().into_owned())
+        };
+        let ordered = vecmap(&the_trait.generics, fresh);
+        let named = vecmap(&the_trait.associated_types, |generic| NamedType {
+            name: Ident::new(generic.name.to_string(), location),
+            typ: fresh(generic),
+        });
+        let trait_generics = TraitGenerics { ordered, named };
+        let trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
+        let constraint = TraitConstraint { typ: self.interner.next_type_variable(), trait_bound };
 
         let trait_resolution = if let Some(func_id) = method_func_id {
             let definition = self.interner.function_definition_id(func_id);
@@ -1565,6 +1577,9 @@ impl Elaborator<'_> {
                 errors: resolution.errors,
             })
         } else if let Some(definition) = associated_constant {
+            // A constant has no argument to tell its type, so `Trait::CONST` is the one of the
+            // trait's own `Self`, which only a default method body has.
+            let constraint = self.interner.get_trait(trait_id).as_constraint(location);
             let trait_item = TraitItem { definition, constraint, assumed: true };
             Some(TraitPathResolution {
                 method: TraitPathResolutionMethod::TraitItem(trait_item),
@@ -2110,15 +2125,15 @@ impl Elaborator<'_> {
             HirMethodReference::TraitItemId(HirTraitMethodReference {
                 definition,
                 trait_id,
+                ref trait_generics,
                 ..
             }) => {
                 // In this case turbofish won't be resolved again, so we can commit the errors
                 self.push_errors(generics_errors);
 
-                let trait_ = self.interner.get_trait(trait_id);
-
-                let mut constraint = trait_.as_constraint(location);
-                constraint.typ = typ.clone();
+                let trait_generics = trait_generics.clone();
+                let trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
+                let constraint = TraitConstraint { typ: typ.clone(), trait_bound };
 
                 let trait_method = TraitItem { definition, constraint, assumed: false };
                 let func_id = hir_method_reference.func_id(self.interner)?;
@@ -4196,6 +4211,10 @@ impl Elaborator<'_> {
         bindings: &mut TypeBindings,
     ) {
         self.bind_generics_from_trait_bound(&constraint.trait_bound, bindings);
+        self.interner
+            .get_trait(constraint.trait_bound.trait_id)
+            .self_param
+            .bind(&constraint.typ, bindings);
 
         // Also bind associated types inherited from parent traits, e.g. a method returning
         // `Self::A` where `A` is defined on a parent trait rather than this one. Without this
@@ -4213,8 +4232,6 @@ impl Elaborator<'_> {
         // itself. See the doc comment for why those self-mappings are not no-ops.
         if assumed {
             let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-
-            the_trait.self_param.bind(&constraint.typ, bindings);
 
             for (param, arg) in
                 the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)
