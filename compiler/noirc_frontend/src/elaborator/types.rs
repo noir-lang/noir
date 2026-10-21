@@ -4111,6 +4111,8 @@ impl Elaborator<'_> {
 
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
             self.use_unstable_feature(UnstableFeature::TraitAsType, last_expr_location);
+            // The body's type may be decided by the impls its own constraints select.
+            self.select_where_possible();
             if self
                 .interner
                 .lookup_trait_implementation(

@@ -1132,7 +1132,6 @@ fn i1904_impl_trait_in_a_let_annotation_is_rejected() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2689
 #[test]
-#[ignore = "noir-claude#2689"]
 fn i2689_impl_trait_return_is_checked_after_the_bodys_constraints_are_solved() {
     let src = r#"
     trait Foo { fn v(self) -> u32; }
