@@ -2779,6 +2779,16 @@ impl Elaborator<'_> {
                 if let TypeBinding::Bound(binding) = var.binding() {
                     return self.comparator_operand_type_rules(other, binding, op, location);
                 }
+                match self
+                    .unify_unknown_operand_with_known(var, other, lhs_type, rhs_type, location)
+                {
+                    Some(true) => {
+                        return self
+                            .comparator_operand_type_rules(lhs_type, rhs_type, op, location);
+                    }
+                    Some(false) => return Ok((Bool, false)),
+                    None => (),
+                }
 
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
                 Ok((Bool, use_impl))
@@ -2811,6 +2821,34 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Unifies the operands of a binary operator when `variable`, one of them, is unbound and the
+    /// other operand's type is known. The variable then has that type, so the caller checks the
+    /// operator against that type's own rules.
+    ///
+    /// Returns `None` if the other operand's type isn't known either. Otherwise returns whether
+    /// the variable got bound. If it didn't, the mismatch has already been reported here.
+    fn unify_unknown_operand_with_known(
+        &mut self,
+        variable: &crate::TypeVariable,
+        other: &Type,
+        lhs_type: &Type,
+        rhs_type: &Type,
+        location: Location,
+    ) -> Option<bool> {
+        if matches!(other.follow_bindings(), Type::TypeVariable(_)) {
+            return None;
+        }
+        self.unify(lhs_type, rhs_type, |elaborator| {
+            elaborator.new_type_mismatch_with_source_error(
+                rhs_type,
+                lhs_type,
+                Source::Binary,
+                location,
+            )
+        });
+        Some(!variable.binding().is_unbound())
+    }
+
     /// Handles the `TypeVariable` case for checking binary operators.
     /// Returns true if we should use the impl for the operator instead of the primitive
     /// version of it.
@@ -2833,20 +2871,19 @@ impl Elaborator<'_> {
 
         let use_impl = !lhs_type.is_numeric_value();
 
-        // If this operator isn't valid for fields we have to possibly narrow
-        // Kind::IntegerOrField to Kind::Integer.
-        // Doing so also ensures a type error if Field is used.
-        // The is_numeric check is to allow impls for custom types to bypass this.
+        // Both operands are unbound type variables here: an operand of known type is checked by
+        // that type's own rules. A numeric variable used with an operator `Field` doesn't
+        // support is narrowed to an integer, and a `Field` it is later unified with is then a
+        // type mismatch. A non-numeric variable is left for the operator's trait impl.
         if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric_value() {
             let target = self.polymorphic_integer();
-
-            use crate::ast::BinaryOpKind::*;
-            use TypeCheckError::*;
-            self.unify(lhs_type, &target, |_| match op.kind {
-                Less | LessEqual | Greater | GreaterEqual => FieldComparison { location },
-                And | Or | Xor | ShiftRight | ShiftLeft => FieldBitwiseOp { location },
-                Modulo => FieldModulo { location },
-                other => unreachable!("Operator {other:?} should be valid for Field"),
+            self.unify(lhs_type, &target, |elaborator| {
+                elaborator.new_type_mismatch_with_source_error(
+                    &target,
+                    lhs_type,
+                    Source::Binary,
+                    location,
+                )
             });
         }
 
@@ -2886,6 +2923,15 @@ impl Elaborator<'_> {
             (TypeVariable(int), other) | (other, TypeVariable(int)) => {
                 if let TypeBinding::Bound(binding) = int.binding() {
                     return self.infix_operand_type_rules(binding, op, other, location);
+                }
+                match self
+                    .unify_unknown_operand_with_known(int, other, lhs_type, rhs_type, location)
+                {
+                    Some(true) => {
+                        return self.infix_operand_type_rules(lhs_type, op, rhs_type, location);
+                    }
+                    Some(false) => return Ok((Error, false)),
+                    None => (),
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
                 Ok((other.clone(), use_impl))

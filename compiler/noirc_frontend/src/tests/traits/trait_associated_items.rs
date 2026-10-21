@@ -4219,3 +4219,42 @@ fn global_calls_a_method_of_an_impl_declared_earlier() {
     }
     ");
 }
+
+/// A call returning an associated type that its impl sets to `bool` is a `bool` operand of a
+/// bitwise operator, whatever the other operand is.
+#[test]
+fn bool_associated_type_result_is_a_bitwise_operand() {
+    let src = r#"
+    trait Tr { type A; fn first(self) -> Self::A; }
+    struct S { m0: bool }
+    impl Tr for S { type A = bool; fn first(self) -> bool { self.m0 } }
+    fn g<P: Tr>(p: P) -> P::A { p.first() }
+    fn main(x: bool) -> pub bool {
+        let a = g(S { m0: x }) | false;
+        let b = false | g(S { m0: x });
+        let c = g(S { m0: x }) & true;
+        let d = g(S { m0: x }) ^ g(S { m0: x });
+        let mut e = g(S { m0: x });
+        e |= g(S { m0: x });
+        a & b & c & d & e
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A call returning an associated type that its impl sets to `bool` is still not a valid operand of
+/// an operator `bool` doesn't support.
+#[test]
+fn bool_associated_type_result_is_not_a_shift_operand() {
+    let src = r#"
+    trait Tr { type A; fn first(self) -> Self::A; }
+    struct S { m0: bool }
+    impl Tr for S { type A = bool; fn first(self) -> bool { self.m0 } }
+    fn g<P: Tr>(p: P) -> P::A { p.first() }
+    fn main(x: bool) -> pub bool {
+        g(S { m0: x }) << false
+        ^^^^^^^^^^^^^^^^^^^^^^^ No implementation for `bool << bool`
+    }
+    "#;
+    check_errors(src);
+}

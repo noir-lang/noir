@@ -577,3 +577,41 @@ fn value_used_as_path_prefix_reports_that_segment() {
     "#;
     check_errors(src);
 }
+
+/// An operand whose type isn't known yet takes the other operand's `bool` type, and the operators
+/// `bool` supports apply to it.
+#[test]
+fn operand_of_unknown_type_with_a_bool_operand() {
+    let src = r#"
+    trait Zero { fn zero() -> Self; }
+    impl Zero for bool { fn zero() -> bool { false } }
+    impl Zero for u8 { fn zero() -> u8 { 0 } }
+    fn zero<T: Zero>() -> T { T::zero() }
+    fn main(x: bool) -> pub bool {
+        let a = zero() | false;
+        let b = true & zero();
+        let c = zero() ^ x;
+        let d = zero() < false;
+        let e = zero() == x;
+        a & b & c & d & e
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// An operand whose type isn't known yet takes the other operand's `bool` type, so an operator
+/// `bool` doesn't support is rejected.
+#[test]
+fn operand_of_unknown_type_with_a_bool_operand_is_not_added() {
+    let src = r#"
+    trait Zero { fn zero() -> Self; }
+    impl Zero for bool { fn zero() -> bool { false } }
+    impl Zero for u8 { fn zero() -> u8 { 0 } }
+    fn zero<T: Zero>() -> T { T::zero() }
+    fn main() -> pub bool {
+        zero() + true
+        ^^^^^^^^^^^^^ Cannot add a `bool` to a `bool
+    }
+    "#;
+    check_errors(src);
+}
