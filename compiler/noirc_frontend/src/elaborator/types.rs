@@ -587,11 +587,7 @@ impl Elaborator<'_> {
     /// Also searches parent traits.
     #[tracing::instrument(level = "trace", skip_all)]
     fn lookup_associated_type_on_generic(&mut self, path: &TypedPath) -> Option<Type> {
-        if !self.item.generics.has_bounds() {
-            return None;
-        }
-
-        if path.segments.len() != 2 {
+        if path.segments.len() != 2 || path.kind != PathKind::Plain {
             return None;
         }
 
@@ -620,7 +616,12 @@ impl Elaborator<'_> {
         }
 
         match found_types.len() {
-            0 => None, // Fall through to normal resolution
+            // A generic shadows any module of its name, so `T::Item` names nothing else.
+            0 => {
+                let ident = path.segments[0].ident.clone();
+                self.push_err(PathResolutionError::Unresolved(ident));
+                Some(Type::Error)
+            }
             1 => Some(found_types.remove(0).1),
             _ => {
                 // Multiple traits have this associated type - ambiguous
@@ -1053,7 +1054,7 @@ impl Elaborator<'_> {
     /// Look up a path as a generic type parameter or an associated type
     /// Returns `None` if the path doesn't match any of these.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn lookup_generic_or_associated_type(
+    pub(super) fn lookup_generic_or_associated_type(
         &mut self,
         path: &TypedPath,
         args: &GenericTypeArgs,

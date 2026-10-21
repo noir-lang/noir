@@ -635,7 +635,11 @@ impl Elaborator<'_> {
         // `Self` and a generic parameter are only meaningful as a plain path: `crate::Self` /
         // `super::T` name an item in another module, not the contextual `Self` or an in-scope
         // generic, so they must not be classified as such.
-        let kind = if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
+        let kind = if let Some(bounds) = self.bounds_on_abstract_associated_type(&prefix) {
+            // `T::A::item`, or `Self::A::item` in a trait: `A` is an associated type the item is
+            // reached through the bounds of.
+            PathPrefixKind::BoundedGeneric(bounds)
+        } else if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
             // `Self` is contextual; which kind it is depends only on where we are (a trait impl, a
             // trait definition, somewhere `Self` is a plain type, or nowhere at all), so it is
             // classified here and the matching arm resolves the last segment.
@@ -696,6 +700,44 @@ impl Elaborator<'_> {
         };
 
         ResolvedPrefix { last_segment, turbofish, kind }
+    }
+
+    /// For a prefix `T::A` on a generic, or `Self::A` in a trait's declaration, the bounds on that
+    /// associated type in scope. A generic shadows any module of its name, so such a prefix is
+    /// never a module path.
+    fn bounds_on_abstract_associated_type(
+        &mut self,
+        prefix: &TypedPath,
+    ) -> Option<Vec<TraitConstraint>> {
+        if prefix.kind != PathKind::Plain || prefix.segments.len() != 2 {
+            return None;
+        }
+        let head = &prefix.segments[0].ident;
+        let in_trait_declaration = self.item.impl_context.current_trait_impl().is_none()
+            && self.item.impl_context.current_trait().is_some();
+        let is_abstract = if head.is_self_type_name() {
+            in_trait_declaration
+        } else {
+            self.item.generics.find(head.as_str()).is_some()
+        };
+        if !is_abstract {
+            return None;
+        }
+        let typ = self.lookup_generic_or_associated_type(prefix, &GenericTypeArgs::default())?;
+        let mut bounds: Vec<_> = self.item.generics.bounds_on_type(&typ).cloned().collect();
+        // In a trait's declaration, the bounds declared on its own associated type
+        // (`type A: Mk`).
+        if head.is_self_type_name()
+            && let Some(trait_id) = self.item.impl_context.current_trait()
+        {
+            let the_trait = self.interner.get_trait(trait_id);
+            let declared = the_trait.associated_type_bounds.get(prefix.last_name());
+            bounds.extend(declared.into_iter().flatten().map(|trait_bound| TraitConstraint {
+                typ: typ.clone(),
+                trait_bound: trait_bound.clone(),
+            }));
+        }
+        Some(bounds)
     }
 
     /// If the path's first segment names a generic parameter with `: Trait` bound(s) in scope,
