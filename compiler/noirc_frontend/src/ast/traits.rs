@@ -401,18 +401,30 @@ fn reorder_where_clause(where_clause: &mut Vec<UnresolvedTraitConstraint>) {
 /// Whether the trait arguments of `clause` name an associated item through a path (`V::K`,
 /// `<V as Tr>::K`).
 fn names_a_projection(clause: &UnresolvedTraitConstraint) -> bool {
-    struct ProjectionFinder(bool);
-    impl Visitor for ProjectionFinder {
-        fn visit_path(&mut self, path: &Path) {
-            self.0 |= path.segments.len() > 1;
-        }
-
-        fn visit_as_trait_path_type(&mut self, _: &AsTraitPath, _: noirc_errors::Span) -> bool {
-            self.0 = true;
-            false
-        }
-    }
-    let mut finder = ProjectionFinder(false);
+    let mut finder = ProjectionFinder::default();
     clause.trait_bound.trait_generics.accept(&mut finder);
-    finder.0
+    finder.found
+}
+
+/// Finds whether a type names an associated item through a path (`V::K`, `<V as Tr>::K`), which
+/// can only be resolved once the impl or bound providing that item is known.
+#[derive(Default)]
+pub(crate) struct ProjectionFinder {
+    pub(crate) found: bool,
+}
+
+impl Visitor for ProjectionFinder {
+    fn visit_path(&mut self, path: &Path) {
+        self.found |= path.segments.len() > 1;
+    }
+
+    fn visit_as_trait_path_type(&mut self, _: &AsTraitPath, _: noirc_errors::Span) -> bool {
+        self.found = true;
+        false
+    }
+
+    fn visit_as_trait_path_type_expression(&mut self, _: &AsTraitPath) -> bool {
+        self.found = true;
+        false
+    }
 }
