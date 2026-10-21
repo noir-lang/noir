@@ -880,6 +880,10 @@ impl NodeInterner {
         instantiation_bindings: &TypeBindings,
         recursion_limit: u32,
     ) -> Result<(), (TraitConstraint, ImplSearchErrorKind)> {
+        // The bounds solved below the outermost where clause of a search hold for all of it.
+        if recursion_limit == IMPL_SEARCH_RECURSION_LIMIT {
+            self.solved_where_clause_bounds.borrow_mut().clear();
+        }
         for constraint in where_clause {
             let constraint_type =
                 constraint.typ.substitute(instantiation_bindings).substitute(type_bindings);
@@ -894,6 +898,21 @@ impl NodeInterner {
                     let typ = generic.typ.substitute(instantiation_bindings);
                     NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
                 });
+
+            let key = (
+                constraint_type.clone(),
+                constraint.trait_bound.trait_id,
+                trait_generics.clone(),
+                trait_associated_types.clone(),
+            );
+            let is_rigid = !constraint_type.contains_unbound_type_variable()
+                && trait_generics.iter().all(|typ| !typ.contains_unbound_type_variable())
+                && trait_associated_types
+                    .iter()
+                    .all(|named| !named.typ.contains_unbound_type_variable());
+            if is_rigid && self.solved_where_clause_bounds.borrow().contains(&key) {
+                continue;
+            }
 
             // We can ignore any associated types on the constraint since those should not affect
             // which impl we choose.
@@ -915,6 +934,9 @@ impl NodeInterner {
                 constraint.trait_bound.trait_generics.named = trait_associated_types.clone();
                 (constraint, error)
             })?;
+            if is_rigid {
+                self.solved_where_clause_bounds.borrow_mut().insert(key);
+            }
         }
 
         Ok(())
