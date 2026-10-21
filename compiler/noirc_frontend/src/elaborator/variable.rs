@@ -1175,9 +1175,12 @@ impl Elaborator<'_> {
                 trait_generics,
                 assumed: _,
             }) => {
-                let mut constraint =
-                    self.interner.get_trait(trait_id).as_constraint(ident_location);
-                constraint.trait_bound.trait_generics = trait_generics;
+                let trait_bound = crate::hir_def::traits::ResolvedTraitBound {
+                    trait_id,
+                    trait_generics,
+                    location: ident_location,
+                };
+                let constraint = TraitConstraint { typ: typ.clone(), trait_bound };
                 ImplKind::TraitItem(TraitItem { definition, constraint, assumed: false })
             }
         };
@@ -1306,20 +1309,24 @@ impl Elaborator<'_> {
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
         if let ImplKind::TraitItem(method) = &ident.impl_kind {
+            // Arguments given for the trait's generics (`Trait::<u32>::method`) are the
+            // constraint's.
+            let the_trait = self.interner.get_trait(method.constraint.trait_bound.trait_id);
+            let given = the_trait
+                .generics
+                .iter()
+                .zip(&method.constraint.trait_bound.trait_generics.ordered);
+            for (generic, argument) in given {
+                if let Some((_, _, typ)) = bindings.get(&generic.type_var.id()) {
+                    let _ = argument.unify(typ);
+                }
+            }
             self.bind_generics_from_trait_constraint(
                 &method.constraint,
                 method.assumed,
                 &mut bindings,
             );
         }
-        // Inside a trait's own method its generics are the caller's too, so `<Self as Foo<[T; 2]>>`
-        // binds `T` to `[T; 2]`: the constraint is already written in the caller's `T`, and
-        // replacing it there again would give `Foo<[[T; 2]; 2]>`.
-        let caller_terms: Vec<_> = bindings
-            .iter()
-            .filter(|(id, (_, _, typ))| typ.occurs(**id))
-            .map(|(id, _)| *id)
-            .collect();
 
         // If a global variable hasn't been defined yet, then we are most likely dealing with a self-dependency-cycle.
         let definition = self.interner.definition(ident.id);
@@ -1382,12 +1389,7 @@ impl Elaborator<'_> {
         let (typ, bindings) =
             self.instantiate(t, bindings, generics, &direct_generic_ids, location);
 
-        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
-            let mut constraint_bindings = bindings.clone();
-            for id in &caller_terms {
-                constraint_bindings.remove(id);
-            }
-            method.constraint.apply_instantiation_bindings(&constraint_bindings);
+        if let ImplKind::TraitItem(method) = ident.impl_kind {
             if method.assumed {
                 let trait_generics = method.constraint.trait_bound.trait_generics.clone();
                 let object_type = method.constraint.typ;
