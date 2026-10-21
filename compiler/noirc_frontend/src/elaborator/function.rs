@@ -16,9 +16,9 @@ use noirc_errors::Location;
 use crate::{
     Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
-        AsTraitPath, BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-        UnresolvedTypeData, Visitor,
+        BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
+        ProjectionFinder, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
+        UnresolvedType, UnresolvedTypeData,
     },
     elaborator::{
         UnstableFeature, lints,
@@ -866,23 +866,11 @@ fn is_identifier_pattern(pattern: &HirPattern) -> bool {
 /// Whether the trait, self type or where clause of `trait_impl` contains a projection
 /// (`<S as C>::T`).
 fn header_has_projection(trait_impl: &UnresolvedTraitImpl) -> bool {
-    struct ProjectionFinder(bool);
-    impl Visitor for ProjectionFinder {
-        fn visit_as_trait_path_type(&mut self, _: &AsTraitPath, _: noirc_errors::Span) -> bool {
-            self.0 = true;
-            false
-        }
-
-        fn visit_as_trait_path_type_expression(&mut self, _: &AsTraitPath) -> bool {
-            self.0 = true;
-            false
-        }
-    }
-    let mut finder = ProjectionFinder(false);
+    let mut finder = ProjectionFinder::default();
     trait_impl.r#trait.accept(&mut finder);
     trait_impl.object_type.accept(&mut finder);
     for constraint in &trait_impl.where_clause {
         constraint.typ.accept(&mut finder);
     }
-    finder.0
+    finder.found
 }
