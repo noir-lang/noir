@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792587669070,
+  "lastUpdate": 1792601481004,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23005,48 +23005,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "f01c4408482dbdbc6739d83c23d6bf9dcdf26b82",
-          "message": "chore: run stdlib doc comment examples in CI and support attributes on noir code blocks (#14005)",
-          "timestamp": "2026-10-15T17:49:38Z",
-          "tree_id": "ccb562c35869a52cf6f987508c3e41e255edb46d",
-          "url": "https://github.com/noir-lang/noir/commit/f01c4408482dbdbc6739d83c23d6bf9dcdf26b82"
-        },
-        "date": 1792087925767,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126185,
-            "range": "± 4347",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 103651,
-            "range": "± 2997",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1724480,
-            "range": "± 3249",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "b094c920cdc6842290c0ac296ec941482d2d6478",
           "message": "fix(frontend): print type-level arithmetic in its canonical form in `nargo expand` (#14007)",
@@ -25089,6 +25047,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646011,
             "range": "± 25247",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "13c62346520cef950b4e3f4e119be78839f58541",
+          "message": "chore(deps): bump Rust dependencies (#14080)",
+          "timestamp": "2026-10-21T17:46:00+01:00",
+          "tree_id": "14ff0ead87ae4a842ecd442e9c5e8b96053ff2b9",
+          "url": "https://github.com/noir-lang/noir/commit/13c62346520cef950b4e3f4e119be78839f58541"
+        },
+        "date": 1792601367438,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169429,
+            "range": "± 2105",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137555,
+            "range": "± 490",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650541,
+            "range": "± 9047",
             "unit": "ns/iter"
           }
         ]
