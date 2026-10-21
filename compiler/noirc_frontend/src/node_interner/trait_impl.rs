@@ -37,14 +37,6 @@ pub(crate) enum TraitLookupMode {
     /// is the single ground truth, and any `where` clause hypothesis for the same type is
     /// discharged by it rather than competing with it.
     IgnoreAssumed,
-    /// Like [Default](TraitLookupMode::Default), but for a query that still has unknowns (an
-    /// unbound type variable in the object type or trait arguments), selects the type's own impl
-    /// (`impl Foo for S`) when exactly one matches and no other impl for its own type might still
-    /// apply, over impls for all types `T` (`impl<T> Foo for T`). An assumed impl that matches
-    /// still decides the query as in `Default`. An integer literal's unknown type may be the
-    /// object type. Used when an unknown has to be decided: before integer literals default to
-    /// `Field`, and when a type must be known to continue checking.
-    PreferOwnImpl,
 }
 
 /// The assumed impls [`NodeInterner::take_assumed_trait_implementations`] set aside.
@@ -574,12 +566,10 @@ impl NodeInterner {
         let object_type = object_type.substitute(type_bindings);
         let is_bindable = object_type.is_bindable();
 
-        if is_bindable && matches!(mode, TraitLookupMode::Default | TraitLookupMode::IgnoreAssumed)
-        {
-            return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
-        }
+        // An integer literal's unknown type only stands for an integer type, so its impls are
+        // candidates, as in Rust.
         if is_bindable
-            && matches!(mode, TraitLookupMode::PreferOwnImpl)
+            && matches!(mode, TraitLookupMode::Default | TraitLookupMode::IgnoreAssumed)
             && !is_integer_type_variable(&object_type)
         {
             return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
@@ -595,15 +585,10 @@ impl NodeInterner {
         let mut matching_impls = Vec::new();
         let mut where_clause_error = None;
         let mut where_clause_undecided = false;
-        // For `PreferOwnImpl`: the matching impls for the object type's own type, and whether an
-        // impl for its own type has a where clause that can't be decided yet.
-        let mut own_impl_indexes = Vec::new();
-        let mut own_impl_undecided = false;
-        let mut impl_for_all_types_may_apply = false;
 
         for (existing_object_type, impl_kind) in impls {
             let skip = match mode {
-                TraitLookupMode::Default | TraitLookupMode::PreferOwnImpl => false,
+                TraitLookupMode::Default => false,
                 TraitLookupMode::SelfAssumedOnly => {
                     !matches!(impl_kind, TraitImplKind::Assumed { .. })
                 }
@@ -617,11 +602,6 @@ impl NodeInterner {
 
             let (existing_object_type, instantiation_bindings) =
                 existing_object_type.instantiate(self);
-            let is_real_impl =
-                matches!(impl_kind, TraitImplKind::Normal(_) | TraitImplKind::Prepared(..));
-            let is_impl_for_all_types =
-                is_real_impl && matches!(existing_object_type, Type::TypeVariable(_));
-            let is_own_impl = is_real_impl && !is_impl_for_all_types;
 
             let mut fresh_bindings = type_bindings.clone();
 
@@ -663,8 +643,6 @@ impl NodeInterner {
             {
                 if error.1.is_undecided() {
                     where_clause_undecided = true;
-                    own_impl_undecided |= is_own_impl;
-                    impl_for_all_types_may_apply |= is_impl_for_all_types;
                 }
                 // Only keep the first errors we get from a failing where clause
                 if where_clause_error.is_none() {
@@ -702,10 +680,6 @@ impl NodeInterner {
                     location: Location::dummy(),
                 },
             };
-            if is_own_impl {
-                own_impl_indexes.push(matching_impls.len());
-            }
-            impl_for_all_types_may_apply |= is_impl_for_all_types;
             matching_impls.push((
                 impl_kind.clone(),
                 fresh_bindings,
@@ -716,33 +690,6 @@ impl NodeInterner {
 
         // An impl whose where clause can't be decided yet might still apply, so neither a single
         // other match nor no match at all is an answer yet.
-        if matches!(mode, TraitLookupMode::PreferOwnImpl) {
-            let query_has_unknowns = object_type.contains_unbound_type_variable()
-                || trait_generics.iter().any(|generic| {
-                    generic.substitute(type_bindings).contains_unbound_type_variable()
-                });
-            // An assumed impl matching a query with unknowns is the `where` clause the function
-            // was written against, and decides those unknowns (see below).
-            let assumed_matches = matching_impls
-                .iter()
-                .any(|(kind, ..)| matches!(kind, TraitImplKind::Assumed { .. }));
-            // With unknowns in the object type itself (`S<_>`), an impl for all types `T` that
-            // may apply is an equally good candidate for some value of them, so the query is
-            // ambiguous rather than decided by the type's own impl.
-            let object_type_known = !object_type.contains_unbound_type_variable();
-            if query_has_unknowns
-                && !own_impl_undecided
-                && !assumed_matches
-                && (object_type_known || !impl_for_all_types_may_apply)
-                && let [index] = own_impl_indexes[..]
-            {
-                let (impl_, fresh_bindings, instantiation_bindings, _) =
-                    matching_impls.swap_remove(index);
-                *type_bindings = fresh_bindings;
-                return Ok((impl_, instantiation_bindings));
-            }
-        }
-
         if matching_impls.len() <= 1 && where_clause_undecided {
             Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType)
         } else if matching_impls.len() == 1 {
@@ -884,6 +831,8 @@ impl NodeInterner {
         if recursion_limit == IMPL_SEARCH_RECURSION_LIMIT {
             self.solved_where_clause_bounds.borrow_mut().clear();
         }
+        // An undecided bound doesn't hide a later one that fails: the where clause fails then.
+        let mut undecided = None;
         for constraint in where_clause {
             let constraint_type =
                 constraint.typ.substitute(instantiation_bindings).substitute(type_bindings);
@@ -916,30 +865,39 @@ impl NodeInterner {
 
             // We can ignore any associated types on the constraint since those should not affect
             // which impl we choose.
-            self.lookup_trait_implementation_helper(
-                &constraint_type,
-                constraint.trait_bound.trait_id,
-                &trait_generics,
-                &trait_associated_types,
-                // Use a fresh set of type bindings here since the constraint_type originates from
-                // our impl list, which we don't want to bind to.
-                type_bindings,
-                TraitLookupMode::Default,
-                recursion_limit - 1,
-            )
-            .map_err(|error| {
-                let mut constraint = constraint.clone();
-                constraint.typ = constraint_type.clone();
-                constraint.trait_bound.trait_generics.ordered = trait_generics.clone();
-                constraint.trait_bound.trait_generics.named = trait_associated_types.clone();
-                (constraint, error)
-            })?;
+            let result = self
+                .lookup_trait_implementation_helper(
+                    &constraint_type,
+                    constraint.trait_bound.trait_id,
+                    &trait_generics,
+                    &trait_associated_types,
+                    // Use a fresh set of type bindings here since the constraint_type originates from
+                    // our impl list, which we don't want to bind to.
+                    type_bindings,
+                    TraitLookupMode::Default,
+                    recursion_limit - 1,
+                )
+                .map_err(|error| {
+                    let mut constraint = constraint.clone();
+                    constraint.typ = constraint_type.clone();
+                    constraint.trait_bound.trait_generics.ordered = trait_generics.clone();
+                    constraint.trait_bound.trait_generics.named = trait_associated_types.clone();
+                    (constraint, error)
+                });
+            match result {
+                Err(error) if error.1.is_undecided() => {
+                    undecided.get_or_insert(error);
+                    continue;
+                }
+                Err(error) => return Err(error),
+                Ok(_) => (),
+            }
             if is_rigid {
                 self.solved_where_clause_bounds.borrow_mut().insert(key);
             }
         }
 
-        Ok(())
+        undecided.map_or(Ok(()), Err)
     }
 
     pub(crate) fn trait_constraint_string(

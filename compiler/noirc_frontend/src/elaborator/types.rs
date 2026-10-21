@@ -1772,20 +1772,19 @@ impl Elaborator<'_> {
         // Kept for the fallbacks below (the method-lookup branches consume `turbofish` and
         // `path_resolution`).
         let fallback_turbofish = turbofish.clone();
-        let fallback_path_resolution = path_resolution.clone();
 
         let method_name = last_segment.ident.as_str();
 
         let check_self_param = false;
+        // The trait methods of the type's own impls and of impls for all types `T`
+        // (`impl<T> Foo for T`) are candidates alike, as for a method call.
+        let mut trait_methods = self.lookup_trait_methods(&typ, method_name, check_self_param);
+        trait_methods.extend(self.lookup_generic_methods(&typ, method_name, check_self_param));
         // An inherent method that isn't visible from here leaves the call to a trait method if
         // there is one, and otherwise stays the resolution, to report it as private.
         let direct_method =
             self.lookup_direct_method(&typ, method_name, check_self_param).filter(|func_id| {
-                self.method_call_is_visible(*func_id, &typ)
-                    || (self.lookup_trait_methods(&typ, method_name, check_self_param).is_empty()
-                        && self
-                            .lookup_generic_methods(&typ, method_name, check_self_param)
-                            .is_empty())
+                self.method_call_is_visible(*func_id, &typ) || trait_methods.is_empty()
             });
 
         // Resolve inherent methods (`TypeName::method`, and `Self::method`) through this
@@ -1795,6 +1794,7 @@ impl Elaborator<'_> {
             self.resolve_turbofish_type_method(
                 &typ,
                 direct_method,
+                trait_methods,
                 &last_segment,
                 turbofish,
                 path_resolution,
@@ -1814,7 +1814,7 @@ impl Elaborator<'_> {
         } else {
             self.resolve_qualified_trait_method(
                 &typ,
-                None,
+                Some(trait_methods),
                 &last_segment,
                 turbofish,
                 path_resolution,
@@ -1839,25 +1839,7 @@ impl Elaborator<'_> {
             }
             return self.variable_from_trait_resolution(location, resolution);
         }
-        let value =
-            self.lookup_path_as_value_in_type(&last_segment, &typ, fallback_turbofish.clone());
-        if value.is_err() {
-            let has_self_arg = false;
-            let generic_methods = self.lookup_generic_methods(&typ, method_name, has_self_arg);
-            if !generic_methods.is_empty()
-                && let Some(resolution) = self.resolve_qualified_trait_method(
-                    &typ,
-                    Some(generic_methods),
-                    &last_segment,
-                    fallback_turbofish,
-                    fallback_path_resolution,
-                    Vec::new(),
-                    location,
-                )
-            {
-                return self.variable_from_trait_resolution(location, resolution);
-            }
-        }
+        let value = self.lookup_path_as_value_in_type(&last_segment, &typ, fallback_turbofish);
         self.variable_resolution_from_value_item(value, last_segment.ident.location())
     }
 
@@ -1869,6 +1851,7 @@ impl Elaborator<'_> {
         &mut self,
         typ: &Type,
         direct_method: Option<FuncId>,
+        type_trait_methods: Vec<(FuncId, TraitId, Type)>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
         path_resolution: PathResolution,
@@ -1895,9 +1878,6 @@ impl Elaborator<'_> {
                 path_resolution.errors,
             ));
         }
-
-        let has_self_arg = false;
-        let type_trait_methods = self.lookup_trait_methods(typ, method_name, has_self_arg);
 
         // If no method matches the turbofish type but the name is a known method for this type
         // (just incompatible), report an error. If the name isn't a method at all (e.g. it's an
