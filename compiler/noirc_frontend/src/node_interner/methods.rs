@@ -143,19 +143,6 @@ impl Methods {
         })
     }
 
-    /// Whether some method here applies to `typ` and its impl's where clause can hold for it.
-    pub(super) fn has_method_whose_where_clause_may_hold(
-        &self,
-        typ: &Type,
-        check_self_param: bool,
-        interner: &NodeInterner,
-    ) -> bool {
-        self.iter(interner).any(|(method, method_type, _)| {
-            Self::method_matches(typ, check_self_param, method, &method_type, interner)
-                && interner.method_impl_where_clause_may_hold(method, typ)
-        })
-    }
-
     /// Iterate through each method, starting with the direct methods
     fn iter<'a>(
         &'a self,

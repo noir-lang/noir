@@ -1762,6 +1762,21 @@ impl Elaborator<'_> {
         self.interner.lookup_trait_methods(typ, method_name, has_self_arg)
     }
 
+    /// Lazy-aware wrapper around
+    /// [`crate::node_interner::NodeInterner::lookup_own_and_generic_trait_methods`].
+    pub(super) fn lookup_own_and_generic_trait_methods(
+        &mut self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Vec<(FuncId, TraitId, Type)> {
+        self.resolve_method_candidate_metas(typ, method_name);
+        for func_id in self.interner.generic_method_candidate_ids(method_name) {
+            self.define_function_meta_if_undefined(func_id);
+        }
+        self.interner.lookup_own_and_generic_trait_methods(typ, method_name, has_self_arg)
+    }
+
     /// Lazy-aware wrapper around [`crate::node_interner::NodeInterner::lookup_generic_methods`].
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn lookup_generic_methods(
@@ -1845,10 +1860,8 @@ impl Elaborator<'_> {
         let method_name = last_segment.ident.as_str();
 
         let check_self_param = false;
-        // The trait methods of the type's own impls and of impls for all types `T`
-        // (`impl<T> Foo for T`) are candidates alike, as for a method call.
-        let mut trait_methods = self.lookup_trait_methods(&typ, method_name, check_self_param);
-        trait_methods.extend(self.lookup_generic_methods(&typ, method_name, check_self_param));
+        let trait_methods =
+            self.lookup_own_and_generic_trait_methods(&typ, method_name, check_self_param);
         // An inherent method that isn't visible from here leaves the call to a trait method if
         // there is one, and otherwise stays the resolution, to report it as private.
         let direct_method =
@@ -3520,15 +3533,9 @@ impl Elaborator<'_> {
             return Some(HirMethodReference::FuncId(method_id));
         }
 
-        // Next, the trait methods: those of the type's own impls and those of impls for all types
-        // `T` (`impl<T> Foo for T`) are candidates alike, so the traits in scope choose among them.
-        let mut trait_methods =
-            self.lookup_trait_methods(object_type, method_name, check_self_param);
-        trait_methods.extend(self.lookup_generic_methods(
-            object_type,
-            method_name,
-            check_self_param,
-        ));
+        // Next, the trait methods, among which the traits in scope choose.
+        let trait_methods =
+            self.lookup_own_and_generic_trait_methods(object_type, method_name, check_self_param);
         if !trait_methods.is_empty() {
             return self.return_trait_method_in_scope(
                 object_type,
