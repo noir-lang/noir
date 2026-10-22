@@ -1771,9 +1771,6 @@ impl Elaborator<'_> {
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
         self.resolve_method_candidate_metas(typ, method_name);
-        for func_id in self.interner.generic_method_candidate_ids(method_name) {
-            self.define_function_meta_if_undefined(func_id);
-        }
         self.interner.lookup_own_and_generic_trait_methods(typ, method_name, has_self_arg)
     }
 
@@ -1785,14 +1782,17 @@ impl Elaborator<'_> {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        for func_id in self.interner.generic_method_candidate_ids(method_name) {
-            self.define_function_meta_if_undefined(func_id);
-        }
+        self.resolve_method_candidate_metas(typ, method_name);
         self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
     }
 
+    /// Defines the metas of the methods named `method_name` that a lookup on `typ` may read: those
+    /// of `typ`'s own impls and of impls for all types `T`.
     fn resolve_method_candidate_metas(&mut self, typ: &Type, method_name: &str) {
-        for func_id in self.interner.method_candidate_ids(typ, method_name) {
+        let generic = self.interner.generic_method_candidate_ids(method_name);
+        for func_id in
+            self.interner.method_candidate_ids(typ, method_name).into_iter().chain(generic)
+        {
             self.define_function_meta_if_undefined(func_id);
         }
     }
