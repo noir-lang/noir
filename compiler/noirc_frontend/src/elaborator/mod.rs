@@ -750,10 +750,10 @@ impl<'context> Elaborator<'context> {
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
-        let previous_impl_trait_context = self
-            .item
-            .impl_trait_is_disallowed
-            .replace(types::ImplTraitDisallowedContext::TypeAlias);
+        let previous_impl_trait_position = std::mem::replace(
+            &mut self.item.impl_trait_position,
+            types::ImplTraitPosition::Disallowed(types::ImplTraitDisallowedContext::TypeAlias),
+        );
         let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type, wildcard_allowed);
             let kind = Kind::numeric(num_type);
@@ -789,7 +789,7 @@ impl<'context> Elaborator<'context> {
             (self.use_type(alias.type_alias_def.typ, wildcard_allowed), None)
         };
 
-        self.item.impl_trait_is_disallowed = previous_impl_trait_context;
+        self.item.impl_trait_position = previous_impl_trait_position;
 
         if !visibility.is_private() {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
