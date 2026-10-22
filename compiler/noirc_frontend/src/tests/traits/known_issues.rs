@@ -571,6 +571,26 @@ fn i1062_parent_bound_fixing_an_associated_type_is_used_in_a_default_method() {
     assert_accepted(src);
 }
 
+/// https://github.com/noir-lang/noir-claude/issues/1062: the parent bound that fixes the
+/// associated type decides it, whichever parent reaches the grandparent first.
+#[test]
+fn i1062_associated_type_fixed_by_the_second_parent_is_used_in_a_default_method() {
+    for parents in ["P1 + P2", "P2 + P1"] {
+        let src = format!(
+            r#"
+    trait Grand {{ type Item; }}
+    trait P1: Grand {{}}
+    trait P2: Grand<Item = Field> {{}}
+    trait Child: {parents} {{
+        fn f(self, x: Self::Item) -> Field {{ x }}
+    }}
+    fn main() {{}}
+    "#
+        );
+        assert_accepted(&src);
+    }
+}
+
 /// https://github.com/noir-lang/noir-claude/issues/1062
 #[test]
 fn i1062_grandparent_associated_type_fixed_by_a_parent_bound_is_used_in_a_default_method() {

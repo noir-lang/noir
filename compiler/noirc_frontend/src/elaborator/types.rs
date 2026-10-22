@@ -488,6 +488,11 @@ impl Elaborator<'_> {
             if let Some(typ) = parent_bound.associated_type(name, bindings) {
                 if visited.insert(parent_id) {
                     found.push((parent_id, typ));
+                } else if let Some(entry) = found.iter_mut().find(|(id, found_type)| {
+                    *id == parent_id && self.is_own_associated_type(parent_id, name, found_type)
+                }) {
+                    // The parent was reached first through a bound that leaves the type open.
+                    entry.1 = typ;
                 }
                 continue;
             }
@@ -505,6 +510,14 @@ impl Elaborator<'_> {
                 visited,
             );
         }
+    }
+
+    /// Whether `typ` is the trait's own associated type `name`, as
+    /// [`Self::collect_associated_type_in_parent_traits`] finds it on the trait itself.
+    fn is_own_associated_type(&self, trait_id: TraitId, name: &str, typ: &Type) -> bool {
+        let own = self.interner.get_trait(trait_id).get_associated_type(name);
+        matches!((typ, own), (Type::NamedGeneric(generic), Some(own))
+            if generic.type_var.id() == own.type_var.id())
     }
 
     /// Search for an associated type in the impls of the parent traits of `trait_bound`, as
