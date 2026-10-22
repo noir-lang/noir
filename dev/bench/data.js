@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792602607977,
+  "lastUpdate": 1792676457747,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23005,48 +23005,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "b094c920cdc6842290c0ac296ec941482d2d6478",
-          "message": "fix(frontend): print type-level arithmetic in its canonical form in `nargo expand` (#14007)",
-          "timestamp": "2026-10-15T18:23:03Z",
-          "tree_id": "17ea9da909b368db46f69f816a41e12c7c3051af",
-          "url": "https://github.com/noir-lang/noir/commit/b094c920cdc6842290c0ac296ec941482d2d6478"
-        },
-        "date": 1792090003151,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 68664,
-            "range": "± 1307",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 61975,
-            "range": "± 940",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1740782,
-            "range": "± 40885",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "c37c648b59ae92a3585ec41380c0b9d28cfd0e67",
           "message": "fix(frontend): resolve a trait impl's associated items the first time a lookup selects it (#14006)",
@@ -25089,6 +25047,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2650541,
             "range": "± 9047",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "99ad7fbf601dede6112c61e076bd43b09dc7adab",
+          "message": "fix(ssa): treat an array input passed to a call returning an array as moved in purity analysis (#14081)",
+          "timestamp": "2026-10-22T13:17:43Z",
+          "tree_id": "893e2af67d46d181c27c058a3637f463072a6d69",
+          "url": "https://github.com/noir-lang/noir/commit/99ad7fbf601dede6112c61e076bd43b09dc7adab"
+        },
+        "date": 1792676384324,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 125355,
+            "range": "± 6773",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 103633,
+            "range": "± 2452",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1738404,
+            "range": "± 44383",
             "unit": "ns/iter"
           }
         ]
