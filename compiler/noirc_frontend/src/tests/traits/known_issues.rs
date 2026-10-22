@@ -9,23 +9,12 @@
 
 use noirc_errors::CustomDiagnostic;
 
-use crate::elaborator::UnstableFeature;
 use crate::test_utils::get_monomorphized;
-use crate::tests::{get_program_errors, get_program_using_features};
+use crate::tests::get_program_errors;
 
 /// The messages of the errors (not warnings) the frontend reports for `src`.
 fn errors(src: &str) -> Vec<String> {
     get_program_errors(src)
-        .iter()
-        .map(CustomDiagnostic::from)
-        .filter(CustomDiagnostic::is_error)
-        .map(|diagnostic| diagnostic.message)
-        .collect()
-}
-
-fn errors_using_features(src: &str, features: &[UnstableFeature]) -> Vec<String> {
-    get_program_using_features(src, features)
-        .2
         .iter()
         .map(CustomDiagnostic::from)
         .filter(CustomDiagnostic::is_error)
