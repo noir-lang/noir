@@ -2,7 +2,7 @@ use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;
-use std::collections::HashSet;
+use std::{cell::Cell, collections::HashSet};
 
 use crate::{
     GenericTypeVars, Kind, Shared, Type, TypeBindings,
@@ -20,6 +20,10 @@ use super::NodeInterner;
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
+
+/// The most impls the overlap check tries for one pair of impls. Past it, the impls are taken not
+/// to overlap, as when a where clause can't be decided.
+const OVERLAP_SEARCH_BUDGET: u32 = 10_000;
 
 /// Modes that affect the behavior of [`NodeInterner::try_lookup_trait_implementation`].
 #[derive(Clone, Copy)]
@@ -368,31 +372,59 @@ impl NodeInterner {
                 constraint.apply_instantiation_bindings(&instantiation_bindings);
                 obligations.push(constraint);
             }
-            self.constraints_may_hold_together(&obligations, &bindings, IMPL_SEARCH_RECURSION_LIMIT)
-                .then_some(*existing)
+            let budget = Cell::new(OVERLAP_SEARCH_BUDGET);
+            self.constraints_may_hold_together(
+                &obligations,
+                &bindings,
+                IMPL_SEARCH_RECURSION_LIMIT,
+                &budget,
+            )
+            .then_some(*existing)
         })
     }
 
     /// Whether some choice of the unknowns in `constraints` (beyond those `bindings` decides)
     /// gives every constraint an impl, searching the declared impls for each one in turn.
-    /// Gives up, answering no, past `recursion_limit` nested where clauses.
+    /// Gives up, answering no, past `recursion_limit` nested where clauses or once `budget`
+    /// impls have been tried.
     fn constraints_may_hold_together(
         &self,
         constraints: &[TraitConstraint],
         bindings: &TypeBindings,
         recursion_limit: u32,
+        budget: &Cell<u32>,
     ) -> bool {
-        let Some((constraint, rest)) = constraints.split_first() else {
+        if constraints.is_empty() {
             return true;
-        };
+        }
         if recursion_limit == 0 {
             return false;
         }
+        // The constraint with the fewest impls to try, preferring one on a known type: a
+        // constraint on an unknown type is tried against every impl of its trait, each of which
+        // may nest further.
+        let impl_count = |constraint: &TraitConstraint| {
+            self.trait_implementation_map.get(&constraint.trait_bound.trait_id).map_or(0, Vec::len)
+        };
+        let index = (0..constraints.len())
+            .min_by_key(|index| {
+                let constraint = &constraints[*index];
+                let on_unknown = constraint.typ.substitute(bindings).is_bindable();
+                (on_unknown, impl_count(constraint))
+            })
+            .expect("constraints is not empty");
+        let constraint = &constraints[index];
+        let rest = constraints.iter().enumerate().filter(|(other, _)| *other != index);
+        let rest: Vec<_> = rest.map(|(_, constraint)| constraint.clone()).collect();
         let bound = &constraint.trait_bound;
         let Some(impls) = self.trait_implementation_map.get(&bound.trait_id) else {
             return false;
         };
         impls.iter().any(|(impl_type, impl_kind)| {
+            if budget.get() == 0 {
+                return false;
+            }
+            budget.set(budget.get() - 1);
             let (TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _)) = impl_kind
             else {
                 return false;
@@ -425,7 +457,12 @@ impl NodeInterner {
                 obligations.push(constraint);
             }
             obligations.extend(rest.iter().cloned());
-            self.constraints_may_hold_together(&obligations, &candidate, recursion_limit - 1)
+            self.constraints_may_hold_together(
+                &obligations,
+                &candidate,
+                recursion_limit - 1,
+                budget,
+            )
         })
     }
 
