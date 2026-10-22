@@ -1567,15 +1567,7 @@ impl Elaborator<'_> {
         let associated_constant = the_trait.associated_constant_ids.get(name).copied();
         // `Trait::item` is `<_ as Trait<_>>::item`: the type and the trait's arguments are unknowns
         // of this use.
-        let fresh = |generic: &crate::ResolvedGeneric| {
-            self.interner.next_type_variable_with_kind(generic.kind().into_owned())
-        };
-        let ordered = vecmap(&the_trait.generics, fresh);
-        let named = vecmap(&the_trait.associated_types, |generic| NamedType {
-            name: Ident::new(generic.name.to_string(), location),
-            typ: fresh(generic),
-        });
-        let trait_generics = TraitGenerics { ordered, named };
+        let trait_generics = the_trait.fresh_generics(self.interner, location);
         let trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
         let constraint = TraitConstraint { typ: self.interner.next_type_variable(), trait_bound };
 
@@ -3661,22 +3653,14 @@ impl Elaborator<'_> {
         location: Location,
     ) -> HirMethodReference {
         if let Some(func_id) =
-            self.impl_method_selected_at_call(object_type, trait_id, trait_methods)
+            self.impl_method_selected_at_call(object_type, trait_id, trait_methods, location)
         {
             return HirMethodReference::FuncId(func_id);
         }
 
         // The trait's generics at this call are unknowns that type checking solves.
         let trait_ = self.interner.get_trait(trait_id);
-        let fresh = |generic: &crate::ResolvedGeneric| {
-            self.interner.next_type_variable_with_kind(generic.kind().into_owned())
-        };
-        let ordered = vecmap(&trait_.generics, fresh);
-        let named = vecmap(&trait_.associated_types, |generic| NamedType {
-            name: Ident::new(generic.name.to_string(), location),
-            typ: fresh(generic),
-        });
-        let trait_generics = TraitGenerics { ordered, named };
+        let trait_generics = trait_.fresh_generics(self.interner, location);
         let definition = trait_.find_method(method_name, self.interner).unwrap();
         let assumed = false;
         HirMethodReference::TraitItemId(HirTraitMethodReference {
@@ -3697,19 +3681,17 @@ impl Elaborator<'_> {
         object_type: &Type,
         trait_id: TraitId,
         trait_methods: &[(FuncId, TraitId, Type)],
+        location: Location,
     ) -> Option<FuncId> {
         let trait_ = self.interner.get_trait(trait_id);
-        let fresh = |generic: &crate::ResolvedGeneric| {
-            self.interner.next_type_variable_with_kind(generic.kind().into_owned())
-        };
-        let ordered = vecmap(&trait_.generics, fresh);
+        let trait_generics = trait_.fresh_generics(self.interner, location);
         let (impl_kind, _, _) = self
             .interner
             .try_lookup_trait_implementation(
                 object_type,
                 trait_id,
-                &ordered,
-                &[],
+                &trait_generics.ordered,
+                &trait_generics.named,
                 TraitLookupMode::Default,
             )
             .ok()?;

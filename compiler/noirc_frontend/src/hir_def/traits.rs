@@ -513,6 +513,20 @@ impl Trait {
         TraitGenerics { ordered, named }
     }
 
+    /// The trait's generics and associated types as fresh unknowns, for one use of the trait
+    /// (`<_ as Trait<_>>`).
+    pub fn fresh_generics(&self, interner: &NodeInterner, location: Location) -> TraitGenerics {
+        let fresh = |generic: &ResolvedGeneric| {
+            interner.next_type_variable_with_kind(generic.kind().into_owned())
+        };
+        let ordered = vecmap(&self.generics, fresh);
+        let named = vecmap(&self.associated_types, |generic| NamedType {
+            name: Ident::new(generic.name.to_string(), location),
+            typ: fresh(generic),
+        });
+        TraitGenerics { ordered, named }
+    }
+
     /// Returns a `TraitConstraint` for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     ///
