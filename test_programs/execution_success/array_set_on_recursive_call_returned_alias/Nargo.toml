@@ -1,0 +1,6 @@
+[package]
+name = "array_set_on_recursive_call_returned_alias"
+type = "bin"
+authors = [""]
+
+[dependencies]
