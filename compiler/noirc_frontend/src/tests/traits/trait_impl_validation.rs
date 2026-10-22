@@ -631,3 +631,179 @@ fn does_not_crash_on_broken_impl_header() {
     let errors = crate::tests::get_program_errors(src);
     assert!(!errors.is_empty(), "expected the broken impl header to produce errors");
 }
+
+/// https://github.com/noir-lang/noir-claude/issues/1958
+#[test]
+fn impl_overlapping_a_blanket_impl_through_a_generic_is_rejected() {
+    let src = r#"
+    trait Small {}
+    trait Checked { fn checked(self) -> u8; }
+    pub struct Wrap<T> { v: T }
+    impl Small for Wrap<u8> {}
+    impl Small for Wrap<u16> {}
+    impl<T> Checked for T where T: Small { fn checked(self) -> u8 { 0 } }
+            ~~~~~~~ Previous impl defined here
+    impl<U> Checked for Wrap<U> { fn checked(self) -> u8 { 1 } }
+                        ^^^^^^^ Impl for type `Wrap<U>` overlaps with existing impl
+                        ~~~~~~~ Overlapping impl
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/1958
+#[test]
+fn blanket_impls_whose_where_clauses_one_type_satisfies_overlap() {
+    let src = r#"
+    trait Bounded {}
+    trait Audited {}
+    trait Validate { fn validate(self); }
+    impl<T> Validate for T where T: Bounded { fn validate(self) {} }
+            ~~~~~~~~ Previous impl defined here
+    impl<T> Validate for T where T: Audited { fn validate(self) { assert(false, "rejected"); } }
+                         ^ Impl for type `T` overlaps with existing impl
+                         ~ Overlapping impl
+    pub struct Amount { v: u8 }
+    impl Bounded for Amount {}
+    impl Audited for Amount {}
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2741
+#[test]
+fn generic_impl_after_a_concrete_one_of_the_same_type_is_registered() {
+    let src = r#"
+    trait Other {}
+    impl Other for bool {}
+    trait Tr { let N: u32; }
+    struct Foo<T> { x: T }
+    struct Z {}
+    impl Tr for Z { let N: u32 = <Foo<bool> as Tr>::N; }
+    impl Tr for Foo<u32> { let N: u32 = 1; }
+    impl<T> Tr for Foo<T> where T: Other { let N: u32 = 2; }
+    fn main() -> pub u32 { <Z as Tr>::N }
+    "#;
+    assert_no_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2756
+#[test]
+fn impl_where_clause_projecting_through_a_later_impl_is_resolved() {
+    let src = r#"
+    trait Eq { fn eq(self, other: Self) -> bool; }
+    trait C { type N; }
+    trait D { fn d(self) -> Field; }
+    pub struct W<T> { t: T }
+    pub struct V<T> { t: T }
+    impl<T> D for V<T> where W<T>: C, <W<T> as C>::N: Eq { fn d(self) -> Field { 1 } }
+    impl<T> C for W<T> { type N = T; }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2735
+#[test]
+fn impl_header_projecting_through_a_later_impl_is_resolved() {
+    let src = r#"
+    trait C { type T; }
+    trait D { type U; }
+    trait E<X> { fn get(self) -> Field; }
+    struct S {}
+    struct Z {}
+    struct Q {}
+    impl C for S { type T = <Z as D>::U; }
+    impl E<<S as C>::T> for Q { fn get(self) -> Field { 1 } }
+    impl D for Z { type U = u8; }
+    fn main() -> pub Field { let q = Q {}; E::<u8>::get(q) }
+    "#;
+    assert_no_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2735
+#[test]
+fn impl_for_an_array_length_from_a_later_impl_is_resolved() {
+    let src = r#"
+    trait C { let N: u32; }
+    trait D { let M: u32; }
+    trait E { fn get(self) -> u32; }
+    struct S {}
+    struct Z {}
+    impl C for S { let N: u32 = <Z as D>::M; }
+    impl E for [u8; <S as C>::N] { fn get(self) -> u32 { <S as C>::N } }
+    impl D for Z { let M: u32 = 4; }
+    fn main() -> pub u32 { let a: [u8; 4] = [0; 4]; a.get() }
+    "#;
+    assert_no_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2709
+#[test]
+fn where_clause_on_a_concrete_type_decides_its_associated_type() {
+    let src = r#"
+    pub trait Tr { type Out; fn mk() -> Self::Out; }
+    impl Tr for u8 { type Out = u16; fn mk() -> u16 { 7 } }
+    fn f<T>() -> T where u8: Tr<Out = T> { <u8 as Tr>::mk() }
+    fn main() { let _: u16 = f::<u16>(); }
+    "#;
+    assert_no_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/1935
+#[test]
+fn impl_of_a_trait_whose_where_clause_names_a_later_trait() {
+    let src = r#"
+    trait Sz<U> where U: N2 { fn base(self) -> Field; }
+    trait N2 { fn name2(self) -> Field; }
+    impl N2 for u8 { fn name2(self) -> Field { 10 } }
+    struct B {}
+    impl Sz<u8> for B { fn base(self) -> Field { 1 } }
+    fn main() -> pub Field { <B as Sz<u8>>::base(B {}) }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn blanket_impls_whose_where_clauses_no_type_satisfies_together_do_not_overlap() {
+    // Many impls of `Same` are generic over an element type that must be `Same` too, so a
+    // search that tries them before `Marker` nests through each of them.
+    let src = r#"
+    trait Same {}
+    pub struct One<A> { a: A }
+    pub struct Two<A> { a: A }
+    impl<A, let N: u32> Same for [A; N] where A: Same {}
+    impl<A> Same for [A] where A: Same {}
+    impl<A> Same for One<A> where A: Same {}
+    impl<A> Same for Two<A> where A: Same {}
+    impl<A, B> Same for (A, B) where A: Same, B: Same {}
+    impl<A, B, C> Same for (A, B, C) where A: Same, B: Same, C: Same {}
+    impl Same for Field {}
+
+    trait Marker {}
+    pub struct S {}
+    impl Marker for S {}
+
+    trait Show { fn show(self); }
+    impl<T> Show for T where T: Marker { fn show(self) {} }
+    impl<T> Show for T where T: Same { fn show(self) {} }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_header_projecting_through_a_later_impl_for_a_type_in_a_module() {
+    let src = r#"
+    mod m { pub struct S {} }
+    trait C { type T; }
+    trait E<X> { fn get(self) -> Field; }
+    struct Q {}
+    impl E<<m::S as C>::T> for Q { fn get(self) -> Field { 1 } }
+    impl C for m::S { type T = u8; }
+    fn main() -> pub Field { let q = Q {}; E::<u8>::get(q) }
+    "#;
+    assert_no_errors(src);
+}
