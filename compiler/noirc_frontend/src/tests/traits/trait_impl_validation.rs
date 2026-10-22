@@ -633,9 +633,9 @@ fn does_not_crash_on_broken_impl_header() {
 }
 
 #[test]
-fn blanket_impls_whose_where_clauses_no_type_satisfies_together_do_not_overlap() {
-    // Many impls of `Same` are generic over an element type that must be `Same` too, so a
-    // search that tries them before `Marker` nests through each of them.
+fn blanket_impls_whose_where_clauses_both_have_impls_overlap() {
+    // No type implements both `Marker` and `Same`, but each has impls, so the impls overlap, as
+    // in rustc (E0119).
     let src = r#"
     trait Same {}
     pub struct One<A> { a: A }
@@ -654,9 +654,12 @@ fn blanket_impls_whose_where_clauses_no_type_satisfies_together_do_not_overlap()
 
     trait Show { fn show(self); }
     impl<T> Show for T where T: Marker { fn show(self) {} }
+            ~~~~ Previous impl defined here
     impl<T> Show for T where T: Same { fn show(self) {} }
+                     ^ Impl for type `T` overlaps with existing impl
+                     ~ Overlapping impl
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
