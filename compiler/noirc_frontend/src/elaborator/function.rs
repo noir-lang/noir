@@ -866,7 +866,7 @@ fn is_identifier_pattern(pattern: &HirPattern) -> bool {
 /// Whether the trait, self type or where clause of `trait_impl` contains a projection
 /// (`<S as C>::T`).
 fn header_has_projection(trait_impl: &UnresolvedTraitImpl) -> bool {
-    let mut finder = ProjectionFinder::default();
+    let mut finder = ProjectionFinder::new(Some(&trait_impl.generics));
     trait_impl.r#trait.accept(&mut finder);
     trait_impl.object_type.accept(&mut finder);
     for constraint in &trait_impl.where_clause {

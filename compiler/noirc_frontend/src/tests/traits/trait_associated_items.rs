@@ -4258,3 +4258,17 @@ fn bool_associated_type_result_is_not_a_shift_operand() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn impl_header_projecting_through_a_later_impl_for_a_type_in_a_module() {
+    let src = r#"
+    mod m { pub struct S {} }
+    trait C { type T; }
+    trait E<X> { fn get(self) -> Field; }
+    struct Q {}
+    impl E<<m::S as C>::T> for Q { fn get(self) -> Field { 1 } }
+    impl C for m::S { type T = u8; }
+    fn main() -> pub Field { let q = Q {}; E::<u8>::get(q) }
+    "#;
+    assert_no_errors(src);
+}
