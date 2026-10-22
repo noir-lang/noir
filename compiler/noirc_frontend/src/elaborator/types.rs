@@ -1792,10 +1792,11 @@ impl Elaborator<'_> {
     /// Resolves `Type::method` (or `Type::<..>::method`) given a prefix already resolved to a type,
     /// type alias, or primitive type.
     ///
-    /// When turbofish generics are present, uses type-directed lookup to select the correct impl
-    /// (e.g. `S::<u32, u64>::foo` picks the impl whose self type unifies with `S<u32, u64>`).
-    /// Without turbofish, returns `None` so the caller falls back to module-based lookup, which
-    /// handles `Self::method`, visibility checks, and associated constants correctly.
+    /// The last segment is an inherent method, a trait method of the type's own impls or of an
+    /// impl for all types, or else a value of the type (an enum variant or associated constant).
+    /// A turbofish selects the impl whose self type unifies with it (`S::<u32, u64>::foo`).
+    /// `Self` is the impl's own self type, and a type that is a generic parameter (through an
+    /// alias) resolves through its bounds, like `T::item`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_method_on_type_prefix(
         &mut self,

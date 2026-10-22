@@ -620,7 +620,7 @@ fn bind_named_generics(
 /// Binds the type variable in a [`ResolvedGeneric`], e.g. a generic parameter of a trait,
 /// to a [Type], which itself can be an unbound type variable.
 ///
-/// If the type variable itself appears in the type, then it does nothing.
+/// Binding the parameter to itself does nothing.
 fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
     // Avoid binding t = t. An argument that only contains the parameter (`[T; 2]` for `T`, in a
     // trait's own method) is a binding like any other: instantiation replaces `T` once.
