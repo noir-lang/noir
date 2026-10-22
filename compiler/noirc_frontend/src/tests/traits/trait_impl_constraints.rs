@@ -701,3 +701,36 @@ fn trait_impl_method_body_resolves_parent_associated_type_in_code_from_a_macro()
     "#;
     assert_no_errors(src);
 }
+
+/// https://github.com/noir-lang/noir-claude/issues/2237: `U: Source` follows from `U: Checked`
+/// with `trait Checked: Source`, so restating it asks for nothing more than the trait method.
+#[test]
+fn impl_method_restating_an_implied_parent_bound_is_not_stricter() {
+    let src = r#"
+    trait Source { type Out; fn get(self) -> Self::Out; }
+    trait Checked: Source {}
+    trait Foo { fn f<T>(x: T) -> Field where T: Checked; }
+    struct S {}
+    impl Source for u32 { type Out = u8; fn get(self) -> u8 { self as u8 } }
+    impl Checked for u32 {}
+    impl Foo for S { fn f<U>(x: U) -> Field where U: Checked, U: Source { let _ = x; 3 } }
+    fn main(x: u32) { assert(S::f(x) == 3); }
+    "#;
+    assert_no_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2761: the impl method restates the trait
+/// method's bound on an associated type of `Self`.
+#[test]
+fn impl_method_restating_a_bound_on_an_associated_type_of_self_is_not_stricter() {
+    let src = r#"
+    trait Eq { fn eq(self, other: Self) -> bool; }
+    trait C { type N; }
+    pub struct V<T> { t: T }
+    impl<T> C for V<T> { type N = T; }
+    trait D { fn d(_self: Self) -> Field where Self: C, <Self as C>::N: Eq; }
+    impl<T> D for V<T> { fn d(_self: Self) -> Field where Self: C, <Self as C>::N: Eq { 1 } }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

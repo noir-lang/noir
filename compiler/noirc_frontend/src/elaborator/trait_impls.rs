@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable, TypeVariableId,
+    Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     elaborator::{PathResolutionMode, WildcardDisallowedContext, types::WildcardAllowed},
     hir::{
@@ -12,7 +12,7 @@ use crate::{
             errors::DefCollectorErrorKind,
         },
         resolution::errors::ResolverError,
-        type_check::{TypeCheckError, generics::TraitGenerics},
+        type_check::TypeCheckError,
     },
     hir_def::traits::{NamedType, ResolvedTraitBound, TraitImpl},
     node_interner::{TraitImplId, TraitLookupMode},
@@ -26,7 +26,6 @@ use crate::{
 
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
-use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::deferred::{PendingWhereClauseCheck, UnresolvedImplAssociatedType};
@@ -478,64 +477,43 @@ impl Elaborator<'_> {
             }
         }
 
-        bindings.extend(pair_implicit_associated_generics(
-            &method.trait_constraints,
-            &override_meta.trait_constraints,
-            &bindings,
-        ));
-
-        let mut substituted_method_ids = HashSet::default();
-        for method_constraint in &method.trait_constraints {
-            let substituted_constraint_type =
-                method_constraint.typ.substitute(&bindings).follow_bindings();
-            let mut substituted_trait_generics = method_constraint
-                .trait_bound
-                .trait_generics
-                .map(|generic| generic.substitute(&bindings));
-            self.normalize_constraint_named_generics(
-                &substituted_constraint_type,
-                method_constraint.trait_bound.trait_id,
-                &mut substituted_trait_generics,
-            );
-
-            substituted_method_ids.insert((
-                substituted_constraint_type,
-                method_constraint.trait_bound.trait_id,
-                substituted_trait_generics,
-            ));
+        self.resolve_trait_method_metas_for(trait_id);
+        if let Some(method_id) =
+            self.interner.get_trait(trait_id).method_ids.get(method.name.as_str())
+            && let Some(method_meta) = self.interner.try_function_meta(method_id)
+        {
+            bindings
+                .extend(super::traits::impl_trait_parameter_bindings(method_meta, &override_meta));
         }
+        // An associated type the trait method's bounds leave to a placeholder
+        // (`where Self: C, <Self as C>::N: Eq`) is the impl's once `Self` is the impl's type, so
+        // the bounds on that placeholder are bounds on the impl's associated type.
+        self.bind_placeholders_to_normalized_associated_types(
+            method.trait_constraints.iter(),
+            &mut bindings,
+        );
 
-        // Only the constraints the impl method writes can make it stricter than the trait: the
-        // implied ones follow from a written one, here or in the impl's where clause.
-        for override_trait_constraint in override_meta.trait_constraints.clone() {
-            let override_constraint_is_from_impl =
-                trait_impl_where_clause.iter().any(|impl_constraint| {
-                    constraints_unify(impl_constraint, &override_trait_constraint).is_some()
-                });
-            if override_constraint_is_from_impl {
-                continue;
-            }
+        // The impl method may only require what the trait method's bounds, for this impl, and
+        // the impl's where clause imply: each of its bounds must hold under those assumptions.
+        let assumptions = vecmap(&method.trait_constraints, |constraint| {
+            let mut constraint = constraint.clone();
+            constraint.apply_bindings(&bindings);
+            constraint
+        });
+        self.assume_trait_constraints(assumptions.iter().chain(trait_impl_where_clause));
 
-            let override_constraint_type = override_trait_constraint.typ.follow_bindings();
-            let mut override_trait_generics =
-                override_trait_constraint.trait_bound.trait_generics.clone();
-            self.normalize_constraint_named_generics(
-                &override_constraint_type,
-                override_trait_constraint.trait_bound.trait_id,
-                &mut override_trait_generics,
-            );
-
-            if !substituted_method_ids.contains(&(
-                override_constraint_type,
-                override_trait_constraint.trait_bound.trait_id,
-                override_trait_generics,
-            )) {
+        let mut solved = TypeBindings::default();
+        for override_trait_constraint in &override_meta.trait_constraints {
+            if !self.override_bound_holds(override_trait_constraint, &mut solved) {
                 let the_trait =
                     self.interner.get_trait(override_trait_constraint.trait_bound.trait_id);
                 self.push_err(DefCollectorErrorKind::ImplIsStricterThanTrait {
-                    constraint_typ: override_trait_constraint.typ,
+                    constraint_typ: override_trait_constraint.typ.clone(),
                     constraint_name: the_trait.name.to_string(),
-                    constraint_generics: override_trait_constraint.trait_bound.trait_generics,
+                    constraint_generics: override_trait_constraint
+                        .trait_bound
+                        .trait_generics
+                        .clone(),
                     constraint_location: override_trait_constraint.trait_bound.location,
                     trait_method_name: method.name.to_string(),
                     trait_method_location: method.location,
@@ -543,33 +521,34 @@ impl Elaborator<'_> {
             }
         }
 
+        self.remove_trait_constraints_from_scope(assumptions.iter().chain(trait_impl_where_clause));
         self.interner.push_fn_meta(override_meta, *func_id);
     }
 
-    /// Replace each named (associated-type) argument that is still an unresolved implicit generic
-    /// with its normalized value, when the constraint's object type is rigid. A discharged
-    /// `where Self::Target: Mappable` clause then compares equal between a trait method and its
-    /// impl, instead of tripping the "impl has stricter requirements" check over differing
-    /// implicit generics that both stand for `<Self::Target as Mappable>::Target`.
-    fn normalize_constraint_named_generics(
-        &self,
-        object_type: &Type,
-        trait_id: TraitId,
-        generics: &mut TraitGenerics,
-    ) {
-        let ordered = generics.ordered.clone();
-        for named in &mut generics.named {
-            if matches!(named.typ, Type::NamedGeneric(_))
-                && let Some(normalized) = self.normalize_rigid_associated_type(
-                    object_type,
-                    trait_id,
-                    &ordered,
-                    named.name.as_str(),
-                )
-            {
-                named.typ = normalized;
-            }
+    /// Whether an impl method's bound holds under the assumptions in scope. An associated type the
+    /// bound leaves out is named by a placeholder of its own, which stands for whatever the
+    /// assumptions say: `solved` binds the placeholders of the bounds checked so far to it.
+    fn override_bound_holds(&self, bound: &TraitConstraint, solved: &mut TypeBindings) -> bool {
+        // Its own placeholders not solved by an earlier bound stand for unknowns.
+        let mut own = bound.trait_bound.trait_generics.named.clone();
+        own.retain(|named| !matches!(&named.typ, Type::NamedGeneric(generic) if solved.contains_key(&generic.type_var.id())));
+        self.bind_to_fresh_variable(&mut own, solved);
+        let mut constraint = bound.clone();
+        constraint.apply_bindings(solved);
+        let bound = &constraint.trait_bound;
+        let Ok((_, impl_bindings, _)) = self.interner.try_lookup_trait_implementation(
+            &constraint.typ,
+            bound.trait_id,
+            &bound.trait_generics.ordered,
+            &bound.trait_generics.named,
+            TraitLookupMode::Default,
+        ) else {
+            return false;
+        };
+        for (_, _, typ) in solved.values_mut() {
+            *typ = typ.substitute(&impl_bindings);
         }
+        true
     }
 
     /// Check that an associated type in a trait impl is not assigned a type that is more
@@ -1226,167 +1205,4 @@ impl Elaborator<'_> {
             wildcard_allowed,
         )
     }
-}
-
-/// Bind each anonymous generic that a trait method's `where` clause desugared for an
-/// unspecified associated item to the one its override desugared for the same item.
-///
-/// `where B: Bar` on a trait method and on its override each expand to `where B: Bar<N = _>`
-/// with their own fresh type variable standing in for `_`. Both denote the same projection,
-/// but they are distinct type variables, so the two constraint sets only compare equal once
-/// the pairs are bound together.
-///
-/// Only two placeholders are ever paired, and only when the override's placeholder was
-/// desugared for the very constraint being matched. An override that pins the associated item
-/// down to a concrete type genuinely is a stricter requirement and must still be reported. So
-/// is one that pins it to another bound's placeholder: in `where B: Bar, C: Bar<N = <B as
-/// Bar>::N>` the second constraint names the placeholder of the first, and pairing the
-/// declaration's independent placeholder for `C::N` with it would hide the equation the
-/// override adds.
-fn pair_implicit_associated_generics(
-    declaration_constraints: &[TraitConstraint],
-    override_constraints: &[TraitConstraint],
-    bindings: &TypeBindings,
-) -> TypeBindings {
-    // The index of the override constraint each override placeholder was desugared for.
-    //
-    // A projection like `<B as Bar>::N` only resolves once `B: Bar` has been resolved and
-    // assumed, so the first constraint in clause order to name a placeholder is the one that
-    // introduced it and every later mention is one the author wrote.
-    let mut placeholder_home = HashMap::default();
-    for (index, constraint) in override_constraints.iter().enumerate() {
-        for named in &constraint.trait_bound.trait_generics.named {
-            if let Some(type_var) = implicit_placeholder(&named.typ) {
-                placeholder_home.entry(type_var.id()).or_insert(index);
-            }
-        }
-    }
-
-    // A bound can be on another bound's associated item (`<B as Bar>::T: Baz`,
-    // `C: Qux<<B as Bar>::T>`), so it only matches its override once that item is paired: repeat
-    // until a pass pairs nothing new.
-    let mut pairs = TypeBindings::default();
-    let mut current = bindings.clone();
-    loop {
-        let paired = pairs.len();
-        for declaration in declaration_constraints {
-            pair_declaration_placeholders(
-                declaration,
-                override_constraints,
-                &placeholder_home,
-                &current,
-                &mut pairs,
-            );
-        }
-        if pairs.len() == paired {
-            return pairs;
-        }
-        current.extend(pairs.iter().map(|(id, pair)| (*id, pair.clone())));
-    }
-}
-
-/// Pairs the placeholders of one declaration constraint with those of the override constraint
-/// it matches under `bindings`, if any. See [`pair_implicit_associated_generics`].
-fn pair_declaration_placeholders(
-    declaration: &TraitConstraint,
-    override_constraints: &[TraitConstraint],
-    placeholder_home: &HashMap<TypeVariableId, usize>,
-    bindings: &TypeBindings,
-    pairs: &mut TypeBindings,
-) {
-    let object_type = declaration.typ.substitute(bindings).follow_bindings();
-    let ordered = vecmap(&declaration.trait_bound.trait_generics.ordered, |generic| {
-        generic.substitute(bindings)
-    });
-
-    let Some((override_index, override_constraint)) =
-        override_constraints.iter().enumerate().find(|(_, override_constraint)| {
-            override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
-                && override_constraint.typ.follow_bindings() == object_type
-                && override_constraint.trait_bound.trait_generics.ordered == ordered
-        })
-    else {
-        return;
-    };
-
-    for named in &declaration.trait_bound.trait_generics.named {
-        let Some(type_var) = implicit_placeholder(&named.typ) else {
-            continue;
-        };
-        // A declaration placeholder the trait's clause itself mentions in several bounds keeps
-        // its first pairing, so a mismatch is reported at the later bound.
-        if pairs.contains_key(&type_var.id()) {
-            continue;
-        }
-        let Some(override_named) = override_constraint
-            .trait_bound
-            .trait_generics
-            .named
-            .iter()
-            .find(|override_named| override_named.name.as_str() == named.name.as_str())
-        else {
-            continue;
-        };
-        let Some(override_type_var) = implicit_placeholder(&override_named.typ) else {
-            continue;
-        };
-        if placeholder_home.get(&override_type_var.id()) != Some(&override_index) {
-            continue;
-        }
-
-        let kind = type_var.kind().into_owned();
-        pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
-    }
-}
-
-/// The type variable of an anonymous generic desugared for an unspecified associated item.
-fn implicit_placeholder(typ: &Type) -> Option<TypeVariable> {
-    match typ {
-        Type::NamedGeneric(generic)
-            if generic.implicit && generic.type_var.binding().is_unbound() =>
-        {
-            Some(generic.type_var.clone())
-        }
-        _ => None,
-    }
-}
-
-/// Returns true if the impl-level `where` constraint and the method-level
-/// override constraint refer to the same trait on the same type with the same
-/// trait generics. Note that no type bindings are committed on success.
-///
-/// Returns a `Option` so we can use `?` without `try` blocks being stable
-fn constraints_unify(
-    impl_constraint: &TraitConstraint,
-    override_constraint: &TraitConstraint,
-) -> Option<()> {
-    // This just lets us early-return `None` for `false` conditions
-    let require = |cond: bool| cond.then_some(());
-
-    require(impl_constraint.trait_bound.trait_id == override_constraint.trait_bound.trait_id)?;
-
-    let mut bindings = TypeBindings::default();
-    impl_constraint.typ.try_unify(&override_constraint.typ, &mut bindings).ok()?;
-
-    let impl_generics = &impl_constraint.trait_bound.trait_generics;
-    let override_generics = &override_constraint.trait_bound.trait_generics;
-
-    require(impl_generics.ordered.len() == override_generics.ordered.len())?;
-
-    let generics = impl_generics.ordered.iter().zip(&override_generics.ordered);
-    for (impl_generic, override_generic) in generics {
-        impl_generic.try_unify(override_generic, &mut bindings).ok()?;
-    }
-
-    require(impl_generics.named.len() == override_generics.named.len())?;
-
-    let named_override_generics = &override_generics.named;
-    for impl_named in &impl_generics.named {
-        let override_named = named_override_generics
-            .iter()
-            .find(|named| named.name.as_str() == impl_named.name.as_str())?;
-
-        impl_named.typ.try_unify(&override_named.typ, &mut bindings).ok()?;
-    }
-    Some(())
 }
