@@ -1602,6 +1602,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_bounded_generic_item(
         &mut self,
+        typ: Type,
         bounds: Vec<TraitConstraint>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
@@ -1644,7 +1645,33 @@ impl Elaborator<'_> {
                 errors,
             })
         } else {
-            None
+            // A method no bound provides may be one of an impl for all types `T`, as for a method
+            // call on the generic.
+            let has_self_arg = false;
+            let generic_methods = self.lookup_generic_methods(&typ, method_name, has_self_arg);
+            if generic_methods.is_empty() {
+                None
+            } else {
+                // The item is only read for a method bound at the call, which a method of an impl
+                // for all types never is (see `impl_method_selected_at_call`).
+                let path_resolution = PathResolution {
+                    item: PathResolutionItem::TypeTraitFunction(
+                        typ.clone(),
+                        generic_methods[0].1,
+                        generic_methods[0].0,
+                    ),
+                    errors: Vec::new(),
+                };
+                self.resolve_qualified_trait_method(
+                    &typ,
+                    Some(generic_methods),
+                    last_segment,
+                    turbofish,
+                    path_resolution,
+                    Vec::new(),
+                    location,
+                )
+            }
         };
 
         // The generic is in scope; the last segment must be a method or associated constant
@@ -1783,6 +1810,14 @@ impl Elaborator<'_> {
             Some(self_type) if is_self_prefix && turbofish.is_none() => self_type.clone(),
             _ => typ,
         };
+
+        // A type that is a generic parameter (through an alias, `Id::<T>`) has the items of its
+        // bounds, like `T::item`.
+        if matches!(typ.follow_bindings_shallow().as_ref(), Type::NamedGeneric(_)) {
+            // The prefix's turbofish gave the alias its arguments.
+            let bounds = self.item.generics.bounds_on_type(&typ).cloned().collect();
+            return self.resolve_bounded_generic_item(typ, bounds, &last_segment, None, location);
+        }
 
         // Kept for the fallbacks below (the method-lookup branches consume `turbofish` and
         // `path_resolution`).
@@ -2269,9 +2304,11 @@ impl Elaborator<'_> {
             self.push_err(PathResolutionError::Unresolved(last_segment.ident.clone()));
             return None;
         }
-        let mut bounds = vec![self.interner.get_trait(trait_id).as_constraint(path.location)];
+        let constraint = self.interner.get_trait(trait_id).as_constraint(path.location);
+        let typ = constraint.typ.clone();
+        let mut bounds = vec![constraint];
         bounds.extend(self.matching_generic_bounds(&path).unwrap_or_default());
-        self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
+        self.resolve_bounded_generic_item(typ, bounds, &last_segment, turbofish, path.location)
     }
 
     /// Resolve `Self::method` (or `Self::AssocType::method`) by resolving the `Self` prefix as a

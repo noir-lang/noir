@@ -100,10 +100,10 @@ enum PathPrefixKind {
     /// a data type): the last segment resolves like `Type::method`
     /// ([`Elaborator::resolve_self_as_concrete_type`]).
     SelfInImpl,
-    /// A generic parameter with `: Trait` bound(s) in scope (e.g. `T` in `T::method`); the carried
-    /// constraints are the matched bounds. The last segment is a method or associated constant
-    /// reached through one of them.
-    BoundedGeneric(Vec<TraitConstraint>),
+    /// A generic parameter (e.g. `T` in `T::method`), or an associated type of one, with the bounds
+    /// on it in scope. The last segment is a method or associated constant reached through one of
+    /// them, or else a method of an impl for all types.
+    BoundedGeneric(Type, Vec<TraitConstraint>),
     /// A trait (e.g. `Trait` in `Trait::method` / `Trait::CONST`). The last segment is a trait
     /// static method or an associated constant.
     Trait { trait_id: TraitId, resolution: PathResolution },
@@ -570,9 +570,13 @@ impl Elaborator<'_> {
             PathPrefixKind::SelfInImpl => {
                 self.resolve_self_as_concrete_type(path, last_segment, turbofish)
             }
-            PathPrefixKind::BoundedGeneric(bounds) => {
-                self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
-            }
+            PathPrefixKind::BoundedGeneric(typ, bounds) => self.resolve_bounded_generic_item(
+                typ,
+                bounds,
+                &last_segment,
+                turbofish,
+                path.location,
+            ),
             PathPrefixKind::Type { resolution } => {
                 let is_self_prefix = false;
                 self.resolve_method_on_type_prefix(
@@ -635,10 +639,10 @@ impl Elaborator<'_> {
         // `Self` and a generic parameter are only meaningful as a plain path: `crate::Self` /
         // `super::T` name an item in another module, not the contextual `Self` or an in-scope
         // generic, so they must not be classified as such.
-        let kind = if let Some(bounds) = self.bounds_on_abstract_associated_type(&prefix) {
+        let kind = if let Some((typ, bounds)) = self.bounds_on_abstract_associated_type(&prefix) {
             // `T::A::item`, or `Self::A::item` in a trait: `A` is an associated type the item is
             // reached through the bounds of.
-            PathPrefixKind::BoundedGeneric(bounds)
+            PathPrefixKind::BoundedGeneric(typ, bounds)
         } else if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
             // `Self` is contextual; which kind it is depends only on where we are (a trait impl, a
             // trait definition, somewhere `Self` is a plain type, or nowhere at all), so it is
@@ -656,11 +660,14 @@ impl Elaborator<'_> {
                 PathPrefixKind::SelfNotInScope
             }
         } else if path.kind == PathKind::Plain
-            && let Some(bounds) = self.matching_generic_bounds(path)
+            && path.segments.len() == 2
+            && let Some(generic) = self.item.generics.find(path.segments[0].ident.as_str())
         {
-            // A generic parameter (e.g. `T`) with a `T: Trait` bound in scope. A generic is not in
-            // the module namespace, so this is recognized from the in-scope bounds, not resolution.
-            PathPrefixKind::BoundedGeneric(bounds)
+            // A generic parameter (e.g. `T`). A generic is not in the module namespace, so this is
+            // recognized from the generics in scope, not resolution.
+            let typ = generic.clone().into_named_generic(None);
+            let bounds = self.item.generics.bounds_on_type(&typ).cloned().collect();
+            PathPrefixKind::BoundedGeneric(typ, bounds)
         } else {
             // Otherwise the prefix is resolved as a type to distinguish trait/type/module.
             let prefix_last_ident = prefix.last_segment().ident;
@@ -708,7 +715,7 @@ impl Elaborator<'_> {
     fn bounds_on_abstract_associated_type(
         &mut self,
         prefix: &TypedPath,
-    ) -> Option<Vec<TraitConstraint>> {
+    ) -> Option<(Type, Vec<TraitConstraint>)> {
         if prefix.kind != PathKind::Plain || prefix.segments.len() != 2 {
             return None;
         }
@@ -737,7 +744,7 @@ impl Elaborator<'_> {
                 trait_bound: trait_bound.clone(),
             }));
         }
-        Some(bounds)
+        Some((typ, bounds))
     }
 
     /// If the path's first segment names a generic parameter with `: Trait` bound(s) in scope,
