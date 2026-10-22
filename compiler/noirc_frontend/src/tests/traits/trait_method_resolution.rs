@@ -1670,3 +1670,17 @@ fn type_path_naming_an_associated_constant_and_a_blanket_impl_method_is_rejected
     "#;
     check_errors(src);
 }
+
+#[test]
+fn method_call_in_a_global_with_a_blanket_impl_method_of_the_same_name() {
+    let src = r#"
+    trait Len { fn len(self) -> u32; }
+    impl<T> Len for T { fn len(self) -> u32 { let _ = self; 0 } }
+    struct S {}
+    impl S { fn len(self) -> u32 { let _ = self; 3 } }
+    global G: u32 = S {}.len();
+    global H: u32 = true.len();
+    fn main() { assert(G + H == 3); }
+    "#;
+    assert_no_errors(src);
+}
