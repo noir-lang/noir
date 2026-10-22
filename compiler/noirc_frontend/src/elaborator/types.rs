@@ -476,14 +476,21 @@ impl Elaborator<'_> {
             // A parent bound that names the associated type (`trait Foo: Bar<Out = Field>`)
             // decides it for every implementor.
             if let Some(typ) = parent_bound.associated_type(name, bindings) {
-                if visited.insert(parent_id) {
-                    found.push((parent_id, typ));
-                } else if let Some(entry) = found.iter_mut().find(|(id, found_type)| {
-                    *id == parent_id && self.is_own_associated_type(parent_id, name, found_type)
-                }) {
+                let earlier = found.iter().position(|(id, _)| *id == parent_id);
+                match earlier {
                     // The parent was reached first through a bound that leaves the type open.
-                    entry.1 = typ;
+                    Some(index)
+                        if self.is_own_associated_type(parent_id, name, &found[index].1) =>
+                    {
+                        found[index].1 = typ;
+                    }
+                    // Another bound fixes it to the same type.
+                    Some(index) if found[index].1 == typ => (),
+                    // No implementor can satisfy two bounds fixing it to different types, so both
+                    // are kept, to be reported as ambiguous.
+                    _ => found.push((parent_id, typ)),
                 }
+                visited.insert(parent_id);
                 continue;
             }
             let bound = parent_bound
