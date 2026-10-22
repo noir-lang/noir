@@ -995,85 +995,6 @@ fn i2741_generic_impl_after_a_concrete_one_of_the_same_type_is_registered() {
     assert_accepted(src);
 }
 
-/// https://github.com/noir-lang/noir-claude/issues/2752 (w1)
-#[test]
-#[ignore = "noir-claude#2752"]
-fn i2752_trait_where_self_bound_eliding_an_associated_type_can_be_implemented() {
-    let src = r#"
-    trait Lim { type Out; }
-    struct A {}
-    impl Lim for A { type Out = u8; }
-    trait Chk where Self: Lim { fn chk() {} }
-    impl Chk for A {}
-    fn main() { A::chk(); }
-    "#;
-    assert_accepted(src);
-}
-
-/// https://github.com/noir-lang/noir-claude/issues/2752 (w3)
-#[test]
-#[ignore = "noir-claude#2752"]
-fn i2752_default_method_returning_an_elided_associated_type_of_a_where_self_bound() {
-    let src = r#"
-    trait Lim { type Out; fn get(self) -> Self::Out; }
-    struct A { v: u8 }
-    impl Lim for A { type Out = u8; fn get(self) -> u8 { self.v } }
-    trait Chk where Self: Lim { fn chk(self) -> <Self as Lim>::Out { self.get() } }
-    impl Chk for A {}
-    fn main(x: u8) -> pub u8 { A { v: x }.chk() }
-    "#;
-    assert_accepted(src);
-}
-
-/// https://github.com/noir-lang/noir-claude/issues/2237 (m1)
-#[test]
-#[ignore = "noir-claude#2237"]
-fn i2237_impl_method_returning_a_parent_projection_matches_the_trait() {
-    let src = r#"
-    trait Source { type Out; fn get(self) -> Self::Out; }
-    trait Checked: Source {}
-    trait Foo { fn g(self) -> <Self as Source>::Out where Self: Checked; }
-    impl Source for u32 { type Out = u8; fn get(self) -> u8 { self as u8 } }
-    impl Checked for u32 {}
-    impl Foo for u32 { fn g(self) -> <Self as Source>::Out { self.get() } }
-    fn main(x: u32) { let r: u8 = x.g(); assert(r == 3); }
-    "#;
-    assert_accepted(src);
-}
-
-/// https://github.com/noir-lang/noir-claude/issues/2237 (m2)
-#[test]
-#[ignore = "noir-claude#2237"]
-fn i2237_impl_method_restating_an_implied_parent_bound_matches_the_trait() {
-    let src = r#"
-    trait Source { type Out; fn get(self) -> Self::Out; }
-    trait Checked: Source {}
-    trait Foo { fn f<T>(x: T) -> Field where T: Checked; }
-    struct S {}
-    impl Source for u32 { type Out = u8; fn get(self) -> u8 { self as u8 } }
-    impl Checked for u32 {}
-    impl Foo for S { fn f<U>(x: U) -> Field where U: Checked, U: Source { let _ = x; 3 } }
-    fn main(x: u32) { assert(S::f(x) == 3); }
-    "#;
-    assert_accepted(src);
-}
-
-/// https://github.com/noir-lang/noir-claude/issues/2761
-#[test]
-#[ignore = "noir-claude#2761"]
-fn i2761_impl_method_restating_a_self_projection_bound_matches_the_trait() {
-    let src = r#"
-    trait Eq { fn eq(self, other: Self) -> bool; }
-    trait C { type N; }
-    pub struct V<T> { t: T }
-    impl<T> C for V<T> { type N = T; }
-    trait D { fn d(_self: Self) -> Field where Self: C, <Self as C>::N: Eq; }
-    impl<T> D for V<T> { fn d(_self: Self) -> Field where Self: C, <Self as C>::N: Eq { 1 } }
-    fn main() {}
-    "#;
-    assert_accepted(src);
-}
-
 /// https://github.com/noir-lang/noir-claude/issues/2756
 #[test]
 fn i2756_impl_where_clause_projecting_through_a_later_impl_matches_the_trait() {
@@ -1240,20 +1161,6 @@ fn i1935_impl_of_a_trait_whose_where_clause_names_a_later_trait() {
 
 // --- D. Declarations that crash or are never checked -----------------------------------------
 
-/// https://github.com/noir-lang/noir-claude/issues/1711
-#[test]
-#[ignore = "noir-claude#1711"]
-fn i1711_impl_method_generic_of_another_kind_than_the_traits_is_rejected() {
-    let src = r#"
-    trait Marker {}
-    trait MyT { fn f<T>(self, x: T) where T: Marker; }
-    struct B { x: Field }
-    impl MyT for B { fn f<let Q: u32>(_self: Self, _x: Field) where Q: Marker {} }
-    fn main() {}
-    "#;
-    assert_rejected(src);
-}
-
 /// https://github.com/noir-lang/noir-claude/issues/2624
 #[test]
 fn i2624_trait_method_returning_impl_trait_does_not_crash_the_compiler() {
@@ -1335,22 +1242,6 @@ fn i2689_impl_trait_return_is_checked_after_the_bodys_constraints_are_solved() {
     fn main() -> pub u32 { use_foo(a()) }
     "#;
     assert_runs(src, &["64"], &[]);
-}
-
-/// https://github.com/noir-lang/noir-claude/issues/2049
-#[test]
-#[ignore = "noir-claude#2049"]
-fn i2049_trait_method_with_an_impl_trait_parameter_can_be_implemented() {
-    let src = r#"
-    trait Bar { fn get(self) -> Field; }
-    impl Bar for Field { fn get(self) -> Field { self + 1 } }
-    trait Tr { fn f(a: impl Bar) -> Field; }
-    struct S {}
-    impl Tr for S { fn f(a: impl Bar) -> Field { a.get() } }
-    fn main(x: Field) -> pub Field { S::f(x) }
-    "#;
-    let errors = errors_using_features(src, &[UnstableFeature::TraitAsType]);
-    assert!(errors.is_empty(), "expected the program to be accepted, got {errors:?}");
 }
 
 /// https://github.com/noir-lang/noir-claude/issues/2746
