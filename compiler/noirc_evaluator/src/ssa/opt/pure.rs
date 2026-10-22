@@ -396,11 +396,31 @@ impl Function {
                             // of that propagation, and in Brillig they write through their
                             // vector operand in place when its reference count is 1, so a
                             // call to one that receives a Brillig array input moves it.
-                            if let Value::Intrinsic(intrinsic) = &self.dfg[*func]
-                                && intrinsic.mutates_array_operand_in_brillig()
-                                && arguments.iter().any(|arg| brillig_array_inputs.contains(arg))
-                            {
-                                brillig_array_input_was_moved = true;
+                            //
+                            // A user-function callee that receives a Brillig array input and
+                            // returns a value holding an array may hand that input back (for
+                            // example `fn id(v: [Field; 3]) -> [Field; 3] { v }`, or wrapped as
+                            // `[v]`). This function could then write through the result into
+                            // the input's buffer in place, so the input counts as moved.
+                            let receives_brillig_array_input =
+                                arguments.iter().any(|arg| brillig_array_inputs.contains(arg));
+                            if receives_brillig_array_input {
+                                let moves_input = match &self.dfg[*func] {
+                                    Value::Intrinsic(intrinsic) => {
+                                        intrinsic.mutates_array_operand_in_brillig()
+                                    }
+                                    Value::Function(_) => {
+                                        self.dfg.instruction_results(*instruction).iter().any(
+                                            |result| {
+                                                self.dfg.type_of_value(*result).contains_an_array()
+                                            },
+                                        )
+                                    }
+                                    _ => false,
+                                };
+                                if moves_input {
+                                    brillig_array_input_was_moved = true;
+                                }
                             }
                         }
 
@@ -1391,7 +1411,7 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline_never) predicate_pure fn mutate f0 {
+        brillig(inline_never) impure fn mutate f0 {
           b0(v0: [Field; 3], v1: u32):
             v3 = call f1(v0) -> [Field; 3]
             v5 = array_set v3, index v1, value Field 99
@@ -1430,7 +1450,7 @@ mod tests {
         let ssa = ssa.purity_analysis();
 
         assert_ssa_snapshot!(ssa, @r"
-        brillig(inline_never) predicate_pure fn mutate f0 {
+        brillig(inline_never) impure fn mutate f0 {
           b0(v0: [Field; 3], v1: u32):
             v3 = call f1(v0) -> [[Field; 3]; 1]
             v5 = array_get v3, index u32 0 -> [Field; 3]
