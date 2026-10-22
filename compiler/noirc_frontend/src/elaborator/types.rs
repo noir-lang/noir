@@ -79,11 +79,22 @@ pub enum WildcardAllowed {
     No(WildcardDisallowedContext),
 }
 
-/// Context for positions where `impl Trait` is not allowed as a type.
-/// `impl Trait` is only meaningful in function signatures (parameters and return types).
+/// Where the type being resolved sits, as far as `impl Trait` is concerned. `impl Trait` is only
+/// meaningful as a whole function parameter or return type; parameters are desugared to generics
+/// before their types are resolved, so a whole return type is the one place it is resolved.
 ///
-/// This context is stored on the elaborator's `ItemContext` and checked in the `TraitAsType` arm of
-/// type resolution. The variant is used to produce a position-specific error message.
+/// This is stored on the elaborator's `ItemContext`, so that it propagates through recursive
+/// type resolution, and checked in the `TraitAsType` arm of type resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ImplTraitPosition {
+    /// A function's whole return type: `impl Trait` is allowed. The types within it are
+    /// [`ImplTraitDisallowedContext::NestedType`].
+    ReturnType,
+    /// `impl Trait` is not allowed here; the context gives the position-specific error message.
+    Disallowed(ImplTraitDisallowedContext),
+}
+
+/// Context for positions where `impl Trait` is not allowed as a type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImplTraitDisallowedContext {
     /// Anywhere other than a whole function parameter or return type.
@@ -244,7 +255,11 @@ impl Elaborator<'_> {
     ) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
-        let impl_trait_is_return_type = std::mem::take(&mut self.item.impl_trait_is_return_type);
+        let impl_trait_position = self.item.impl_trait_position;
+        if impl_trait_position == ImplTraitPosition::ReturnType {
+            self.item.impl_trait_position =
+                ImplTraitPosition::Disallowed(ImplTraitDisallowedContext::NestedType);
+        }
         let location = typ.location;
         let (named_path_location, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
@@ -288,17 +303,10 @@ impl Elaborator<'_> {
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
-                if let Some(context) = self.item.impl_trait_is_disallowed {
+                if let ImplTraitPosition::Disallowed(context) = impl_trait_position {
                     self.push_err(ResolverError::ImplTraitTypeDisallowed {
                         location: path.location,
                         context,
-                    });
-                    return Type::Error;
-                }
-                if !impl_trait_is_return_type {
-                    self.push_err(ResolverError::ImplTraitTypeDisallowed {
-                        location: path.location,
-                        context: ImplTraitDisallowedContext::NestedType,
                     });
                     return Type::Error;
                 }
