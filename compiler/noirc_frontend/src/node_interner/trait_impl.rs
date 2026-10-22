@@ -25,6 +25,10 @@ const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 /// to overlap, as when a where clause can't be decided.
 const OVERLAP_SEARCH_BUDGET: u32 = 10_000;
 
+/// A bound `object: Trait<ordered, named>` without unknowns that an impl search has found an impl
+/// for.
+type SolvedBound = (Type, TraitId, Vec<Type>, Vec<NamedType>);
+
 /// Modes that affect the behavior of [`NodeInterner::try_lookup_trait_implementation`].
 #[derive(Clone, Copy)]
 pub(crate) enum TraitLookupMode {
@@ -535,6 +539,7 @@ impl NodeInterner {
         trait_lookup_mode: TraitLookupMode,
     ) -> Result<(TraitImplKind, TypeBindings, TypeBindings), ImplSearchErrorKind> {
         let mut bindings = TypeBindings::default();
+        let mut solved = HashSet::default();
         let (impl_kind, instantiation_bindings) = self.lookup_trait_implementation_helper(
             object_type,
             trait_id,
@@ -543,6 +548,7 @@ impl NodeInterner {
             &mut bindings,
             trait_lookup_mode,
             IMPL_SEARCH_RECURSION_LIMIT,
+            &mut solved,
         )?;
         Ok((impl_kind, bindings, instantiation_bindings))
     }
@@ -568,6 +574,9 @@ impl NodeInterner {
     /// - 1+ failing trait constraints, including the original.
     ///   Each constraint after the first represents a `where` clause that was followed.
     /// - 0 trait constraints indicating type annotations are needed to choose an impl.
+    ///
+    /// `solved` holds the where-clause bounds without unknowns this search has already found an
+    /// impl for, so that a bound reached through several impls is solved once.
     #[allow(clippy::too_many_arguments)]
     fn lookup_trait_implementation_helper(
         &self,
@@ -578,6 +587,7 @@ impl NodeInterner {
         type_bindings: &mut TypeBindings,
         mode: TraitLookupMode,
         recursion_limit: u32,
+        solved: &mut HashSet<SolvedBound>,
     ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
         let make_constraint = || {
             let ordered = trait_generics.to_vec();
@@ -676,6 +686,7 @@ impl NodeInterner {
                     &mut fresh_bindings,
                     &instantiation_bindings,
                     recursion_limit,
+                    solved,
                 )
             {
                 if error.1.is_undecided() {
@@ -849,6 +860,7 @@ impl NodeInterner {
             &mut bindings,
             &instantiation_bindings,
             IMPL_SEARCH_RECURSION_LIMIT,
+            &mut HashSet::default(),
         ) {
             Ok(()) => true,
             Err((_, error)) => error.is_undecided(),
@@ -863,11 +875,8 @@ impl NodeInterner {
         type_bindings: &mut TypeBindings,
         instantiation_bindings: &TypeBindings,
         recursion_limit: u32,
+        solved: &mut HashSet<SolvedBound>,
     ) -> Result<(), (TraitConstraint, ImplSearchErrorKind)> {
-        // The bounds solved below the outermost where clause of a search hold for all of it.
-        if recursion_limit == IMPL_SEARCH_RECURSION_LIMIT {
-            self.solved_where_clause_bounds.borrow_mut().clear();
-        }
         // An undecided bound doesn't hide a later one that fails: the where clause fails then.
         let mut undecided = None;
         for constraint in where_clause {
@@ -896,7 +905,7 @@ impl NodeInterner {
                 && trait_associated_types
                     .iter()
                     .all(|named| !named.typ.contains_unbound_type_variable());
-            if is_rigid && self.solved_where_clause_bounds.borrow().contains(&key) {
+            if is_rigid && solved.contains(&key) {
                 continue;
             }
 
@@ -913,6 +922,7 @@ impl NodeInterner {
                     type_bindings,
                     TraitLookupMode::Default,
                     recursion_limit - 1,
+                    solved,
                 )
                 .map_err(|error| {
                     let mut constraint = constraint.clone();
@@ -930,7 +940,7 @@ impl NodeInterner {
                 Ok(_) => (),
             }
             if is_rigid {
-                self.solved_where_clause_bounds.borrow_mut().insert(key);
+                solved.insert(key);
             }
         }
 

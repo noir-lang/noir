@@ -209,10 +209,6 @@ pub struct NodeInterner {
     /// the context to get the concrete type of the object and select the correct impl itself.
     selected_trait_implementations: HashMap<ExprId, TraitImplKind>,
 
-    /// The where-clause bounds without unknowns that the current impl search has found an impl
-    /// for, so that a bound reached through several impls is solved once.
-    pub(super) solved_where_clause_bounds: std::cell::RefCell<HashSet<SolvedBound>>,
-
     /// Holds the trait ids of the traits used for infix operator overloading
     infix_operator_traits: HashMap<BinaryOpKind, TraitId>,
 
@@ -364,10 +360,6 @@ pub enum TraitImplKind {
     /// point we can look up the final `TraitImpl` in the node interner.
     Prepared(TraitImplId, Location),
 }
-
-/// A bound `object: Trait<ordered, named>` without unknowns that an impl search has found an impl
-/// for.
-pub(super) type SolvedBound = (Type, TraitId, Vec<Type>, Vec<NamedType>);
 
 /// When searching for a trait impl, these are the types of errors we can expect
 #[derive(Debug)]
@@ -529,7 +521,6 @@ impl Default for NodeInterner {
             assumed_trait_implementations: HashMap::default(),
             trait_impl_where_clauses: HashMap::default(),
             selected_trait_implementations: HashMap::default(),
-            solved_where_clause_bounds: Default::default(),
             infix_operator_traits: HashMap::default(),
             prefix_operator_traits: HashMap::default(),
             ordering_type: None,
