@@ -1623,6 +1623,14 @@ impl Elaborator<'_> {
     ) -> Option<VariableResolution> {
         let method_name = last_segment.ident.as_str();
 
+        // A turbofish on the generic itself (e.g. `T::<u32>::method`) is not allowed.
+        if let Some(turbofish) = &turbofish {
+            self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                item: "generic parameter".to_string(),
+                location: turbofish.location,
+            });
+        }
+
         let mut matches = Vec::new();
         let mut visited = BTreeSet::new();
         for constraint in bounds {
@@ -1637,14 +1645,6 @@ impl Elaborator<'_> {
 
         let trait_resolution = if matches.len() == 1 {
             let method = matches.remove(0).0;
-
-            // A turbofish on the generic itself (e.g. `T::<u32>::method`) is not allowed.
-            if let Some(turbofish) = &turbofish {
-                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
-                    item: "generic parameter".to_string(),
-                    location: turbofish.location,
-                });
-            }
 
             Some(TraitPathResolution { method, item: None, errors: Vec::new() })
         } else if matches.len() > 1 {
@@ -1679,7 +1679,7 @@ impl Elaborator<'_> {
                     &typ,
                     Some(generic_methods),
                     last_segment,
-                    turbofish,
+                    None,
                     path_resolution,
                     Vec::new(),
                     location,
