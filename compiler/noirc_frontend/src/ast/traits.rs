@@ -401,21 +401,38 @@ fn reorder_where_clause(where_clause: &mut Vec<UnresolvedTraitConstraint>) {
 /// Whether the trait arguments of `clause` name an associated item through a path (`V::K`,
 /// `<V as Tr>::K`).
 fn names_a_projection(clause: &UnresolvedTraitConstraint) -> bool {
-    let mut finder = ProjectionFinder::default();
+    // The generics of an enclosing impl aren't known here, so any path of several segments counts.
+    let mut finder = ProjectionFinder::new(None);
     clause.trait_bound.trait_generics.accept(&mut finder);
     finder.found
 }
 
 /// Finds whether a type names an associated item through a path (`V::K`, `<V as Tr>::K`), which
 /// can only be resolved once the impl or bound providing that item is known.
-#[derive(Default)]
-pub(crate) struct ProjectionFinder {
+pub(crate) struct ProjectionFinder<'a> {
+    /// The generics in scope, when all of them are known: a path is then a projection only when
+    /// it starts with one of them. Otherwise any path of several segments is taken to be one,
+    /// a module path (`m::S`) too.
+    generics: Option<&'a [UnresolvedGeneric]>,
     pub(crate) found: bool,
 }
 
-impl Visitor for ProjectionFinder {
+impl<'a> ProjectionFinder<'a> {
+    pub(crate) fn new(generics: Option<&'a [UnresolvedGeneric]>) -> Self {
+        Self { generics, found: false }
+    }
+}
+
+impl Visitor for ProjectionFinder<'_> {
     fn visit_path(&mut self, path: &Path) {
-        self.found |= path.segments.len() > 1;
+        let Some(head) = path.segments.first().filter(|_| path.segments.len() > 1) else {
+            return;
+        };
+        self.found |= self.generics.is_none_or(|generics| {
+            generics.iter().any(|generic| {
+                generic.ident().ident().is_some_and(|ident| ident.as_str() == head.ident.as_str())
+            })
+        });
     }
 
     fn visit_as_trait_path_type(&mut self, _: &AsTraitPath, _: noirc_errors::Span) -> bool {
