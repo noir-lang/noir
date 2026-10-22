@@ -4272,3 +4272,16 @@ fn impl_header_projecting_through_a_later_impl_for_a_type_in_a_module() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn path_through_an_associated_type_no_bound_on_the_generic_declares_is_reported_once() {
+    let src = r#"
+    trait Foo { fn foo() -> Field; }
+    pub fn bar<T>() -> Field where T: Foo {
+        T::A::foo()
+        ^ Could not resolve 'T' in path
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}

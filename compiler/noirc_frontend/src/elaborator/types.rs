@@ -1621,6 +1621,12 @@ impl Elaborator<'_> {
         turbofish: Option<Turbofish>,
         location: Location,
     ) -> Option<VariableResolution> {
+        // A prefix that names no type (`T::A` where no bound on `T` declares `A`) is already
+        // reported.
+        if matches!(typ, Type::Error) {
+            return None;
+        }
+
         let method_name = last_segment.ident.as_str();
 
         // A turbofish on the generic itself (e.g. `T::<u32>::method`) is not allowed.
