@@ -1663,22 +1663,13 @@ impl Elaborator<'_> {
             if generic_methods.is_empty() {
                 None
             } else {
-                // The item is only read for a method bound at the call, which a method of an impl
-                // for all types never is (see `impl_method_selected_at_call`).
-                let path_resolution = PathResolution {
-                    item: PathResolutionItem::TypeTraitFunction(
-                        typ.clone(),
-                        generic_methods[0].1,
-                        generic_methods[0].0,
-                    ),
-                    errors: Vec::new(),
-                };
+                let prefix = None;
                 self.resolve_qualified_trait_method(
                     &typ,
-                    Some(generic_methods),
+                    generic_methods,
                     last_segment,
                     None,
-                    path_resolution,
+                    prefix,
                     Vec::new(),
                     location,
                 )
@@ -1876,10 +1867,10 @@ impl Elaborator<'_> {
         } else {
             self.resolve_qualified_trait_method(
                 &typ,
-                Some(trait_methods),
+                trait_methods,
                 &last_segment,
                 turbofish,
-                path_resolution,
+                Some(path_resolution),
                 errors,
                 location,
             )
@@ -1967,10 +1958,10 @@ impl Elaborator<'_> {
 
         self.resolve_qualified_trait_method(
             typ,
-            Some(type_trait_methods),
+            type_trait_methods,
             last_segment,
             turbofish,
-            path_resolution,
+            Some(path_resolution),
             generics_errors,
             location,
         )
@@ -2119,20 +2110,19 @@ impl Elaborator<'_> {
     fn resolve_qualified_trait_method(
         &mut self,
         typ: &Type,
-        trait_methods: Option<Vec<(FuncId, TraitId, Type)>>,
+        trait_methods: Vec<(FuncId, TraitId, Type)>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
-        path_resolution: PathResolution,
+        prefix: Option<PathResolution>,
         generics_errors: Vec<CompilationError>,
         location: Location,
     ) -> Option<TraitPathResolution> {
-        let PathResolution { item: path_resolution_item, errors: path_resolution_errors } =
-            path_resolution;
+        // A generic parameter prefix (`T::method`) resolves to no item of its own.
+        let (path_resolution_item, path_resolution_errors) = match prefix {
+            Some(PathResolution { item, errors }) => (Some(item), errors),
+            None => (None, Vec::new()),
+        };
         let method_name = last_segment.ident.as_str();
-
-        let has_self_arg = false;
-        let trait_methods = trait_methods
-            .unwrap_or_else(|| self.lookup_trait_methods(typ, method_name, has_self_arg));
 
         if trait_methods.is_empty() {
             return None;
@@ -2219,7 +2209,7 @@ impl Elaborator<'_> {
         self.record_direct_method_reference(func_id, method_ident);
         self.push_direct_method_visibility_error(func_id, method_ident, &mut errors);
         Self::type_method_or_trait_method_func_id_resolution(
-            path_resolution_item,
+            Some(path_resolution_item),
             turbofish,
             func_id,
             errors,
@@ -2259,12 +2249,12 @@ impl Elaborator<'_> {
     }
 
     fn type_method_or_trait_method_func_id_resolution(
-        path_resolution_item: PathResolutionItem,
+        path_resolution_item: Option<PathResolutionItem>,
         turbofish: Option<Turbofish>,
         func_id: FuncId,
         errors: Vec<PathResolutionError>,
     ) -> TraitPathResolution {
-        let item = match path_resolution_item {
+        let item = path_resolution_item.map(|item| match item {
             PathResolutionItem::Type(type_id) => {
                 PathResolutionItem::Method(type_id, turbofish, func_id)
             }
@@ -2275,9 +2265,9 @@ impl Elaborator<'_> {
                 PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id)
             }
             _ => unreachable!("An early return should have triggered before in this case"),
-        };
+        });
         let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
-        TraitPathResolution { method, item: Some(item), errors }
+        TraitPathResolution { method, item, errors }
     }
 
     /// `Self::…` inside a trait impl. `Self` is the impl's concrete type with associated items, so
