@@ -1019,7 +1019,6 @@ impl NodeInterner {
     }
 }
 
-/// Whether `typ` is an integer literal's still unknown type.
 /// Whether `typ` mentions a generic parameter (`T`, not an associated item like
 /// `<T as Foo>::Out`).
 fn mentions_generic_parameter(typ: &Type) -> bool {
@@ -1031,6 +1030,7 @@ fn mentions_generic_parameter(typ: &Type) -> bool {
     found
 }
 
+/// Whether `typ` is an integer literal's still unknown type.
 fn is_integer_type_variable(typ: &Type) -> bool {
     match typ.follow_bindings() {
         Type::TypeVariable(variable) => {

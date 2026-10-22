@@ -1159,9 +1159,8 @@ impl NodeInterner {
     /// its own impls are exactly the impls for all types `T`.
     ///
     /// The third tuple element is the impl's self type as it was recorded when the impl was
-    /// registered (see [`Self::add_method`]). This is the concrete type the impl applies to,
-    /// not the trait's `Self` type variable — useful for callers that need to pin `Self`
-    /// for shared trait-method `FuncId`s (default methods inherited from the trait).
+    /// registered (see [`Self::add_method`]): the type the impl applies to, which is a type
+    /// variable for an impl for all types.
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,
