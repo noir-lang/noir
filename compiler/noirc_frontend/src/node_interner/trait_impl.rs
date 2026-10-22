@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 use crate::{
-    GenericTypeVars, Shared, Type, TypeBindings,
+    GenericTypeVars, Kind, Shared, Type, TypeBindings,
     graph::CrateId,
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -732,9 +732,16 @@ impl NodeInterner {
     }
 
     /// Whether the impl search for `object_type` at `impl_id`'s trait and trait arguments can
-    /// select an impl other than `impl_id`: several impls match, or another impl is the one that
-    /// matches. The search runs at the object type `impl_id` gives, so unknowns `impl_id` fixes
-    /// (an integer literal's type) are known to it. Nothing is bound.
+    /// select an impl other than `impl_id`, or can't tell yet: several impls match, another impl
+    /// is the one that matches, a `where` clause assumption matches, or the search needs more type
+    /// information. The search runs at the object type `impl_id` gives, so unknowns `impl_id`
+    /// fixes in an integer literal's type are known to it. Nothing is bound.
+    ///
+    /// When `impl_id` would fix any other unknown in `object_type`, another impl may apply: the
+    /// unknown might be meant to be a type another impl or an in-scope `where` clause covers, and
+    /// the search at the type `impl_id` gives can't see those. `S::max()` on `S<_>` under
+    /// `where S<T>: Limit` is served by the assumption, not by an `impl Limit for S<u64>` that
+    /// would fix `_ = u64`.
     pub(crate) fn another_impl_applies(&self, object_type: &Type, impl_id: TraitImplId) -> bool {
         let (impl_type, trait_id, instantiation_bindings) = {
             let trait_impl = self.get_trait_implementation(impl_id);
@@ -747,6 +754,9 @@ impl NodeInterner {
         let mut bindings = TypeBindings::default();
         if object_type.try_unify(&impl_type, &mut bindings).is_err() {
             return false;
+        }
+        if self.impl_fixes_an_unknown(object_type, &bindings) {
+            return true;
         }
         let object_type = object_type.substitute(&bindings);
         let trait_generics =
@@ -761,9 +771,38 @@ impl NodeInterner {
             TraitLookupMode::Default,
         ) {
             Ok((TraitImplKind::Normal(id) | TraitImplKind::Prepared(id, _), ..)) => id != impl_id,
-            Ok((TraitImplKind::Assumed { .. }, ..)) => false,
-            Err(error) => matches!(error, ImplSearchErrorKind::MultipleMatching(_)),
+            Ok((TraitImplKind::Assumed { .. }, ..)) => true,
+            Err(error) => matches!(
+                error,
+                ImplSearchErrorKind::MultipleMatching(_)
+                    | ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType
+            ),
         }
+    }
+
+    /// Whether `bindings`, from unifying `object_type` with an impl's type, fix an unknown of
+    /// `object_type` that isn't an integer literal's type to something other than an unknown.
+    fn impl_fixes_an_unknown(&self, object_type: &Type, bindings: &TypeBindings) -> bool {
+        let mut unknowns = Vec::new();
+        object_type.unbound_type_variables(&mut unknowns);
+        unknowns.iter().any(|unknown| {
+            if matches!(*unknown.kind(), Kind::IntegerOrField | Kind::Integer) {
+                return false;
+            }
+            // A replacement can itself be an unknown with a replacement: `S<_, u64>` against
+            // `S<A, A>` maps `_` to `A` and `A` to `u64`.
+            let mut fixed = Type::TypeVariable(unknown.clone());
+            for _ in 0..=bindings.len() {
+                match fixed.follow_bindings() {
+                    Type::TypeVariable(var) if bindings.contains_key(&var.id()) => {
+                        fixed = Type::TypeVariable(var).substitute(bindings);
+                    }
+                    Type::TypeVariable(_) => return false,
+                    _ => return true,
+                }
+            }
+            true
+        })
     }
 
     /// Verifies that each constraint in the given where clause is valid.
