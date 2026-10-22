@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792701836855,
+  "lastUpdate": 1792708054831,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22996,48 +22996,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1189c604b38b50ca066c5f9995c843b132566181",
-          "message": "chore(frontend): make Type walkers name every variant the child helpers skip (#14010)",
-          "timestamp": "2026-10-15T19:25:10Z",
-          "tree_id": "a2bcb0a562a27ca9db6e18eb89af7bc52632b4f1",
-          "url": "https://github.com/noir-lang/noir/commit/1189c604b38b50ca066c5f9995c843b132566181"
-        },
-        "date": 1792093658570,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 157490,
-            "range": "± 2561",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 134286,
-            "range": "± 1349",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2111708,
-            "range": "± 25565",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25089,6 +25047,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2649665,
             "range": "± 3649",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5c98fecd3fe6c51bd9e3a605cafe412d25ae8915",
+          "message": "chore: bump Node.js to 22.23.4 (#14086)",
+          "timestamp": "2026-10-22T21:58:13Z",
+          "tree_id": "cbf437c2d02a46f79609e0d74197b3f965fecae8",
+          "url": "https://github.com/noir-lang/noir/commit/5c98fecd3fe6c51bd9e3a605cafe412d25ae8915"
+        },
+        "date": 1792707992072,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 74146,
+            "range": "± 2196",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 67271,
+            "range": "± 2212",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1903251,
+            "range": "± 42296",
             "unit": "ns/iter"
           }
         ]
