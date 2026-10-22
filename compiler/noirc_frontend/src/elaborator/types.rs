@@ -45,8 +45,8 @@ use crate::{
     },
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
-        DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplId, TraitImplKind,
-        TraitItemId, TraitLookupMode,
+        ApplicableMethods, DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplId,
+        TraitImplKind, TraitItemId, TraitLookupMode,
     },
     shared::Signedness,
 };
@@ -1785,16 +1785,15 @@ impl Elaborator<'_> {
         self.interner.lookup_trait_methods(typ, method_name, has_self_arg)
     }
 
-    /// Lazy-aware wrapper around
-    /// [`crate::node_interner::NodeInterner::lookup_own_and_generic_trait_methods`].
-    pub(super) fn lookup_own_and_generic_trait_methods(
+    /// Lazy-aware wrapper around [`crate::node_interner::NodeInterner::applicable_methods`].
+    pub(super) fn applicable_methods(
         &mut self,
         typ: &Type,
         method_name: &str,
-        has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId, Type)> {
+        check_self_param: bool,
+    ) -> ApplicableMethods {
         self.resolve_method_candidate_metas(typ, method_name);
-        self.interner.lookup_own_and_generic_trait_methods(typ, method_name, has_self_arg)
+        self.interner.applicable_methods(typ, method_name, check_self_param)
     }
 
     /// Lazy-aware wrapper around [`crate::node_interner::NodeInterner::lookup_generic_methods`].
@@ -1883,14 +1882,14 @@ impl Elaborator<'_> {
         let method_name = last_segment.ident.as_str();
 
         let check_self_param = false;
-        let trait_methods =
-            self.lookup_own_and_generic_trait_methods(&typ, method_name, check_self_param);
+        let methods = self.applicable_methods(&typ, method_name, check_self_param);
+        let direct_method = methods.direct.first().map(|method| method.method);
+        let trait_methods = methods.trait_methods();
         // An inherent method that isn't visible from here leaves the call to a trait method if
         // there is one, and otherwise stays the resolution, to report it as private.
-        let direct_method =
-            self.lookup_direct_method(&typ, method_name, check_self_param).filter(|func_id| {
-                self.method_call_is_visible(*func_id, &typ) || trait_methods.is_empty()
-            });
+        let direct_method = direct_method.filter(|func_id| {
+            self.method_call_is_visible(*func_id, &typ) || trait_methods.is_empty()
+        });
 
         // Resolve inherent methods (`TypeName::method`, and `Self::method`) through this
         // type-directed lookup. Names that aren't an inherent method here (associated constants,
@@ -3525,9 +3524,8 @@ impl Elaborator<'_> {
         // it yet: an accessible trait method may exist that should be called instead. We keep
         // the inherent method around as a fallback so that, if no trait method resolves, the
         // caller still reports the appropriate "private" visibility error against it.
-        self.resolve_method_candidate_metas(object_type, method_name);
-        let direct_methods =
-            self.interner.lookup_direct_methods(object_type, method_name, check_self_param);
+        let methods = self.applicable_methods(object_type, method_name, check_self_param);
+        let direct_methods = vecmap(&methods.direct, |method| method.method);
 
         // Non-overlapping inherent impls (`impl S<u8>`, `impl S<u16>`) can all apply to a receiver
         // whose type is not yet known (`S<_>`). Picking one would fix the receiver's type from
@@ -3557,8 +3555,7 @@ impl Elaborator<'_> {
         }
 
         // Next, the trait methods, among which the traits in scope choose.
-        let trait_methods =
-            self.lookup_own_and_generic_trait_methods(object_type, method_name, check_self_param);
+        let trait_methods = methods.trait_methods();
         if !trait_methods.is_empty() {
             return self.return_trait_method_in_scope(
                 object_type,
