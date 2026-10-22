@@ -100,9 +100,10 @@ enum PathPrefixKind {
     /// a data type): the last segment resolves like `Type::method`
     /// ([`Elaborator::resolve_self_as_concrete_type`]).
     SelfInImpl,
-    /// A generic parameter (e.g. `T` in `T::method`), or an associated type of one, with the bounds
-    /// on it in scope. The last segment is a method or associated constant reached through one of
-    /// them, or else a method of an impl for all types.
+    /// A generic parameter (e.g. `T` in `T::method`), or an associated type of one. The last
+    /// segment is a method or associated constant reached through one of the bounds on it in scope
+    /// or the carried ones (an associated type's declared bounds), or else a method of an impl for
+    /// all types.
     BoundedGeneric(Type, Vec<TraitConstraint>),
     /// A trait (e.g. `Trait` in `Trait::method` / `Trait::CONST`). The last segment is a trait
     /// static method or an associated constant.
@@ -665,9 +666,7 @@ impl Elaborator<'_> {
         {
             // A generic parameter (e.g. `T`). A generic is not in the module namespace, so this is
             // recognized from the generics in scope, not resolution.
-            let typ = generic.clone().into_named_generic(None);
-            let bounds = self.item.generics.bounds_on_type(&typ).cloned().collect();
-            PathPrefixKind::BoundedGeneric(typ, bounds)
+            PathPrefixKind::BoundedGeneric(generic.clone().into_named_generic(None), Vec::new())
         } else {
             // Otherwise the prefix is resolved as a type to distinguish trait/type/module.
             let prefix_last_ident = prefix.last_segment().ident;
@@ -709,9 +708,9 @@ impl Elaborator<'_> {
         ResolvedPrefix { last_segment, turbofish, kind }
     }
 
-    /// For a prefix `T::A` on a generic, or `Self::A` in a trait's declaration, the bounds on that
-    /// associated type in scope. A generic shadows any module of its name, so such a prefix is
-    /// never a module path.
+    /// For a prefix `T::A` on a generic, or `Self::A` in a trait's declaration, that associated
+    /// type, with the bounds the trait declares on it. A generic shadows any module of its name,
+    /// so such a prefix is never a module path.
     fn bounds_on_abstract_associated_type(
         &mut self,
         prefix: &TypedPath,
@@ -731,33 +730,20 @@ impl Elaborator<'_> {
             return None;
         }
         let typ = self.lookup_generic_or_associated_type(prefix, &GenericTypeArgs::default())?;
-        let mut bounds: Vec<_> = self.item.generics.bounds_on_type(&typ).cloned().collect();
         // In a trait's declaration, the bounds declared on its own associated type
         // (`type A: Mk`).
-        if head.is_self_type_name()
-            && let Some(trait_id) = self.item.impl_context.current_trait()
-        {
-            let the_trait = self.interner.get_trait(trait_id);
-            let declared = the_trait.associated_type_bounds.get(prefix.last_name());
-            bounds.extend(declared.into_iter().flatten().map(|trait_bound| TraitConstraint {
-                typ: typ.clone(),
-                trait_bound: trait_bound.clone(),
-            }));
-        }
-        Some((typ, bounds))
-    }
-
-    /// If the path's first segment names a generic parameter with `: Trait` bound(s) in scope,
-    /// return those matching bounds (so `Head::item` can be resolved through them). Only meaningful
-    /// for a two-segment path; a generic is not in the module namespace, so this scans the in-scope
-    /// bounds rather than resolving.
-    pub(super) fn matching_generic_bounds(&self, path: &TypedPath) -> Option<Vec<TraitConstraint>> {
-        if path.segments.len() != 2 {
-            return None;
-        }
-        let head = path.segments[0].ident.as_str();
-        let bounds: Vec<_> = self.item.generics.bounds_on_generic(head).cloned().collect();
-        (!bounds.is_empty()).then_some(bounds)
+        let declared_bounds = match self.item.impl_context.current_trait() {
+            Some(trait_id) if head.is_self_type_name() => {
+                let the_trait = self.interner.get_trait(trait_id);
+                let declared = the_trait.associated_type_bounds.get(prefix.last_name());
+                vecmap(declared.into_iter().flatten(), |trait_bound| TraitConstraint {
+                    typ: typ.clone(),
+                    trait_bound: trait_bound.clone(),
+                })
+            }
+            _ => Vec::new(),
+        };
+        Some((typ, declared_bounds))
     }
 
     /// Resolve an unprefixed (single-segment) path to a local variable, or to a value item it

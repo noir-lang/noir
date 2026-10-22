@@ -1600,15 +1600,16 @@ impl Elaborator<'_> {
         self.variable_from_trait_resolution_or_unresolved(location, last_segment, trait_resolution)
     }
 
-    /// Resolves `T::item` to a method or associated constant of a generic `T`, given the `T: Trait`
-    /// bounds matched in scope (and the trait/supertrait hierarchy they reach). Reports an error and
-    /// resolves to nothing identifiable when the item is ambiguous across in-scope traits.
+    /// Resolves `T::item` to a method or associated constant of a generic `T`, through
+    /// `assumed_bounds` and the `T: Trait` bounds in scope (and the trait/supertrait hierarchy they
+    /// reach), or else to a method of an impl for all types. Reports an error and resolves to
+    /// nothing identifiable when the item is ambiguous across in-scope traits.
     /// E.g. `t.method()` with `where T: Foo<Bar>` in scope returns `(Foo::method, T, vec![Bar])`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_bounded_generic_item(
         &mut self,
         typ: Type,
-        bounds: Vec<TraitConstraint>,
+        assumed_bounds: Vec<TraitConstraint>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
         location: Location,
@@ -1629,9 +1630,10 @@ impl Elaborator<'_> {
             });
         }
 
+        let in_scope = self.item.generics.bounds_on_type(&typ).cloned().collect::<Vec<_>>();
         let mut matches = Vec::new();
         let mut visited = BTreeSet::new();
-        for constraint in bounds {
+        for constraint in assumed_bounds.into_iter().chain(in_scope) {
             let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
             matches.extend(self.find_methods_or_constants_in_trait(
                 method_name,
@@ -1818,8 +1820,14 @@ impl Elaborator<'_> {
         // bounds, like `T::item`.
         if matches!(typ.follow_bindings_shallow().as_ref(), Type::NamedGeneric(_)) {
             // The prefix's turbofish gave the alias its arguments.
-            let bounds = self.item.generics.bounds_on_type(&typ).cloned().collect();
-            return self.resolve_bounded_generic_item(typ, bounds, &last_segment, None, location);
+            let assumed_bounds = Vec::new();
+            return self.resolve_bounded_generic_item(
+                typ,
+                assumed_bounds,
+                &last_segment,
+                None,
+                location,
+            );
         }
 
         // Kept for the fallbacks below (the method-lookup branches consume `turbofish` and
@@ -2308,9 +2316,13 @@ impl Elaborator<'_> {
         }
         let constraint = self.interner.get_trait(trait_id).as_constraint(path.location);
         let typ = constraint.typ.clone();
-        let mut bounds = vec![constraint];
-        bounds.extend(self.matching_generic_bounds(&path).unwrap_or_default());
-        self.resolve_bounded_generic_item(typ, bounds, &last_segment, turbofish, path.location)
+        self.resolve_bounded_generic_item(
+            typ,
+            vec![constraint],
+            &last_segment,
+            turbofish,
+            path.location,
+        )
     }
 
     /// Resolve `Self::method` (or `Self::AssocType::method`) by resolving the `Self` prefix as a
