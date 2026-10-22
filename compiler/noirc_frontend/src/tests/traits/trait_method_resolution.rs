@@ -1623,3 +1623,63 @@ fn method_call_selects_a_blanket_impl_when_a_types_own_impl_has_a_failing_where_
     }
     ");
 }
+
+#[test]
+fn path_call_on_type_parameter_through_alias_uses_its_bound() {
+    let src = r#"
+    trait Checked { fn get(self) -> u8; }
+    trait Raw { fn get(self) -> u8; }
+    impl Checked for u8 { fn get(self) -> u8 { assert(self < 100); self } }
+    impl<T> Raw for T { fn get(self) -> u8 { 77 } }
+    type Id<X> = X;
+    fn read<T>(t: T) -> u8 where T: Checked { Id::<T>::get(t) }
+    fn main(x: u8) -> pub u8 { read(x) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u8) -> pub u8 {
+        read$f1(x$l0)
+    }
+    fn read$f1(t$l1: u8) -> u8 {
+        get$f2(t$l1)
+    }
+    fn get$f2(self$l2: u8) -> u8 {
+        assert((self$l2 < 100));;
+        self$l2
+    }
+    ");
+}
+
+#[test]
+fn path_call_on_type_parameter_through_alias_with_only_a_bound() {
+    let src = r#"
+    trait Checked { fn get(self) -> u8; }
+    impl Checked for u8 { fn get(self) -> u8 { assert(self < 100); self } }
+    type Id<X> = X;
+    fn read<T>(t: T) -> u8 where T: Checked { Id::<T>::get(t) }
+    fn main(x: u8) -> pub u8 { read(x) }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn path_call_on_type_parameter_finds_a_blanket_impl() {
+    let src = r#"
+    trait Raw { fn get(self) -> u8; }
+    impl<T> Raw for T { fn get(self) -> u8 { 77 } }
+    fn read<T>(t: T) -> u8 { T::get(t) }
+    fn main(x: u8) -> pub u8 { read(x) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u8) -> pub u8 {
+        read$f1(x$l0)
+    }
+    fn read$f1(t$l1: u8) -> u8 {
+        get$f2(t$l1)
+    }
+    fn get$f2(self$l2: u8) -> u8 {
+        77
+    }
+    ");
+}

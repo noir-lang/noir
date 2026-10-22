@@ -1573,12 +1573,21 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_bounded_generic_item(
         &mut self,
+        typ: Type,
         bounds: Vec<TraitConstraint>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
         location: Location,
     ) -> Option<VariableResolution> {
         let method_name = last_segment.ident.as_str();
+
+        // A turbofish on the generic itself (e.g. `T::<u32>::method`) is not allowed.
+        if let Some(turbofish) = &turbofish {
+            self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                item: "generic parameter".to_string(),
+                location: turbofish.location,
+            });
+        }
 
         let mut matches = Vec::new();
         let mut visited = BTreeSet::new();
@@ -1595,14 +1604,6 @@ impl Elaborator<'_> {
         let trait_resolution = if matches.len() == 1 {
             let method = matches.remove(0).0;
 
-            // A turbofish on the generic itself (e.g. `T::<u32>::method`) is not allowed.
-            if let Some(turbofish) = &turbofish {
-                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
-                    item: "generic parameter".to_string(),
-                    location: turbofish.location,
-                });
-            }
-
             Some(TraitPathResolution { method, item: None, errors: Vec::new() })
         } else if matches.len() > 1 {
             let ident = Ident::new(method_name.to_string(), location);
@@ -1615,7 +1616,31 @@ impl Elaborator<'_> {
                 errors,
             })
         } else {
-            None
+            // A method no bound provides may be one of an impl for all types `T`, as for a method
+            // call on the generic.
+            let has_self_arg = false;
+            let generic_methods = self.lookup_generic_methods(&typ, method_name, has_self_arg);
+            if generic_methods.is_empty() {
+                None
+            } else {
+                let path_resolution = PathResolution {
+                    item: PathResolutionItem::TypeTraitFunction(
+                        typ.clone(),
+                        generic_methods[0].1,
+                        generic_methods[0].0,
+                    ),
+                    errors: Vec::new(),
+                };
+                self.resolve_qualified_trait_method(
+                    &typ,
+                    Some(generic_methods),
+                    last_segment,
+                    None,
+                    path_resolution,
+                    Vec::new(),
+                    location,
+                )
+            }
         };
 
         // The generic is in scope; the last segment must be a method or associated constant
@@ -1747,6 +1772,15 @@ impl Elaborator<'_> {
                 path_resolution.item
             );
         };
+
+        // A type that is a generic parameter (through an alias, `Id::<T>`) has the items of its
+        // bounds, like `T::item`.
+        if let Type::NamedGeneric(generic) = typ.follow_bindings_shallow().as_ref() {
+            self.push_errors(errors);
+            let bounds = self.item.generics.bounds_on_generic(&generic.name).cloned().collect();
+            // The prefix's turbofish gave the alias its arguments.
+            return self.resolve_bounded_generic_item(typ, bounds, &last_segment, None, location);
+        }
 
         // Kept for the value fallback below (the method-lookup branches consume `turbofish`).
         let fallback_turbofish = turbofish.clone();
@@ -2164,18 +2198,21 @@ impl Elaborator<'_> {
     ) -> TraitPathResolution {
         let item = match path_resolution_item {
             PathResolutionItem::Type(type_id) => {
-                PathResolutionItem::Method(type_id, turbofish, func_id)
+                Some(PathResolutionItem::Method(type_id, turbofish, func_id))
             }
             PathResolutionItem::TypeAlias(type_alias_id) => {
-                PathResolutionItem::TypeAliasFunction(type_alias_id, turbofish, func_id)
+                Some(PathResolutionItem::TypeAliasFunction(type_alias_id, turbofish, func_id))
             }
             PathResolutionItem::PrimitiveType(primitive_type) => {
-                PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id)
+                Some(PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id))
             }
+            // A method of an impl for all types, reached through a generic (`T::method`): the
+            // call's arguments bind the impl's generics.
+            PathResolutionItem::TypeTraitFunction(..) => None,
             _ => unreachable!("An early return should have triggered before in this case"),
         };
         let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
-        TraitPathResolution { method, item: Some(item), errors }
+        TraitPathResolution { method, item, errors }
     }
 
     /// `Self::…` inside a trait impl. `Self` is the impl's concrete type with associated items, so
@@ -2214,7 +2251,9 @@ impl Elaborator<'_> {
         }
         // Fall back to a supertrait reached through the assumed `Self` bound.
         if let Some(bounds) = self.matching_generic_bounds(&path) {
+            let typ = self.interner.get_trait(trait_id).self_type();
             return self.resolve_bounded_generic_item(
+                typ,
                 bounds,
                 &last_segment,
                 turbofish,
