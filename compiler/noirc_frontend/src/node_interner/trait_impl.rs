@@ -872,10 +872,7 @@ impl NodeInterner {
         let (impl_type, instantiation_bindings) =
             impl_type.substitute_type_vars_with_fresh_type_vars(&generics, self);
         let mut bindings = TypeBindings::default();
-        let unified = typ.try_unify(&impl_type, &mut bindings).is_ok()
-            || matches!(typ.follow_bindings(), Type::Reference(element, _)
-                if element.try_unify(&impl_type, &mut bindings).is_ok());
-        if !unified {
+        if !impl_type.try_unify_receiver(typ, &mut bindings) {
             return true;
         }
         match self.validate_where_clause(
