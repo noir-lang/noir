@@ -1326,3 +1326,23 @@ fn lazily_resolved_enum_variants_do_not_inherit_callers_self_type() {
     "#;
     check_errors_using_features(src, &[UnstableFeature::Enums]);
 }
+
+#[test]
+fn self_variant_named_like_a_primitive_type_in_a_match() {
+    let src = r#"
+    enum Kind { Field, Int }
+    impl Kind {
+        fn is_field(self) -> bool {
+            match self {
+                Self::Field => true,
+                Self::Int => false,
+            }
+        }
+    }
+    fn main() {
+        let _ = Kind::Field.is_field();
+        let _ = Kind::Int;
+    }
+    "#;
+    assert_no_errors_using_features(src, &[UnstableFeature::Enums]);
+}
