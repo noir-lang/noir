@@ -253,13 +253,29 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
-        use crate::ast::UnresolvedTypeData::*;
-
+        // The types within a whole return type are nested in it.
         let impl_trait_position = self.item.impl_trait_position;
         if impl_trait_position == ImplTraitPosition::ReturnType {
             self.item.impl_trait_position =
                 ImplTraitPosition::Disallowed(ImplTraitDisallowedContext::NestedType);
         }
+        let typ =
+            self.resolve_type_at_position(typ, kind, mode, wildcard_allowed, impl_trait_position);
+        self.item.impl_trait_position = impl_trait_position;
+        typ
+    }
+
+    /// [`Self::resolve_type_with_kind_inner`] for a type at `impl_trait_position`.
+    fn resolve_type_at_position(
+        &mut self,
+        typ: UnresolvedType,
+        kind: &Kind,
+        mode: PathResolutionMode,
+        wildcard_allowed: WildcardAllowed,
+        impl_trait_position: ImplTraitPosition,
+    ) -> Type {
+        use crate::ast::UnresolvedTypeData::*;
+
         let location = typ.location;
         let (named_path_location, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
@@ -2139,7 +2155,7 @@ impl Elaborator<'_> {
     }
 
     /// Resolves `Type::method` to a trait method on `typ`, given the trait methods already looked up
-    /// for this type (or `None` to look them up here). Returns `None` if `method` isn't a trait method
+    /// for this type. Returns `None` if `method` isn't a trait method
     /// on `typ` at all; otherwise resolves to the single matching method, or reports an ambiguity when
     /// more than one trait in scope provides it.
     #[allow(clippy::too_many_arguments)]
@@ -3676,15 +3692,15 @@ impl Elaborator<'_> {
         method_name: &str,
         location: Location,
     ) -> HirMethodReference {
+        // The trait's generics at this call are unknowns that type checking solves.
+        let trait_ = self.interner.get_trait(trait_id);
+        let trait_generics = trait_.fresh_generics(self.interner, location);
         if let Some(func_id) =
-            self.impl_method_selected_at_call(object_type, trait_id, trait_methods, location)
+            self.impl_method_selected_at_call(object_type, trait_id, &trait_generics, trait_methods)
         {
             return HirMethodReference::FuncId(func_id);
         }
 
-        // The trait's generics at this call are unknowns that type checking solves.
-        let trait_ = self.interner.get_trait(trait_id);
-        let trait_generics = trait_.fresh_generics(self.interner, location);
         let definition = trait_.find_method(method_name, self.interner).unwrap();
         let assumed = false;
         HirMethodReference::TraitItemId(HirTraitMethodReference {
@@ -3695,20 +3711,19 @@ impl Elaborator<'_> {
         })
     }
 
-    /// The method of the impl the impl search selects for `object_type` at this call, when it can
-    /// already decide: the call then refers to that impl's method directly. When it can't decide
-    /// yet (a type it depends on is still unknown, an enclosing `where` clause applies, or
-    /// several impls match), the call refers to the trait's method and a constraint decides the
-    /// impl once types are known.
+    /// The method of the impl the impl search selects for `object_type: trait_id<trait_generics>`
+    /// at this call, when it can already decide: the call then refers to that impl's method
+    /// directly. When it can't decide yet (a type it depends on is still unknown, an enclosing
+    /// `where` clause applies, or several impls match), the call refers to the trait's method and
+    /// a constraint decides the impl once types are known. The search binds nothing, so
+    /// `trait_generics` are those of that constraint too.
     fn impl_method_selected_at_call(
         &self,
         object_type: &Type,
         trait_id: TraitId,
+        trait_generics: &TraitGenerics,
         trait_methods: &[(FuncId, TraitId, Type)],
-        location: Location,
     ) -> Option<FuncId> {
-        let trait_ = self.interner.get_trait(trait_id);
-        let trait_generics = trait_.fresh_generics(self.interner, location);
         let (impl_kind, _, _) = self
             .interner
             .try_lookup_trait_implementation(
