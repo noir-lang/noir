@@ -361,6 +361,13 @@ pub enum TraitImplKind {
     Prepared(TraitImplId, Location),
 }
 
+/// The methods of one name that apply to a type (see [`NodeInterner::applicable_methods`]).
+struct ApplicableMethods {
+    direct: Vec<ImplMethod>,
+    own_trait_methods: Vec<(FuncId, TraitId, Type)>,
+    generic_trait_methods: Vec<(FuncId, TraitId, Type)>,
+}
+
 /// When searching for a trait impl, these are the types of errors we can expect
 #[derive(Debug)]
 pub enum ImplSearchErrorKind {
@@ -1100,10 +1107,8 @@ impl NodeInterner {
         method_name: &str,
         check_self_param: bool,
     ) -> Vec<FuncId> {
-        self.applicable_direct_methods(typ, method_name, check_self_param)
-            .into_iter()
-            .map(|method| method.method)
-            .collect()
+        let direct = self.applicable_methods(typ, method_name, check_self_param).direct;
+        vecmap(direct, |method| method.method)
     }
 
     /// Returns true if any method (direct or trait impl) is registered under `method_name`
@@ -1129,10 +1134,8 @@ impl NodeInterner {
     /// the integers share a method key.
     pub fn matching_direct_method_types(&self, typ: &Type, method_name: &str) -> Vec<Type> {
         let check_self_param = false;
-        self.applicable_direct_methods(typ, method_name, check_self_param)
-            .into_iter()
-            .map(|method| method.typ)
-            .collect()
+        let direct = self.applicable_methods(typ, method_name, check_self_param).direct;
+        vecmap(direct, |method| method.typ)
     }
 
     /// Returns the `FuncId`s of all direct (inherent) methods already registered for
@@ -1158,21 +1161,7 @@ impl NodeInterner {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        let key = get_type_method_key(typ);
-        if let Some(key) = key {
-            self.methods
-                .get(&key)
-                .and_then(|h| h.get(method_name))
-                .map(|methods| {
-                    let candidates = methods.find_trait_methods(typ, has_self_arg, self);
-                    self.applicable(typ, method_name, has_self_arg, candidates, |(method, ..)| {
-                        *method
-                    })
-                })
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        }
+        self.applicable_methods(typ, method_name, has_self_arg).own_trait_methods
     }
 
     /// Returns every `FuncId` registered as either a direct or trait-impl method
@@ -1192,55 +1181,38 @@ impl NodeInterner {
             .collect()
     }
 
-    /// The direct (inherent) methods named `method_name` that apply to `typ` (see
-    /// [`Self::applicable`]), with their impl's self type.
-    fn applicable_direct_methods(
+    /// The methods named `method_name` that apply to `typ`: its inherent methods, the trait
+    /// methods of its own impls, and those of impls for all types `T`. A method of an impl whose
+    /// where clause fails for `typ` is left out when another method applies, so that one is
+    /// chosen. When none applies, the failing methods stay candidates and the unmet bound is the
+    /// reported error.
+    fn applicable_methods(
         &self,
         typ: &Type,
         method_name: &str,
         check_self_param: bool,
-    ) -> Vec<ImplMethod> {
-        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
-        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
-            return Vec::new();
+    ) -> ApplicableMethods {
+        let own = get_type_method_key(typ).and_then(|key| self.methods.get(&key)?.get(method_name));
+        let generic = self.generic_methods(method_name);
+        let mut methods = ApplicableMethods {
+            direct: own
+                .map_or_else(Vec::new, |own| own.find_direct_methods(typ, check_self_param, self)),
+            own_trait_methods: own
+                .map_or_else(Vec::new, |own| own.find_trait_methods(typ, check_self_param, self)),
+            generic_trait_methods: generic.map_or_else(Vec::new, |generic| {
+                generic.find_trait_methods(typ, check_self_param, self)
+            }),
         };
-        let candidates = methods.find_direct_methods(typ, check_self_param, self);
-        self.applicable(typ, method_name, check_self_param, candidates, |method| method.method)
-    }
-
-    /// `candidates`, leaving out methods of impls whose where clause fails for `typ` when another
-    /// method named `method_name` applies, so that one is chosen. When none applies, the failing
-    /// methods stay candidates and the unmet bound is the reported error.
-    fn applicable<T>(
-        &self,
-        typ: &Type,
-        method_name: &str,
-        check_self_param: bool,
-        candidates: Vec<T>,
-        method: impl Fn(&T) -> FuncId,
-    ) -> Vec<T> {
-        if !self.skips_failing_where_clauses(typ, method_name, check_self_param) {
-            return candidates;
+        let may_hold = |method: FuncId| self.method_impl_where_clause_may_hold(method, typ);
+        let trait_methods = methods.own_trait_methods.iter().chain(&methods.generic_trait_methods);
+        let any_may_hold = methods.direct.iter().any(|method| may_hold(method.method))
+            || trait_methods.clone().any(|(method, ..)| may_hold(*method));
+        if any_may_hold {
+            methods.direct.retain(|method| may_hold(method.method));
+            methods.own_trait_methods.retain(|(method, ..)| may_hold(*method));
+            methods.generic_trait_methods.retain(|(method, ..)| may_hold(*method));
         }
-        candidates
-            .into_iter()
-            .filter(|candidate| self.method_impl_where_clause_may_hold(method(candidate), typ))
-            .collect()
-    }
-
-    /// Whether some method named `method_name` applies to `typ` and its impl's where clause can
-    /// hold for it.
-    fn skips_failing_where_clauses(
-        &self,
-        typ: &Type,
-        method_name: &str,
-        check_self_param: bool,
-    ) -> bool {
-        let own_methods =
-            get_type_method_key(typ).and_then(|key| self.methods.get(&key)?.get(method_name));
-        own_methods.into_iter().chain(self.generic_methods(method_name)).any(|methods| {
-            methods.has_method_whose_where_clause_may_hold(typ, check_self_param, self)
-        })
+        methods
     }
 
     /// The methods named `method_name` of impls for all types `T`, e.g. `impl<T> Foo for T`.
@@ -1263,6 +1235,20 @@ impl NodeInterner {
             .unwrap_or_default()
     }
 
+    /// The trait methods of `typ`'s own impls and of impls for all types `T`, which are
+    /// candidates alike (see [`Self::lookup_trait_methods`], [`Self::lookup_generic_methods`]).
+    pub fn lookup_own_and_generic_trait_methods(
+        &self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Vec<(FuncId, TraitId, Type)> {
+        let methods = self.applicable_methods(typ, method_name, has_self_arg);
+        let mut trait_methods = methods.own_trait_methods;
+        trait_methods.extend(methods.generic_trait_methods);
+        trait_methods
+    }
+
     /// Looks up methods at impls for all types `T`, e.g. `impl<T> Foo for T`.
     ///
     /// See [`Self::lookup_trait_methods`] for the meaning of the third tuple element.
@@ -1272,12 +1258,7 @@ impl NodeInterner {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        self.generic_methods(method_name)
-            .map(|methods| {
-                let candidates = methods.find_trait_methods(typ, has_self_arg, self);
-                self.applicable(typ, method_name, has_self_arg, candidates, |(method, ..)| *method)
-            })
-            .unwrap_or_default()
+        self.applicable_methods(typ, method_name, has_self_arg).generic_trait_methods
     }
 
     /// Tags the given identifier with the selected `trait_impl` so that monomorphization
