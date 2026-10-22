@@ -1182,8 +1182,9 @@ impl NodeInterner {
     }
 
     /// The methods named `method_name` that apply to `typ`: its inherent methods, the trait
-    /// methods of its own impls, and those of impls for all types `T`. A method of an impl whose
-    /// where clause fails for `typ` is left out when another method applies, so that one is
+    /// methods of its own impls, and those of impls for all types `T`. For a generic type (`T`),
+    /// its own impls are the impls for all types, so they are only its own. A method of an impl
+    /// whose where clause fails for `typ` is left out when another method applies, so that one is
     /// chosen. When none applies, the failing methods stay candidates and the unmet bound is the
     /// reported error.
     fn applicable_methods(
@@ -1192,27 +1193,33 @@ impl NodeInterner {
         method_name: &str,
         check_self_param: bool,
     ) -> ApplicableMethods {
-        let own = get_type_method_key(typ).and_then(|key| self.methods.get(&key)?.get(method_name));
-        let generic = self.generic_methods(method_name);
-        let mut methods = ApplicableMethods {
-            direct: own
-                .map_or_else(Vec::new, |own| own.find_direct_methods(typ, check_self_param, self)),
-            own_trait_methods: own
-                .map_or_else(Vec::new, |own| own.find_trait_methods(typ, check_self_param, self)),
-            generic_trait_methods: generic.map_or_else(Vec::new, |generic| {
-                generic.find_trait_methods(typ, check_self_param, self)
-            }),
-        };
+        let key = get_type_method_key(typ);
+        let own = key.and_then(|key| self.methods.get(&key)?.get(method_name));
+        let generic =
+            self.generic_methods(method_name).filter(|_| key != Some(TypeMethodKey::Generic));
         let may_hold = |method: FuncId| self.method_impl_where_clause_may_hold(method, typ);
-        let trait_methods = methods.own_trait_methods.iter().chain(&methods.generic_trait_methods);
-        let any_may_hold = methods.direct.iter().any(|method| may_hold(method.method))
-            || trait_methods.clone().any(|(method, ..)| may_hold(*method));
-        if any_may_hold {
-            methods.direct.retain(|method| may_hold(method.method));
-            methods.own_trait_methods.retain(|(method, ..)| may_hold(*method));
-            methods.generic_trait_methods.retain(|(method, ..)| may_hold(*method));
+        let (direct, failing_direct): (Vec<_>, Vec<_>) = own
+            .map_or_else(Vec::new, |own| own.find_direct_methods(typ, check_self_param, self))
+            .into_iter()
+            .partition(|method| may_hold(method.method));
+        let find_trait_methods = |methods: Option<&Methods>| {
+            methods
+                .map_or_else(Vec::new, |methods| {
+                    methods.find_trait_methods(typ, check_self_param, self)
+                })
+                .into_iter()
+                .partition::<Vec<_>, _>(|(method, ..)| may_hold(*method))
+        };
+        let (own_trait_methods, failing_own) = find_trait_methods(own);
+        let (generic_trait_methods, failing_generic) = find_trait_methods(generic);
+        if direct.is_empty() && own_trait_methods.is_empty() && generic_trait_methods.is_empty() {
+            return ApplicableMethods {
+                direct: failing_direct,
+                own_trait_methods: failing_own,
+                generic_trait_methods: failing_generic,
+            };
         }
-        methods
+        ApplicableMethods { direct, own_trait_methods, generic_trait_methods }
     }
 
     /// The methods named `method_name` of impls for all types `T`, e.g. `impl<T> Foo for T`.
@@ -1258,7 +1265,12 @@ impl NodeInterner {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        self.applicable_methods(typ, method_name, has_self_arg).generic_trait_methods
+        let methods = self.applicable_methods(typ, method_name, has_self_arg);
+        if get_type_method_key(typ) == Some(TypeMethodKey::Generic) {
+            methods.own_trait_methods
+        } else {
+            methods.generic_trait_methods
+        }
     }
 
     /// Tags the given identifier with the selected `trait_impl` so that monomorphization
