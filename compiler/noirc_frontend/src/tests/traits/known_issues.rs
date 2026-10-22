@@ -659,6 +659,47 @@ fn i2778_method_of_selfs_associated_type_in_a_default_method_is_found() {
     assert_accepted(src);
 }
 
+/// https://github.com/noir-lang/noir-claude/issues/2818: a path through an alias of a type parameter
+/// sees the parameter's bounds, as `T::get` does.
+#[test]
+fn i2818_alias_path_call_on_a_type_parameter_uses_its_bound() {
+    let src = r#"
+    trait Checked { fn get(self) -> u8; }
+    trait Raw { fn get(self) -> u8; }
+    impl Checked for u8 { fn get(self) -> u8 { assert(self < 100); self } }
+    impl<T> Raw for T { fn get(self) -> u8 { 77 } }
+    type Id<X> = X;
+    fn read<T>(t: T) -> u8 where T: Checked { Id::<T>::get(t) }
+    fn main(x: u8) -> pub u8 { read(x) }
+    "#;
+    assert_runs(src, &["100"], &["77"]);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2818
+#[test]
+fn i2818_path_call_on_a_type_parameter_finds_a_blanket_impl() {
+    let src = r#"
+    trait Raw { fn get(self) -> u8; }
+    impl<T> Raw for T { fn get(self) -> u8 { 77 } }
+    fn read<T>(t: T) -> u8 { T::get(t) }
+    fn main(x: u8) -> pub u8 { read(x) }
+    "#;
+    assert_accepted(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2818
+#[test]
+fn i2818_alias_path_call_on_a_type_parameter_with_only_a_bound_is_accepted() {
+    let src = r#"
+    trait Checked { fn get(self) -> u8; }
+    impl Checked for u8 { fn get(self) -> u8 { assert(self < 100); self } }
+    type Id<X> = X;
+    fn read<T>(t: T) -> u8 where T: Checked { Id::<T>::get(t) }
+    fn main(x: u8) -> pub u8 { read(x) }
+    "#;
+    assert_accepted(src);
+}
+
 // --- B. Impl search, where clauses, overlap --------------------------------------------------
 
 /// https://github.com/noir-lang/noir-claude/issues/2743: each of the 37 distinct bounds is solved
