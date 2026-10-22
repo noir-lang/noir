@@ -382,8 +382,12 @@ impl NodeInterner {
     /// Instantiates the impl entry `impl_type`/`impl_kind` with unknowns for its generics and
     /// unifies its object type and trait arguments with `object_type` and `trait_generics`,
     /// recording the bindings in `bindings`. Returns the impl's instantiated object type and its
-    /// instantiation bindings, or `None` if its header doesn't match. The trait's associated types
-    /// are left to the caller.
+    /// instantiation bindings, or `None` if its header doesn't match.
+    ///
+    /// The trait's associated types are left to the caller, as each has its own rule: the impl
+    /// search requires every one it is given to match the impl's, `constraints_may_hold_together`
+    /// skips one the impl doesn't name, and the overlap check ignores them (impls that differ only
+    /// in an associated type overlap).
     fn unify_with_impl_header(
         &self,
         object_type: &Type,
@@ -460,8 +464,7 @@ impl NodeInterner {
             })
             .expect("constraints is not empty");
         let constraint = &constraints[index];
-        let rest = constraints.iter().enumerate().filter(|(other, _)| *other != index);
-        let rest: Vec<_> = rest.map(|(_, constraint)| constraint.clone()).collect();
+        let rest = constraints[..index].iter().chain(&constraints[index + 1..]);
         let bound = &constraint.trait_bound;
         let Some(impls) = self.trait_implementation_map.get(&bound.trait_id) else {
             return false;
@@ -498,7 +501,7 @@ impl NodeInterner {
                 return false;
             }
             let mut obligations = self.instantiated_where_clause(*impl_id, &instantiation_bindings);
-            obligations.extend(rest.iter().cloned());
+            obligations.extend(rest.clone().cloned());
             self.constraints_may_hold_together(
                 &obligations,
                 &candidate,
