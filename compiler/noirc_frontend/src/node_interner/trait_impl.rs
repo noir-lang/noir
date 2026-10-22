@@ -358,24 +358,16 @@ impl NodeInterner {
             let TraitImplKind::Normal(existing) = impl_kind else {
                 return None;
             };
-            let (existing_type, instantiation_bindings) = existing_type.instantiate(self);
             let mut bindings = TypeBindings::default();
-            if object_type.try_unify(&existing_type, &mut bindings).is_err() {
-                return None;
-            }
-            let existing_generics = &self.get_trait_generics_for_impl(*existing).ordered;
-            let generics_unify = trait_generics.iter().zip(existing_generics).all(|(new, old)| {
-                new.try_unify(&old.substitute(&instantiation_bindings), &mut bindings).is_ok()
-            });
-            if !generics_unify {
-                return None;
-            }
+            let (_, instantiation_bindings) = self.unify_with_impl_header(
+                object_type,
+                trait_generics,
+                existing_type,
+                impl_kind,
+                &mut bindings,
+            )?;
             let mut obligations = where_clause.to_vec();
-            for constraint in self.get_where_clause_for_impl(*existing) {
-                let mut constraint = constraint.clone();
-                constraint.apply_instantiation_bindings(&instantiation_bindings);
-                obligations.push(constraint);
-            }
+            obligations.extend(self.instantiated_where_clause(*existing, &instantiation_bindings));
             let budget = Cell::new(OVERLAP_SEARCH_BUDGET);
             self.constraints_may_hold_together(
                 &obligations,
@@ -385,6 +377,56 @@ impl NodeInterner {
             )
             .then_some(*existing)
         })
+    }
+
+    /// Instantiates the impl entry `impl_type`/`impl_kind` with unknowns for its generics and
+    /// unifies its object type and trait arguments with `object_type` and `trait_generics`,
+    /// recording the bindings in `bindings`. Returns the impl's instantiated object type and its
+    /// instantiation bindings, or `None` if its header doesn't match. The trait's associated types
+    /// are left to the caller.
+    fn unify_with_impl_header(
+        &self,
+        object_type: &Type,
+        trait_generics: &[Type],
+        impl_type: &Type,
+        impl_kind: &TraitImplKind,
+        bindings: &mut TypeBindings,
+    ) -> Option<(Type, TypeBindings)> {
+        let (impl_type, instantiation_bindings) = impl_type.instantiate(self);
+        object_type.try_unify(&impl_type, bindings).ok()?;
+        let impl_generics = &self.impl_trait_generics(impl_kind).ordered;
+        let generics_unify =
+            trait_generics.iter().zip_eq(impl_generics).all(|(generic, impl_generic)| {
+                generic
+                    .try_unify(&impl_generic.substitute(&instantiation_bindings), bindings)
+                    .is_ok()
+            });
+        generics_unify.then_some((impl_type, instantiation_bindings))
+    }
+
+    /// The where clause of `impl_id`, in terms of the unknowns `instantiation_bindings` gives its
+    /// generics.
+    fn instantiated_where_clause(
+        &self,
+        impl_id: TraitImplId,
+        instantiation_bindings: &TypeBindings,
+    ) -> Vec<TraitConstraint> {
+        let where_clause = self.trait_impl_where_clauses.get(&impl_id).into_iter().flatten();
+        vecmap(where_clause, |constraint| {
+            let mut constraint = constraint.clone();
+            constraint.apply_instantiation_bindings(instantiation_bindings);
+            constraint
+        })
+    }
+
+    /// The trait arguments the impl entry `impl_kind` implements its trait at.
+    fn impl_trait_generics<'a>(&'a self, impl_kind: &'a TraitImplKind) -> &'a TraitGenerics {
+        match impl_kind {
+            TraitImplKind::Normal(id) | TraitImplKind::Prepared(id, _) => {
+                self.get_trait_generics_for_impl(*id)
+            }
+            TraitImplKind::Assumed { trait_generics, .. } => trait_generics,
+        }
     }
 
     /// Whether some choice of the unknowns in `constraints` (beyond those `bindings` decides)
@@ -433,16 +475,17 @@ impl NodeInterner {
             else {
                 return false;
             };
-            let (impl_type, instantiation_bindings) = impl_type.instantiate(self);
             let mut candidate = bindings.clone();
-            if constraint.typ.try_unify(&impl_type, &mut candidate).is_err() {
+            let Some((_, instantiation_bindings)) = self.unify_with_impl_header(
+                &constraint.typ,
+                &bound.trait_generics.ordered,
+                impl_type,
+                impl_kind,
+                &mut candidate,
+            ) else {
                 return false;
-            }
+            };
             let impl_generics = self.get_trait_generics_for_impl(*impl_id);
-            let ordered_unify =
-                bound.trait_generics.ordered.iter().zip(&impl_generics.ordered).all(|(a, b)| {
-                    a.try_unify(&b.substitute(&instantiation_bindings), &mut candidate).is_ok()
-                });
             let named_unify = bound.trait_generics.named.iter().all(|named| {
                 impl_generics.named.iter().find(|other| other.name == named.name).is_none_or(
                     |other| {
@@ -451,15 +494,10 @@ impl NodeInterner {
                     },
                 )
             });
-            if !ordered_unify || !named_unify {
+            if !named_unify {
                 return false;
             }
-            let mut obligations = Vec::new();
-            for constraint in self.trait_impl_where_clauses.get(impl_id).into_iter().flatten() {
-                let mut constraint = constraint.clone();
-                constraint.apply_instantiation_bindings(&instantiation_bindings);
-                obligations.push(constraint);
-            }
+            let mut obligations = self.instantiated_where_clause(*impl_id, &instantiation_bindings);
             obligations.extend(rest.iter().cloned());
             self.constraints_may_hold_together(
                 &obligations,
@@ -647,32 +685,17 @@ impl NodeInterner {
                 continue;
             }
 
-            let (existing_object_type, instantiation_bindings) =
-                existing_object_type.instantiate(self);
-
             let mut fresh_bindings = type_bindings.clone();
-
-            if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_err() {
+            let Some((existing_object_type, instantiation_bindings)) = self.unify_with_impl_header(
+                &object_type,
+                trait_generics,
+                existing_object_type,
+                impl_kind,
+                &mut fresh_bindings,
+            ) else {
                 continue;
-            }
-
-            let impl_trait_generics = match impl_kind {
-                TraitImplKind::Normal(id) | TraitImplKind::Prepared(id, _) => {
-                    self.get_trait_generics_for_impl(*id).clone()
-                }
-                TraitImplKind::Assumed { trait_generics, .. } => trait_generics.clone(),
             };
-
-            let generics_unify = trait_generics.iter().zip_eq(&impl_trait_generics.ordered).all(
-                |(trait_generic, impl_generic)| {
-                    let impl_generic = impl_generic.substitute(&instantiation_bindings);
-                    trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
-                },
-            );
-
-            if !generics_unify {
-                continue;
-            }
+            let impl_trait_generics = self.impl_trait_generics(impl_kind).clone();
 
             let where_clause = match impl_kind {
                 TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
