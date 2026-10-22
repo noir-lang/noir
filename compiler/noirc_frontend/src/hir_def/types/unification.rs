@@ -97,6 +97,18 @@ impl Type {
 
     /// `unify` with a type, and returns an error if unification failed
     /// Do not commit anything.
+    /// Whether a method receiver of type `receiver`, or the type it references (a method call
+    /// dereferences its receiver), unifies with `self`, recording the bindings in `bindings`.
+    pub(crate) fn try_unify_receiver(&self, receiver: &Type, bindings: &mut TypeBindings) -> bool {
+        let mut direct = bindings.clone();
+        if receiver.try_unify(self, &mut direct).is_ok() {
+            *bindings = direct;
+            return true;
+        }
+        matches!(receiver.follow_bindings(), Type::Reference(element, _)
+            if element.try_unify(self, bindings).is_ok())
+    }
+
     pub fn try_unify_with_default_bindings(&self, other: &Type) -> Result<(), UnificationError> {
         let mut bindings = TypeBindings::default();
         self.try_unify(other, &mut bindings)
