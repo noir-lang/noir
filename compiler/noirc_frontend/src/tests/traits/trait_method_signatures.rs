@@ -1,8 +1,10 @@
 //! Tests for trait method signature matching between trait definitions and implementations.
 //! Validates parameter types, return types, parameter counts, and method presence.
 
+use crate::elaborator::UnstableFeature;
 use crate::tests::{
-    assert_no_errors, check_errors, check_errors_with_stdlib, check_monomorphization_error,
+    assert_no_errors, assert_no_errors_using_features, check_errors, check_errors_with_stdlib,
+    check_monomorphization_error,
 };
 
 #[test]
@@ -428,4 +430,84 @@ fn allows_comptime_type_in_stdlib_comptime_trait_method_signature() {
     }
     "#;
     check_errors_with_stdlib(src, []);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2237: the trait method's return type
+/// `<Self as Source>::Out` is the impl's `u8`, through the parent bound of its `Self: Checked`.
+#[test]
+fn impl_method_returning_a_projection_through_a_parent_bound_matches_the_trait() {
+    let src = r#"
+    trait Source { type Out; fn get(self) -> Self::Out; }
+    trait Checked: Source {}
+    trait Foo { fn g(self) -> <Self as Source>::Out where Self: Checked; }
+    impl Source for u32 { type Out = u8; fn get(self) -> u8 { self as u8 } }
+    impl Checked for u32 {}
+    impl Foo for u32 { fn g(self) -> <Self as Source>::Out { self.get() } }
+    fn main(x: u32) { let r: u8 = x.g(); assert(r == 3); }
+    "#;
+    assert_no_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2752: an impl of a trait with a `where Self:`
+/// bound doesn't name the bound's associated type.
+#[test]
+fn trait_with_a_where_self_bound_eliding_an_associated_type_can_be_implemented_without_methods() {
+    let src = r#"
+    trait Lim { type Out; }
+    struct A {}
+    impl Lim for A { type Out = u8; }
+    trait Chk where Self: Lim { fn chk() {} }
+    impl Chk for A {}
+    fn main() { A::chk(); }
+    "#;
+    assert_no_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2752: `where Self: Lim` leaves `Lim`'s
+/// associated type out, as a supertrait `trait Chk: Lim` does.
+#[test]
+fn trait_with_a_where_self_bound_eliding_an_associated_type_can_be_implemented() {
+    let src = r#"
+    trait Lim { type Out; fn get(self) -> Self::Out; }
+    struct A { v: u8 }
+    impl Lim for A { type Out = u8; fn get(self) -> u8 { self.v } }
+    trait Chk where Self: Lim { fn chk(self) -> <Self as Lim>::Out { self.get() } }
+    impl Chk for A {}
+    fn main(x: u8) -> pub u8 { A { v: x }.chk() }
+    "#;
+    assert_no_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2049: the trait method's `impl Bar` parameter
+/// stands for the impl method's own.
+#[test]
+fn trait_method_with_an_impl_trait_parameter_can_be_implemented() {
+    let src = r#"
+    trait Bar { fn get(self) -> Field; }
+    impl Bar for Field { fn get(self) -> Field { self + 1 } }
+    trait Tr { fn f(a: impl Bar) -> Field; }
+    struct S {}
+    impl Tr for S { fn f(a: impl Bar) -> Field { a.get() } }
+    fn main(x: Field) -> pub Field { S::f(x) }
+    "#;
+    assert_no_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/1711: a numeric generic can't stand for the
+/// trait method's type generic.
+#[test]
+fn impl_method_generic_of_another_kind_than_the_traits_is_rejected() {
+    let src = r#"
+    trait Marker {}
+    trait MyT { fn f<T>(self, x: T) where T: Marker; }
+    pub struct B { x: Field }
+    impl MyT for B { fn f<let Q: u32>(_self: Self, _x: Field) where Q: Marker {} }
+                                                                    ^ Expected type, found numeric generic
+                                                                    ~ not a type
+                              ^^^^^^ Type provided when a numeric generic was expected
+                              ~~~~~~ the numeric generic is not of type `u32`
+                        ^ Expected type fn(B, _) -> (), found type fn(B, Field) -> ()
+    fn main() {}
+    "#;
+    check_errors(src);
 }
