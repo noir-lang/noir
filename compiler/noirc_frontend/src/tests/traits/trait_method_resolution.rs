@@ -1,7 +1,7 @@
 //! Tests for trait method resolution and scope rules.
 //! Validates that trait methods are correctly resolved based on imports, handles ambiguity, and suggests missing imports.
 
-use crate::test_utils::{get_monomorphized, stdlib_src};
+use crate::test_utils::{get_monomorphized, get_program_with_stdlib_dependency, stdlib_src};
 use crate::tests::{
     assert_no_errors, check_errors, check_errors_with_stdlib, check_monomorphization_error,
 };
@@ -1683,4 +1683,22 @@ fn method_call_in_a_global_with_a_blanket_impl_method_of_the_same_name() {
     fn main() { assert(G + H == 3); }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn coercion_in_a_global_with_a_blanket_impl_method_named_like_the_coercion() {
+    let stdlib_src = r#"
+    impl<T, let N: u32> [T; N] {
+        #[builtin(as_vector)]
+        pub fn as_vector(self) -> [T] {}
+    }
+    "#;
+    let root_src = r#"
+    trait Conv { fn as_vector(self) -> u32; }
+    impl<T> Conv for T { fn as_vector(self) -> u32 { let _ = self; 0 } }
+    global G: [Field] = [1, 2];
+    fn main() { let _ = G; }
+    "#;
+    let errors = get_program_with_stdlib_dependency(stdlib_src, root_src);
+    assert!(errors.is_empty(), "expected no errors, got {errors:?}");
 }

@@ -1763,7 +1763,7 @@ impl Elaborator<'_> {
     /// `function_meta` directly via `Methods::method_matches`) doesn't ICE on a
     /// still-deferred meta.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn lookup_direct_method(
+    pub(crate) fn lookup_direct_method(
         &mut self,
         typ: &Type,
         method_name: &str,
@@ -1775,7 +1775,7 @@ impl Elaborator<'_> {
 
     /// Lazy-aware wrapper around [`crate::node_interner::NodeInterner::lookup_trait_methods`].
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn lookup_trait_methods(
+    pub(crate) fn lookup_trait_methods(
         &mut self,
         typ: &Type,
         method_name: &str,
