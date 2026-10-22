@@ -591,6 +591,38 @@ fn i1062_associated_type_fixed_by_the_second_parent_is_used_in_a_default_method(
     }
 }
 
+/// https://github.com/noir-lang/noir-claude/issues/1062, rustc: E0284. Two parent bounds fixing
+/// the associated type to different types can't both hold.
+#[test]
+fn i1062_associated_type_fixed_to_different_types_by_two_parents_is_rejected() {
+    let src = r#"
+    trait Grand { type Item; }
+    trait P1: Grand<Item = u8> {}
+    trait P2: Grand<Item = Field> {}
+    trait Child: P1 + P2 {
+        fn f(self, x: Self::Item) -> Self::Item { x }
+    }
+    fn main() {}
+    "#;
+    assert_rejected(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/1062: two parent bounds fixing the associated
+/// type to the same type agree.
+#[test]
+fn i1062_associated_type_fixed_to_one_type_by_two_parents_is_accepted() {
+    let src = r#"
+    trait Grand { type Item; }
+    trait P1: Grand<Item = Field> {}
+    trait P2: Grand<Item = Field> {}
+    trait Child: P1 + P2 {
+        fn f(self, x: Self::Item) -> Field { x }
+    }
+    fn main() {}
+    "#;
+    assert_accepted(src);
+}
+
 /// https://github.com/noir-lang/noir-claude/issues/1062
 #[test]
 fn i1062_grandparent_associated_type_fixed_by_a_parent_bound_is_used_in_a_default_method() {
