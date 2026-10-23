@@ -1,13 +1,10 @@
-use std::sync::Arc;
-
-use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::lsp_types::{LogMessageParams, MessageType};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use nargo_toml::{PackageSelection, find_package_manifest, resolve_workspace_from_toml};
-use noirc_driver::{NOIR_ARTIFACT_VERSION_STRING, check_crate};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 
 use crate::{
-    LspState, get_package_tests_in_crate, parse_diff,
+    CheckedWorkspace, LspState, check_workspace, get_package_tests_in_crate,
     types::{NargoPackageTests, NargoTestsParams, NargoTestsResult},
 };
 
@@ -49,26 +46,16 @@ fn on_tests_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
-    let mut workspace_file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(
-        state,
-        &workspace,
-        &mut workspace_file_manager,
-    );
-    let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
-    let workspace_file_manager = Arc::new(workspace_file_manager);
+    // Test functions are found even if the workspace fails to compile, so the diagnostics are
+    // not needed here.
+    let CheckedWorkspace { context, package_crate_ids, .. } = check_workspace(state, &workspace);
 
     let package_tests: Vec<_> = workspace
         .into_iter()
         .filter_map(|package| {
-            let (context, crate_id) =
-                crate::prepare_package(&workspace_file_manager, &parsed_files, package);
-            // We ignore the warnings and errors produced by compilation for producing tests
-            // because we can still get the test functions even if compilation fails
-            let (context, _) = check_crate(context, crate_id, &Default::default());
-
+            let crate_id = package_crate_ids.get(&package.root_dir)?;
             // We don't add test headings for a package if it contains no `#[test]` functions
-            get_package_tests_in_crate(&context, &crate_id, &package.name)
+            get_package_tests_in_crate(&context, crate_id, &package.name)
                 .map(|tests| NargoPackageTests { package: package.name.to_string(), tests })
         })
         .collect();

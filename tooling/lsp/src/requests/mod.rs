@@ -4,8 +4,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use crate::notifications::fake_stdlib_workspace;
-use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
+use crate::notifications::{fake_stdlib_workspace, process_workspace};
 use crate::{
     resolve_workspace_for_source_path,
     types::{CodeLensOptions, InitializeParams},
@@ -24,7 +23,6 @@ use nargo_fmt::Config;
 
 use noirc_frontend::ast::Ident;
 use noirc_frontend::graph::{CrateGraph, CrateId};
-use noirc_frontend::hir::Context;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleId};
 use noirc_frontend::node_interner::ReferenceId;
 use noirc_frontend::parser::ParserError;
@@ -113,6 +111,13 @@ pub(crate) struct LspInitializationOptions {
     #[serde(rename = "enableParsingCache", default = "default_enable_parsing_cache")]
     pub(crate) enable_parsing_cache: bool,
 
+    /// Controls whether every package found under the editor's root is analyzed together, so
+    /// that references and renames see packages that depend on the edited one even when they
+    /// belong to another Nargo workspace. Otherwise each Nargo workspace is analyzed on its own.
+    /// By default this will be set to true (enabled).
+    #[serde(rename = "enableRootAnalysis", default = "default_enable_root_analysis")]
+    pub(crate) enable_root_analysis: bool,
+
     #[serde(rename = "inlayHints", default = "default_inlay_hints")]
     pub(crate) inlay_hints: InlayHintsOptions,
 }
@@ -191,6 +196,10 @@ fn default_enable_lightweight_mode() -> bool {
     false
 }
 
+fn default_enable_root_analysis() -> bool {
+    true
+}
+
 fn default_inlay_hints() -> InlayHintsOptions {
     InlayHintsOptions {
         type_hints: default_type_hints(),
@@ -251,6 +260,7 @@ impl Default for LspInitializationOptions {
             enable_code_actions: default_enable_code_actions(),
             enable_semantic_tokens: default_enable_semantic_tokens(),
             enable_lightweight_mode: default_enable_lightweight_mode(),
+            enable_root_analysis: default_enable_root_analysis(),
         }
     }
 }
@@ -580,7 +590,6 @@ pub(crate) struct ProcessRequestCallbackArgs<'a> {
     pub(crate) package: &'a Package,
     pub(crate) files: &'a FileMap,
     pub(crate) interner: &'a NodeInterner,
-    pub(crate) package_cache: &'a HashMap<PathBuf, PackageCacheData>,
     pub(crate) crate_id: CrateId,
     pub(crate) crate_name: String,
     pub(crate) crate_graph: &'a CrateGraph,
@@ -603,12 +612,40 @@ where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
     T: Default,
 {
+    process_request_with_analysis(state, text_document_position_params, false, callback)
+}
+
+/// Like [`process_request`], for requests that follow references from one package into
+/// another. The workspace is checked again first if a single file change left the crates that
+/// depend on the edited one pointing at its old definitions.
+pub(crate) fn process_cross_package_request<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
+    T: Default,
+{
+    process_request_with_analysis(state, text_document_position_params, true, callback)
+}
+
+fn process_request_with_analysis<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    needs_fresh_dependents: bool,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
+    T: Default,
+{
     let uri = text_document_position_params.text_document.uri.clone();
     let file_path = uri_to_file_path(&uri)?;
     let workspace = if uri.scheme() == "noir-std" {
-        fake_stdlib_workspace()
+        Arc::new(fake_stdlib_workspace())
     } else {
-        match resolve_workspace_for_source_path(file_path.as_path()) {
+        match resolve_workspace_for_source_path(state, file_path.as_path()) {
             Ok(workspace) => workspace,
             Err(crate::LspError::ManifestError(..)) => return Ok(T::default()),
             Err(e) => {
@@ -621,25 +658,32 @@ where
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
 
-    // In practice when `process_request` is called, a document in the project should already have been
-    // open so both the workspace and package cache will have data. However, just in case this isn't true
-    // for some reason, and also for tests (some tests just test a request without going through the full
-    // LSP workflow), we have a fallback where we type-check the workspace/package, then continue with
-    // processing the request.
-    let Some(workspace_cache_data) = state.workspace_cache.get(&workspace.root_dir) else {
-        return process_request_no_workspace_cache(state, text_document_position_params, callback);
+    // The workspace is checked here when it has no analysis yet: no document of it has been
+    // opened since the last `Nargo.toml` change cleared every analysis, or a test sends a request
+    // without opening a document first. It is also checked again when the request needs the
+    // dependents of an edited crate up to date. Like any full check, this publishes diagnostics
+    // and test lists for the workspace.
+    let needs_check = match state.workspace_cache.get(&workspace.root_dir) {
+        None => true,
+        Some(cache) => needs_fresh_dependents && cache.dependents_stale,
     };
-
-    let Some(package_cache_data) = state.package_cache.get(&package.root_dir) else {
-        return process_request_no_workspace_cache(state, text_document_position_params, callback);
+    if needs_check {
+        process_workspace(state, &workspace)
+            .map_err(|error| ResponseError::new(ErrorCode::REQUEST_FAILED, format!("{error:?}")))?;
+    }
+    let Some(workspace_cache_data) = state.workspace_cache.get(&workspace.root_dir) else {
+        return Ok(T::default());
+    };
+    let Some(crate_id) = workspace_cache_data.package_crate_ids.get(&package.root_dir).copied()
+    else {
+        return Ok(T::default());
     };
 
     let file_manager = &workspace_cache_data.file_manager;
-    let interner = &package_cache_data.node_interner;
-    let def_maps = &package_cache_data.def_maps;
-    let usage_tracker = &package_cache_data.usage_tracker;
-    let crate_graph = &package_cache_data.crate_graph;
-    let crate_id = package_cache_data.crate_id;
+    let interner = &workspace_cache_data.node_interner;
+    let def_maps = &workspace_cache_data.def_maps;
+    let usage_tracker = &workspace_cache_data.usage_tracker;
+    let crate_graph = &workspace_cache_data.crate_graph;
 
     let files = file_manager.as_file_map();
 
@@ -657,89 +701,9 @@ where
         package,
         files,
         interner,
-        package_cache: &state.package_cache,
         crate_id,
         crate_name: package.name.to_string(),
         crate_graph,
-        def_maps,
-        usage_tracker,
-    }))
-}
-
-pub(crate) fn process_request_no_workspace_cache<F, T>(
-    state: &mut LspState,
-    text_document_position_params: TextDocumentPositionParams,
-    callback: F,
-) -> Result<T, ResponseError>
-where
-    F: FnOnce(ProcessRequestCallbackArgs) -> T,
-    T: Default,
-{
-    let file_path =
-        text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-        })?;
-
-    let workspace = match resolve_workspace_for_source_path(file_path.as_path()) {
-        Ok(workspace) => workspace,
-        Err(crate::LspError::ManifestError(..)) => return Ok(T::default()),
-        Err(e) => return Err(ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string())),
-    };
-    let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
-        ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
-    })?;
-
-    let mut workspace_file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(
-        state,
-        &workspace,
-        &mut workspace_file_manager,
-    );
-    let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
-    let workspace_file_manager = Arc::new(workspace_file_manager);
-
-    let (context, crate_id) =
-        crate::prepare_package(&workspace_file_manager, &parsed_files, package);
-
-    let interner;
-    let def_maps;
-    let usage_tracker;
-    let checked_context;
-    let context: &Context = if let Some(package_cache) = state.package_cache.get(&package.root_dir)
-    {
-        interner = &package_cache.node_interner;
-        def_maps = &package_cache.def_maps;
-        usage_tracker = &package_cache.usage_tracker;
-        &context
-    } else {
-        // We ignore the warnings and errors produced by compilation while resolving the definition
-        (checked_context, _) = noirc_driver::check_crate(context, crate_id, &Default::default());
-        interner = &checked_context.def_interner;
-        def_maps = &checked_context.def_maps;
-        usage_tracker = &checked_context.usage_tracker;
-        &checked_context
-    };
-
-    let files = workspace_file_manager.as_file_map();
-
-    let Some(location) = position_to_location(
-        files,
-        &PathString::from(file_path),
-        &text_document_position_params.position,
-    ) else {
-        return Ok(T::default());
-    };
-
-    Ok(callback(ProcessRequestCallbackArgs {
-        location,
-        workspace: &workspace,
-        package,
-        files,
-        interner,
-        package_cache: &state.package_cache,
-        crate_id,
-        crate_name: package.name.to_string(),
-        crate_graph: &context.crate_graph,
         def_maps,
         usage_tracker,
     }))
@@ -758,7 +722,6 @@ pub(crate) fn uri_to_file_path(uri: &Url) -> Result<PathBuf, ResponseError> {
 pub(crate) fn find_all_references_in_workspace(
     location: noirc_errors::Location,
     interner: &NodeInterner,
-    package_cache: &HashMap<PathBuf, PackageCacheData>,
     files: &FileMap,
     include_declaration: bool,
     include_self_type_name: bool,
@@ -770,23 +733,14 @@ pub(crate) fn find_all_references_in_workspace(
     // If we found the referenced node, find its location
     let referenced_location = interner.reference_location(referenced);
 
-    // Now we find all references that point to this location, in all interners
-    // (there's one interner per package, and all interners in a workspace rely on the
-    // same FileManager so a Location/FileId in one package is the same as in another package)
+    // Now we find all references that point to this location. The interner covers every package
+    // of the workspace, so this includes references from packages that depend on the edited one.
     let mut locations = find_all_references(
         referenced_location,
         interner,
         include_declaration,
         include_self_type_name,
     );
-    for cache_data in package_cache.values() {
-        locations.extend(find_all_references(
-            referenced_location,
-            &cache_data.node_interner,
-            include_declaration,
-            include_self_type_name,
-        ));
-    }
 
     // Only keep locations whose span, when read from the file, matches "name"
     // (it might not match because of macro expansions)

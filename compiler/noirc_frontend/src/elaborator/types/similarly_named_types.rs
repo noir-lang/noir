@@ -97,7 +97,7 @@ fn data_type_to_similarly_named_type(
     let location = data_type.name.location();
     let external_crate = elaborator
         .crate_graph
-        .find_dependencies(elaborator.crate_graph.root_crate_id(), &data_type.id.module_id().krate)
+        .find_dependencies(&elaborator.crate_id, &data_type.id.module_id().krate)
         .map(|crates| crates.join("::"));
     SimilarlyNamedType { name, location, external_crate }
 }

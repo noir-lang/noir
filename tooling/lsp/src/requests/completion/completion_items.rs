@@ -3,12 +3,13 @@ use async_lsp::lsp_types::{
     InsertTextFormat, MarkupContent, MarkupKind,
 };
 use iter_extended::vecmap;
+
+use crate::modules::{relative_module_full_path, relative_module_id_path};
 use noirc_frontend::{
     QuotedType, Type,
     ast::AttributeTarget,
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    modules::{relative_module_full_path, relative_module_id_path},
     node_interner::{
         FuncId, GlobalId, ReferenceId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId,
     },
@@ -429,6 +430,7 @@ impl NodeFinder<'_> {
                 reexport_data.module_id,
                 self.module_id,
                 current_module_parent_id,
+                self.dependencies,
                 self.interner,
             )
         } else {
@@ -436,6 +438,7 @@ impl NodeFinder<'_> {
                 ModuleDefId::TraitId(trait_id),
                 self.module_id,
                 current_module_parent_id,
+                self.dependencies,
                 self.interner,
                 self.def_maps,
             )?

@@ -9,7 +9,7 @@ use noirc_frontend::node_interner::ReferenceId;
 
 use crate::LspState;
 
-use super::{find_all_references_in_workspace, process_request};
+use super::{find_all_references_in_workspace, process_cross_package_request, process_request};
 
 pub(crate) fn on_prepare_rename_request(
     state: &mut LspState,
@@ -31,26 +31,22 @@ pub(crate) fn on_rename_request(
     state: &mut LspState,
     params: RenameParams,
 ) -> Result<Option<WorkspaceEdit>, ResponseError> {
-    process_request(state, params.text_document_position, |args| {
-        let rename_changes = find_all_references_in_workspace(
-            args.location,
-            args.interner,
-            args.package_cache,
-            args.files,
-            true,
-            false,
-        )
-        .map(|locations| {
-            locations.iter().fold(
-                HashMap::new(),
-                |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
-                    let edit =
-                        TextEdit { range: location.range, new_text: params.new_name.clone() };
-                    acc.entry(location.uri.clone()).or_default().push(edit);
-                    acc
-                },
-            )
-        });
+    process_cross_package_request(state, params.text_document_position, |args| {
+        let rename_changes =
+            find_all_references_in_workspace(args.location, args.interner, args.files, true, false)
+                .map(|locations| {
+                    locations.iter().fold(
+                        HashMap::new(),
+                        |mut acc: HashMap<Url, Vec<TextEdit>>, location| {
+                            let edit = TextEdit {
+                                range: location.range,
+                                new_text: params.new_name.clone(),
+                            };
+                            acc.entry(location.uri.clone()).or_default().push(edit);
+                            acc
+                        },
+                    )
+                });
 
         let response = WorkspaceEdit {
             changes: rename_changes,
@@ -65,8 +61,12 @@ pub(crate) fn on_rename_request(
 #[cfg(test)]
 mod rename_tests {
     use super::*;
+    use crate::notifications::{self, workspace_from_document_uri};
     use crate::test_utils::{self, search_in_text};
-    use async_lsp::lsp_types::{Range, WorkDoneProgressParams};
+    use crate::tests::apply_text_edits;
+    use async_lsp::lsp_types::{
+        Position, Range, TextDocumentIdentifier, Url, WorkDoneProgressParams,
+    };
 
     /// Rename every occurrence of `name` in `src` and assert the LSP returns rename edits at
     /// the exact same set of ranges — once per occurrence, since the rename should be
@@ -82,9 +82,7 @@ mod rename_tests {
 
             let params = RenameParams {
                 text_document_position: TextDocumentPositionParams {
-                    text_document: lsp_types::TextDocumentIdentifier {
-                        uri: noir_text_document.clone(),
-                    },
+                    text_document: TextDocumentIdentifier { uri: noir_text_document.clone() },
                     position: target_position,
                 },
                 new_name: "renamed_function".to_string(),
@@ -121,7 +119,7 @@ mod rename_tests {
             );
 
         let params = TextDocumentPositionParams {
-            text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
+            text_document: TextDocumentIdentifier { uri: noir_text_document },
             position,
         };
 
@@ -150,6 +148,50 @@ impl Foo {
     }
 }
 "#,
+        );
+    }
+
+    #[test]
+    fn test_rename_across_workspace_packages() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("workspace");
+
+        // `noir_text_document` points at `src/main.nr` under the workspace directory, so step up to it.
+        let noir_text_document = noir_text_document.to_file_path().unwrap();
+        let workspace_dir = noir_text_document.parent().unwrap().parent().unwrap();
+
+        // `function_one` is defined in package "one" and used in package "two", which depends on it.
+        let one_lib = Url::from_file_path(workspace_dir.join("one/src/lib.nr")).unwrap();
+        let two_lib = Url::from_file_path(workspace_dir.join("two/src/lib.nr")).unwrap();
+
+        let workspace = workspace_from_document_uri(&mut state, one_lib.clone()).unwrap().unwrap();
+        notifications::process_workspace(&mut state, &workspace).unwrap();
+
+        let params = RenameParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: one_lib.clone() },
+                position: Position { line: 0, character: 7 },
+            },
+            new_name: "renamed_function".to_string(),
+            work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+        };
+
+        let response = on_rename_request(&mut state, params)
+            .expect("Could not execute on_rename_request")
+            .unwrap();
+        let changes = response.changes.expect("expected rename edits");
+
+        let one_src = std::fs::read_to_string(one_lib.to_file_path().unwrap()).unwrap();
+        let two_src = std::fs::read_to_string(two_lib.to_file_path().unwrap()).unwrap();
+
+        let one_renamed = apply_text_edits(&one_src, &changes[&one_lib]);
+        assert!(one_renamed.contains("pub fn renamed_function<A, B>() {}"), "{one_renamed}");
+        assert!(!one_renamed.contains("function_one"), "{one_renamed}");
+
+        // The `use` and the call in the dependent package are renamed too.
+        let two_renamed = apply_text_edits(&two_src, &changes[&two_lib]);
+        assert_eq!(
+            two_renamed,
+            "use one::renamed_function;\n\npub fn function_two() {\n    renamed_function()\n}"
         );
     }
 

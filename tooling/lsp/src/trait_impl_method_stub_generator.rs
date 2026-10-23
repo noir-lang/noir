@@ -3,15 +3,17 @@ use std::collections::BTreeMap;
 use noirc_frontend::{
     Kind, NamedGeneric, ResolvedGeneric, Type,
     ast::{NoirTraitImpl, UnresolvedTypeData},
-    graph::CrateId,
+    graph::{CrateId, Dependency},
     hir::{
         def_map::{CrateDefMap, ModuleDefId, ModuleId},
         type_check::generics::TraitGenerics,
     },
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
-    modules::{get_parent_module, relative_module_id_path},
+    modules::get_parent_module,
     node_interner::NodeInterner,
 };
+
+use crate::modules::relative_module_id_path;
 
 pub(crate) struct TraitImplMethodStubGenerator<'a> {
     name: &'a str,
@@ -20,6 +22,8 @@ pub(crate) struct TraitImplMethodStubGenerator<'a> {
     noir_trait_impl: &'a NoirTraitImpl,
     interner: &'a NodeInterner,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+    /// The dependencies of the crate the stub is generated in.
+    dependencies: &'a [Dependency],
     module_id: ModuleId,
     indent: usize,
     body: Option<String>,
@@ -35,6 +39,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
         noir_trait_impl: &'a NoirTraitImpl,
         interner: &'a NodeInterner,
         def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
+        dependencies: &'a [Dependency],
         module_id: ModuleId,
         indent: usize,
     ) -> Self {
@@ -45,6 +50,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             noir_trait_impl,
             interner,
             def_maps,
+            dependencies,
             module_id,
             indent,
             body: None,
@@ -210,6 +216,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     parent_module_id,
                     self.module_id,
                     current_module_parent_id,
+                    self.dependencies,
                     self.interner,
                 );
 
@@ -251,6 +258,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     parent_module_id,
                     self.module_id,
                     current_module_parent_id,
+                    self.dependencies,
                     self.interner,
                 );
 
@@ -288,6 +296,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                     parent_module_id,
                     self.module_id,
                     current_module_parent_id,
+                    self.dependencies,
                     self.interner,
                 );
 

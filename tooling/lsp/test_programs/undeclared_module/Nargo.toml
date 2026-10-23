@@ -1,0 +1,4 @@
+[package]
+name = "undeclared_module"
+authors = []
+type = "lib"

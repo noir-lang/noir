@@ -4,9 +4,10 @@ use noirc_errors::Location;
 use noirc_frontend::{
     ast::MethodCallExpression,
     hir::def_map::ModuleDefId,
-    modules::module_def_id_relative_path,
     node_interner::{ReferenceId, TraitId},
 };
+
+use crate::modules::module_def_id_relative_path;
 
 use crate::{
     requests::TraitReexport,
@@ -113,6 +114,7 @@ impl CodeActionFinder<'_> {
             current_module_parent_id,
             defining_module,
             &intermediate_name,
+            self.dependencies,
             self.interner,
             self.def_maps,
         ) else {

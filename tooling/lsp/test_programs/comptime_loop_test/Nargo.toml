@@ -1,0 +1,4 @@
+[package]
+name = "comptime_loop_test"
+authors = []
+type = "lib"

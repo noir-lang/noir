@@ -1,0 +1,4 @@
+[package]
+name = "lib"
+authors = []
+type = "lib"

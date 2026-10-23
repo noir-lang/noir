@@ -5,9 +5,7 @@ use std::str::FromStr as _;
 use std::sync::Arc;
 
 use crate::requests::{file_path_to_file_id, uri_to_file_path};
-use crate::{
-    PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
-};
+use crate::{CheckedWorkspace, WorkspaceCacheData, check_workspace, workspace_package_for_file};
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{
     DiagnosticRelatedInformation, DiagnosticTag, DidChangeWatchedFilesParams,
@@ -19,7 +17,6 @@ use fm::{FileId, FileManager, FileMap, PathString};
 use nargo::constants::PKG_FILE;
 use nargo::package::{Package, PackageType};
 use nargo::workspace::Workspace;
-use noirc_driver::check_crate;
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
@@ -37,7 +34,7 @@ use crate::types::{
 };
 
 use crate::{
-    LspError, LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
+    LspError, LspState, RootWorkspace, byte_span_to_range, get_package_tests_in_crate, parse_diff,
     resolve_workspace_for_source_path,
 };
 
@@ -92,9 +89,11 @@ pub(super) fn on_did_change_watched_files(
         };
         let workspace_root = parent.to_path_buf();
 
-        // Invalidate any cached data for this workspace so it's reprocessed fresh.
-        state.workspace_cache.remove(&workspace_root);
-        state.package_cache.remove(&workspace_root);
+        // A manifest change can alter which workspace a package belongs to, so every cached
+        // analysis is dropped and rebuilt on demand.
+        state.workspace_cache.clear();
+        state.resolved_workspaces.clear();
+        state.root_workspace = RootWorkspace::Unknown;
 
         // Find an open file that lives under this workspace root and trigger reprocessing.
         let open_file_uri = state.input_files.keys().find(|uri| {
@@ -178,7 +177,7 @@ fn handle_text_document_open_or_close_notification(
         return Ok(());
     };
 
-    if state.package_cache.contains_key(&workspace.root_dir) {
+    if state.workspace_cache.contains_key(&workspace.root_dir) {
         Ok(())
     } else {
         // If it's the first time we see this package, show diagnostics.
@@ -196,7 +195,7 @@ fn handle_on_did_change_text_document_notification(
         return Ok(());
     };
 
-    if state.package_cache.contains_key(&workspace.root_dir) {
+    if state.workspace_cache.contains_key(&workspace.root_dir) {
         process_workspace_for_single_file_change(state, &workspace, document_uri, text)
     } else {
         // If it's the first time we see this package, show diagnostics.
@@ -208,16 +207,16 @@ fn handle_on_did_change_text_document_notification(
 pub(crate) fn workspace_from_document_uri(
     state: &mut LspState,
     document_uri: Url,
-) -> Result<Option<Workspace>, async_lsp::Error> {
+) -> Result<Option<Arc<Workspace>>, async_lsp::Error> {
     if document_uri.scheme() == "noir-std" {
-        return Ok(Some(fake_stdlib_workspace()));
+        return Ok(Some(Arc::new(fake_stdlib_workspace())));
     }
 
     let file_path = document_uri.to_file_path().map_err(|_| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
     })?;
 
-    match resolve_workspace_for_source_path(&file_path) {
+    match resolve_workspace_for_source_path(state, &file_path) {
         Ok(workspace) => {
             // If this workspace's Nargo.toml previously had errors, clear them now.
             if let Ok(toml_uri) = Url::from_file_path(workspace.root_dir.join(PKG_FILE))
@@ -306,61 +305,36 @@ pub(crate) fn process_workspace(
     state: &mut LspState,
     workspace: &Workspace,
 ) -> Result<(), async_lsp::Error> {
-    let mut workspace_file_manager = workspace.new_file_manager();
-    if workspace.is_assumed {
-        let package = workspace.members.first().unwrap();
-        workspace_file_manager
-            .add_file_with_source_canonical_path(&package.entry_path, String::new());
-    } else {
-        insert_all_files_for_workspace_into_file_manager(
-            state,
-            workspace,
-            &mut workspace_file_manager,
-        );
-    }
+    let CheckedWorkspace { context, file_manager, package_crate_ids, diagnostics } =
+        check_workspace(state, workspace);
 
-    let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
-    let workspace_file_manager = Arc::new(workspace_file_manager);
-
-    for package in workspace {
-        let (context, crate_id) =
-            crate::prepare_package(&workspace_file_manager, &parsed_files, package);
-
-        let (context, result) = check_crate(context, crate_id, &Default::default());
-        let file_diagnostics = match result {
-            Ok(((), warnings)) => warnings,
-            Err(errors_and_warnings) => errors_and_warnings,
+    for package in &workspace.members {
+        let Some(crate_id) = package_crate_ids.get(&package.root_dir) else {
+            continue;
         };
-
         // We don't add test headings for a package if it contains no `#[test]` functions
-        if let Some(tests) = get_package_tests_in_crate(&context, &crate_id, &package.name) {
+        if let Some(tests) = get_package_tests_in_crate(&context, crate_id, &package.name) {
             let _ = state.client.notify::<notification::NargoUpdateTests>(NargoPackageTests {
                 package: package.name.to_string(),
                 tests,
             });
         }
-
-        // The analysis is cached in parts so that single file changes can update them in place.
-        let context = context.into_context();
-        state.package_cache.insert(
-            package.root_dir.clone(),
-            PackageCacheData {
-                crate_id,
-                crate_graph: context.crate_graph,
-                node_interner: context.def_interner,
-                def_maps: context.def_maps,
-                usage_tracker: context.usage_tracker,
-            },
-        );
-
-        let fm = &context.file_manager;
-
-        publish_diagnostics(state, &package.root_dir, fm, file_diagnostics);
     }
+
+    let context = context.into_context();
+    publish_diagnostics(state, &workspace.root_dir, &context.file_manager, diagnostics);
 
     state.workspace_cache.insert(
         workspace.root_dir.clone(),
-        WorkspaceCacheData { file_manager: workspace_file_manager },
+        WorkspaceCacheData {
+            file_manager,
+            crate_graph: context.crate_graph,
+            node_interner: context.def_interner,
+            def_maps: context.def_maps,
+            usage_tracker: context.usage_tracker,
+            package_crate_ids,
+            dependents_stale: false,
+        },
     );
 
     Ok(())
@@ -384,41 +358,53 @@ pub(crate) fn process_workspace_for_single_file_change(
     file_source: &str,
 ) -> Result<(), async_lsp::Error> {
     let root_dir = &workspace.root_dir;
-    let mut workspace_cache = state.workspace_cache.remove(root_dir).unwrap();
-    let mut package_cache = state.package_cache.remove(root_dir).unwrap();
-
-    let mut file_manager = workspace_cache.file_manager;
-    let file_map = file_manager.as_file_map();
     let file_path = uri_to_file_path(&file_uri)?;
+    let Some(package) = workspace_package_for_file(workspace, &file_path) else {
+        return Ok(());
+    };
+
+    let Some(workspace_cache) = state.workspace_cache.get(root_dir) else {
+        return Ok(());
+    };
+    let Some(crate_id) = workspace_cache.package_crate_ids.get(&package.root_dir).copied() else {
+        return Ok(());
+    };
+    let file_id = file_path_to_file_id(
+        workspace_cache.file_manager.as_file_map(),
+        &PathString::from(&file_path),
+    )?;
+
+    // Find out the local module ID corresponding to this file. A file that no `mod` declares is
+    // not part of the crate, so there is nothing to check.
+    let Some(module_index) = workspace_cache.def_maps[&crate_id]
+        .modules()
+        .iter()
+        .find(|(_, module_data)| module_data.location.file == file_id)
+        .map(|(module_index, _)| module_index)
+    else {
+        return Ok(());
+    };
+    let module_id = LocalModuleId::new(module_index);
+
+    let mut workspace_cache = state.workspace_cache.remove(root_dir).unwrap();
 
     // We need to replace the file's source in the file manager
-    let file_id = file_path_to_file_id(file_map, &PathString::from(&file_path))?;
+    let mut file_manager = workspace_cache.file_manager;
     Arc::make_mut(&mut file_manager).replace_file(file_id, file_source.to_string());
 
-    let mut node_interner = package_cache.node_interner;
+    let mut node_interner = workspace_cache.node_interner;
 
     // Clear some locations associated with this file. For example, locations associated
     // with `ExprId` will be cleared. These lookups are used everywhere by LSP.
     // This also removes methods that were defined in this file.
     node_interner.clear_in_file(file_id);
 
-    let mut def_maps = package_cache.def_maps;
-    let crate_graph = package_cache.crate_graph;
-
-    let crate_id = package_cache.crate_id;
+    let mut def_maps = workspace_cache.def_maps;
+    let crate_graph = workspace_cache.crate_graph;
 
     // Get a hold of the CrateDefMap for this crate, by removing it.
     // There's no need to explicitly add it back: DefCollector::collect_defs_and_elaborate will do it.
     let mut crate_def_map = def_maps.remove(&crate_id).unwrap();
-
-    // Find out the local module ID corresponding to this file
-    let module_index = crate_def_map
-        .modules()
-        .iter()
-        .find(|(_, module_data)| module_data.location.file == file_id)
-        .unwrap()
-        .0;
-    let module_id = LocalModuleId::new(module_index);
 
     // Clear all the definitions in the existing module (and its children, as long as they happen in
     // the same file), as they shouldn't be offered in autocompletion, references, etc., anymore.
@@ -462,14 +448,18 @@ pub(crate) fn process_workspace_for_single_file_change(
     );
 
     // Put some things back before restoring the cached data
-    package_cache.node_interner = context.def_interner;
-    package_cache.def_maps = context.def_maps;
-    package_cache.crate_graph = context.crate_graph;
-
+    let crate_graph = &context.crate_graph;
+    let analysis_root = *crate_graph.root_crate_id();
+    workspace_cache.dependents_stale |= crate_graph.iter_keys().any(|other| {
+        other != analysis_root
+            && crate_graph[other].dependencies.iter().any(|dep| dep.crate_id == crate_id)
+    });
+    workspace_cache.node_interner = context.def_interner;
+    workspace_cache.def_maps = context.def_maps;
+    workspace_cache.crate_graph = context.crate_graph;
     workspace_cache.file_manager = context.file_manager;
 
     state.workspace_cache.insert(root_dir.clone(), workspace_cache);
-    state.package_cache.insert(root_dir.clone(), package_cache);
 
     Ok(())
 }
@@ -513,7 +503,7 @@ pub(crate) fn fake_stdlib_workspace() -> Workspace {
 
 fn publish_diagnostics(
     state: &mut LspState,
-    package_root_dir: &PathBuf,
+    workspace_root_dir: &PathBuf,
     fm: &FileManager,
     custom_diagnostics: Vec<CustomDiagnostic>,
 ) {
@@ -542,7 +532,7 @@ fn publish_diagnostics(
     }
 
     // For files that previously had errors but no longer have errors we still need to publish empty diagnostics
-    if let Some(old_files_with_errors) = state.files_with_errors.get(package_root_dir) {
+    if let Some(old_files_with_errors) = state.files_with_errors.get(workspace_root_dir) {
         for uri in old_files_with_errors.difference(&new_files_with_errors) {
             let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
                 uri: uri.clone(),
@@ -553,7 +543,7 @@ fn publish_diagnostics(
     }
 
     // Remember which files currently have errors, for next time
-    state.files_with_errors.insert(package_root_dir.clone(), new_files_with_errors);
+    state.files_with_errors.insert(workspace_root_dir.clone(), new_files_with_errors);
 }
 
 fn custom_diagnostic_to_diagnostic(
@@ -733,5 +723,29 @@ mod notification_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
+    }
+}
+
+#[cfg(test)]
+mod single_file_change_tests {
+    use super::*;
+    use crate::test_utils;
+
+    #[test]
+    fn ignores_a_change_to_a_file_outside_the_module_tree() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("undeclared_module");
+        let package_dir = noir_text_document.to_file_path().unwrap();
+        let package_dir = package_dir.parent().unwrap().parent().unwrap();
+        let undeclared = Url::from_file_path(package_dir.join("src/undeclared.nr")).unwrap();
+
+        let workspace =
+            workspace_from_document_uri(&mut state, undeclared.clone()).unwrap().unwrap();
+        process_workspace(&mut state, &workspace).unwrap();
+
+        let source = "pub fn undeclared() {}\npub fn another() {}\n";
+        process_workspace_for_single_file_change(&mut state, &workspace, undeclared, source)
+            .unwrap();
+
+        assert!(state.workspace_cache.contains_key(&workspace.root_dir));
     }
 }
