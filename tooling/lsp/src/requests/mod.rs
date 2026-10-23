@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::notifications::{fake_stdlib_workspace, process_workspace};
 use crate::{
@@ -642,7 +643,7 @@ where
     let uri = text_document_position_params.text_document.uri.clone();
     let file_path = uri_to_file_path(&uri)?;
     let workspace = if uri.scheme() == "noir-std" {
-        fake_stdlib_workspace()
+        Arc::new(fake_stdlib_workspace())
     } else {
         match resolve_workspace_for_source_path(state, file_path.as_path()) {
             Ok(workspace) => workspace,

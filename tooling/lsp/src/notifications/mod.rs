@@ -34,7 +34,7 @@ use crate::types::{
 };
 
 use crate::{
-    LspError, LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
+    LspError, LspState, RootWorkspace, byte_span_to_range, get_package_tests_in_crate, parse_diff,
     resolve_workspace_for_source_path,
 };
 
@@ -92,7 +92,8 @@ pub(super) fn on_did_change_watched_files(
         // A manifest change can alter which workspace a package belongs to, so every cached
         // analysis is dropped and rebuilt on demand.
         state.workspace_cache.clear();
-        state.root_workspace = None;
+        state.resolved_workspaces.clear();
+        state.root_workspace = RootWorkspace::Unknown;
 
         // Find an open file that lives under this workspace root and trigger reprocessing.
         let open_file_uri = state.input_files.keys().find(|uri| {
@@ -206,9 +207,9 @@ fn handle_on_did_change_text_document_notification(
 pub(crate) fn workspace_from_document_uri(
     state: &mut LspState,
     document_uri: Url,
-) -> Result<Option<Workspace>, async_lsp::Error> {
+) -> Result<Option<Arc<Workspace>>, async_lsp::Error> {
     if document_uri.scheme() == "noir-std" {
-        return Ok(Some(fake_stdlib_workspace()));
+        return Ok(Some(Arc::new(fake_stdlib_workspace())));
     }
 
     let file_path = document_uri.to_file_path().map_err(|_| {
