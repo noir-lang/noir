@@ -860,3 +860,56 @@ fn blanket_impls_in_a_library_overlap_before_a_dependent_crate_implements_their_
         "expected an overlap error, got {messages:?}"
     );
 }
+
+/// A bound served only by an impl whose where clause can't hold is known to fail, so the impls it
+/// keeps apart don't overlap, as in rustc: `u32: One` needs `u32: Zero`, which has no impl.
+#[test]
+fn bound_served_only_by_an_impl_whose_where_clause_fails_keeps_impls_apart() {
+    let src = r#"
+    pub trait Zero {}
+    pub trait One {}
+    pub trait Two {}
+    impl<U> One for U where U: Zero {}
+    impl<T> Two for T where T: One {}
+    impl Two for u32 {}
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// A bound served only by an impl for all types decides nothing more, so the overlap check ends.
+#[test]
+fn bound_served_only_by_an_impl_for_all_types_overlaps() {
+    let src = r#"
+    pub trait One {}
+    pub trait Two {}
+    impl<U> One for U {}
+    impl<T> Two for T where T: One {}
+            ~~~ Previous impl defined here
+                               ^^^ Constraint for `T: One` is not needed, another matching impl is already in scope
+                               ~~~ Unnecessary trait constraint in where clause
+    impl Two for u32 {}
+                 ^^^ Impl for type `u32` overlaps with existing impl
+                 ~~~ Overlapping impl
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// A projection in the arguments of a where-clause bound, or of an inline bound, also makes the
+/// impl wait for the impls it projects through.
+#[test]
+fn impl_whose_bound_arguments_project_through_a_later_impl_is_resolved() {
+    let src = r#"
+    pub trait C { type X; }
+    pub trait Foo<Y> {}
+    pub trait Bar {}
+    pub trait Baz {}
+    pub struct S {}
+    impl<T> Bar for T where T: Foo<<S as C>::X> {}
+    impl<T: Foo<<S as C>::X>> Baz for [T; 1] {}
+    impl C for S { type X = u8; }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

@@ -301,10 +301,7 @@ impl NodeInterner {
         // Remove any prepared implementation for this impl.
         self.remove_prepared_trait_implementation(trait_id, impl_id);
 
-        let mut where_clause = self.get_where_clause_for_impl(impl_id).to_vec();
-        for constraint in &mut where_clause {
-            constraint.apply_instantiation_bindings(&substitutions);
-        }
+        let where_clause = self.instantiated_where_clause(impl_id, &substitutions);
         if let Some(existing) = self.overlapping_impl(
             &instantiated_object_type,
             trait_id,
@@ -337,7 +334,8 @@ impl NodeInterner {
     ///
     /// As in rustc, two impls overlap when their headers unify and no bound of either where clause
     /// is known to fail for the unified header. A bound is known to fail when its type has a
-    /// known head (`u32`, `S<_>`) and no impl can match it: by the orphan rule, a dependent crate
+    /// known head (`u32`, `S<_>`) and no impl can serve it, because no impl's header matches or
+    /// a bound of each matching impl's where clause is known to fail: by the orphan rule, a dependent crate
     /// can't add an impl of a trait for a type it doesn't own, so the impls seen here are all of
     /// them. A bound on a type that is still unknown (`T: Marker`) may hold, whatever impls exist
     /// here, since a dependent crate may implement it for its own type.
@@ -367,51 +365,73 @@ impl NodeInterner {
             )?;
             let mut obligations = where_clause.to_vec();
             obligations.extend(self.instantiated_where_clause(*existing, &instantiation_bindings));
-            // Each bound with a known head, with the bindings of every impl that can match it.
             let candidates = |bindings: &TypeBindings| {
-                obligations
-                    .iter()
-                    .filter_map(|obligation| {
-                        if obligation.typ.substitute(bindings).is_bindable() {
-                            return None;
-                        }
-                        let impls =
-                            self.trait_implementation_map.get(&obligation.trait_bound.trait_id);
-                        let matching =
-                            impls.into_iter().flatten().filter_map(|(impl_type, kind)| {
-                                if !matches!(
-                                    kind,
-                                    TraitImplKind::Normal(_) | TraitImplKind::Prepared(..)
-                                ) {
-                                    return None;
-                                }
-                                let mut candidate = bindings.clone();
-                                self.unify_with_impl_header(
-                                    &obligation.typ,
-                                    &obligation.trait_bound.trait_generics.ordered,
-                                    impl_type,
-                                    kind,
-                                    &mut candidate,
-                                )?;
-                                Some(candidate)
-                            });
-                        Some(matching.collect::<Vec<_>>())
-                    })
-                    .collect::<Vec<_>>()
+                vecmap(&obligations, |obligation| {
+                    self.impls_that_may_serve(obligation, bindings, IMPL_SEARCH_RECURSION_LIMIT)
+                })
             };
-            // Bounds only one impl can match decide unknowns, which may give another bound a
-            // known head or a single impl: repeat until nothing more is decided.
+            // The obligations as `bindings` decide them, to tell whether an impl decides more.
+            let decided_obligations = |bindings: &TypeBindings| {
+                vecmap(&obligations, |obligation| {
+                    let generics = &obligation.trait_bound.trait_generics.ordered;
+                    let generics = vecmap(generics, |generic| generic.substitute(bindings));
+                    (obligation.typ.substitute(bindings), generics)
+                })
+            };
+            // Bounds only one impl can serve decide unknowns, which may give another bound a
+            // known head or a single impl: repeat until nothing more is decided. An impl's own
+            // generics are fresh each time, so progress is judged on the obligations.
             loop {
+                let current = decided_obligations(&bindings);
                 let decided = candidates(&bindings)
                     .into_iter()
-                    .filter_map(|mut matching| (matching.len() == 1).then(|| matching.remove(0)))
-                    .find(|candidate| candidate.len() > bindings.len());
+                    .flatten()
+                    .filter_map(|mut serving| (serving.len() == 1).then(|| serving.remove(0)))
+                    .find(|candidate| decided_obligations(candidate) != current);
                 let Some(decided) = decided else { break };
                 bindings = decided;
             }
-            let disjoint = candidates(&bindings).iter().any(Vec::is_empty);
+            let disjoint = candidates(&bindings).iter().flatten().any(Vec::is_empty);
             (!disjoint).then_some(*existing)
         })
+    }
+
+    /// The bindings of each impl that may serve `obligation` under `bindings`: its header matches,
+    /// and each bound of its where clause may hold in turn, looking `recursion_limit` where
+    /// clauses deep. `None` when the obligation can't be ruled out whatever the impls here: its
+    /// type is still unknown, so a dependent crate may implement it for its own type, or the
+    /// limit is reached.
+    fn impls_that_may_serve(
+        &self,
+        obligation: &TraitConstraint,
+        bindings: &TypeBindings,
+        recursion_limit: u32,
+    ) -> Option<Vec<TypeBindings>> {
+        if recursion_limit == 0 || obligation.typ.substitute(bindings).is_bindable() {
+            return None;
+        }
+        let impls = self.trait_implementation_map.get(&obligation.trait_bound.trait_id);
+        let serving = impls.into_iter().flatten().filter_map(|(impl_type, kind)| {
+            let (TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _)) = kind
+            else {
+                return None;
+            };
+            let mut candidate = bindings.clone();
+            let (_, instantiation_bindings) = self.unify_with_impl_header(
+                &obligation.typ,
+                &obligation.trait_bound.trait_generics.ordered,
+                impl_type,
+                kind,
+                &mut candidate,
+            )?;
+            let where_clause = self.instantiated_where_clause(*impl_id, &instantiation_bindings);
+            let may_hold = where_clause.iter().all(|bound| {
+                self.impls_that_may_serve(bound, &candidate, recursion_limit - 1)
+                    .is_none_or(|serving| !serving.is_empty())
+            });
+            may_hold.then_some(candidate)
+        });
+        Some(serving.collect())
     }
 
     /// Instantiates the impl entry `impl_type`/`impl_kind` with unknowns for its generics and
@@ -742,10 +762,11 @@ impl NodeInterner {
                     !generic.substitute(type_bindings).contains_unbound_type_variable()
                 });
 
-            // A `where` clause is what the function was written against, so a single one that
-            // matches decides the query, as in Rust. For a rigid query it only does when it
-            // names the function's generics (`where u8: Tr<Out = T>`); one naming none
-            // (`where u8: Tr`) only repeats what the single real impl says.
+            // Several impls match. A `where` clause is what the function was written against, so
+            // a single one that matches decides the query, as in Rust. For a rigid query it only
+            // does when it names the function's generics (`where u8: Tr<Out = T>`); one naming
+            // none (`where u8: Tr`) only repeats what the single real impl says, which then
+            // decides. Otherwise the query is ambiguous.
             let decides = |kind: &TraitImplKind| match kind {
                 TraitImplKind::Assumed { trait_generics, .. } => {
                     !query_is_rigid
@@ -763,8 +784,7 @@ impl NodeInterner {
                 .positions(|(kind, ..)| !matches!(kind, TraitImplKind::Assumed { .. }))
                 .collect();
             let selected = match (&deciding[..], &real_impls[..]) {
-                ([index], _) => Some(*index),
-                ([], [index]) if query_is_rigid => Some(*index),
+                ([index], _) | ([], [index]) => Some(*index),
                 _ => None,
             };
             if let Some(index) = selected {
