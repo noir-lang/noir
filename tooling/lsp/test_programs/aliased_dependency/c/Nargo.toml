@@ -1,0 +1,7 @@
+[package]
+name = "c"
+authors = []
+type = "lib"
+
+[dependencies]
+y = { path = "../a" }

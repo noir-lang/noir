@@ -66,6 +66,7 @@ impl CodeActionFinder<'_> {
                     current_module_parent_id,
                     defining_module,
                     &intermediate_name,
+                    self.dependencies,
                     self.interner,
                     self.def_maps,
                 ) else {

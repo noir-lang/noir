@@ -1093,6 +1093,7 @@ impl<'a> NodeFinder<'a> {
                 noir_trait_impl,
                 self.interner,
                 self.def_maps,
+                self.dependencies,
                 self.module_id,
                 indent,
             );

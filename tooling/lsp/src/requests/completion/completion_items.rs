@@ -430,6 +430,7 @@ impl NodeFinder<'_> {
                 reexport_data.module_id,
                 self.module_id,
                 current_module_parent_id,
+                self.dependencies,
                 self.interner,
             )
         } else {
@@ -437,6 +438,7 @@ impl NodeFinder<'_> {
                 ModuleDefId::TraitId(trait_id),
                 self.module_id,
                 current_module_parent_id,
+                self.dependencies,
                 self.interner,
                 self.def_maps,
             )?

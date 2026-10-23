@@ -120,6 +120,7 @@ impl CodeActionFinder<'_> {
                 noir_trait_impl,
                 self.interner,
                 self.def_maps,
+                self.dependencies,
                 self.module_id,
                 indent + 4,
             );
