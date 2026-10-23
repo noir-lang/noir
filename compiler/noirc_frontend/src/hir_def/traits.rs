@@ -355,6 +355,27 @@ impl ParentBound {
         ResolvedTraitBound { trait_generics, ..self.0 }
     }
 
+    /// The bound where the declaring trait reaches it through its parent bounds, inside that
+    /// declaration. `bindings` is as in [`ParentBound::instantiate`]. An associated item the bound
+    /// leaves out stays the parent's own (`<Self as Bar>::Out`): every implementor has one, which
+    /// the declaration may only treat as unknown.
+    pub fn instantiate_in_declaration(
+        &self,
+        bindings: &TypeBindings,
+        parent: &Trait,
+    ) -> ResolvedTraitBound {
+        let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
+        for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
+            if matches!(declared.typ, Type::TypeVariable(_))
+                && let Some(own) = parent.get_associated_type(named.name.as_str())
+            {
+                let parent_name = parent.name.as_str();
+                named.typ = own.clone().into_named_generic(Some((SELF_TYPE_NAME, parent_name)));
+            }
+        }
+        ResolvedTraitBound { trait_generics, ..self.0 }
+    }
+
     /// The bound exactly as written in the trait declaration, mentioning the declaring trait's
     /// own `Self` and generics. Only for displaying the declaration.
     pub fn as_written(&self) -> &ResolvedTraitBound {

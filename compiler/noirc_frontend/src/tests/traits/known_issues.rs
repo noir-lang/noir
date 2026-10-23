@@ -612,6 +612,81 @@ fn i1062_associated_type_fixed_to_one_type_by_two_parents_is_accepted() {
     assert_accepted(src);
 }
 
+/// https://github.com/noir-lang/noir-claude/issues/2841: inside `trait Child: P1`, an item a parent
+/// bound fixes through `P1`'s own associated type is that associated type, `<Self as P1>::Out`, which
+/// each implementor decides, as in rustc. A default method using it is `u8` arithmetic for an
+/// implementor whose `Out` is `u8`.
+#[test]
+fn i2841_item_fixed_through_a_parents_own_associated_type_is_that_type_in_a_default_method() {
+    let src = r#"
+    trait Plus { fn plus(self, other: Self) -> Self; }
+    impl Plus for u8 { fn plus(self, other: u8) -> u8 { self + other } }
+    trait Grand { type Item; }
+    trait P1: Grand<Item = Self::Out> { type Out: Plus; }
+    struct T {}
+    impl Grand for T { type Item = u8; }
+    impl P1 for T { type Out = u8; }
+    trait Child: P1 { fn add(_self: Self, x: Self::Item, y: Self::Item) -> Self::Item { x.plus(y) } }
+    impl Child for T {}
+    fn main() -> pub u8 { T {}.add(200, 100) }
+    "#;
+    assert_runs(src, &["fn add$f1(_self$l0: (), x$l1: u8, y$l2: u8) -> u8"], &["Field"]);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2841
+#[test]
+fn i2841_item_fixed_through_a_parents_own_associated_type_differs_per_implementor() {
+    let src = r#"
+    trait Grand { type Item; }
+    trait P1: Grand<Item = Self::Out> { type Out; }
+    struct T {}
+    impl Grand for T { type Item = u8; }
+    impl P1 for T { type Out = u8; }
+    struct S {}
+    impl Grand for S { type Item = Field; }
+    impl P1 for S { type Out = Field; }
+    trait Child: P1 { fn id(self, x: Self::Item) -> Self::Item { x } }
+    impl Child for S {}
+    impl Child for T {}
+    fn main() -> pub Field { let _a: u8 = T {}.id(7); S {}.id(9) }
+    "#;
+    assert_accepted(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2841
+#[test]
+fn i2841_item_fixed_through_a_parents_own_associated_type_is_not_a_concrete_type() {
+    let src = r#"
+    trait Grand { type Item; }
+    trait P1: Grand<Item = Self::Out> { type Out; }
+    struct T {}
+    impl Grand for T { type Item = u8; }
+    impl P1 for T { type Out = u8; }
+    trait Child: P1 { fn f(self) -> bool { let y: Self::Item = true; y } }
+    impl Child for T {}
+    fn main() -> pub bool { T {}.f() }
+    "#;
+    assert_rejected_with(src, "Expected type Self::Out, found type bool");
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2841
+#[test]
+fn i2841_item_fixed_through_a_parents_own_associated_type_takes_the_implementors_type() {
+    let src = r#"
+    trait Plus { fn plus(self, other: Self) -> Self; }
+    impl Plus for u8 { fn plus(self, other: u8) -> u8 { self + other } }
+    trait Grand { type Item; }
+    trait P1: Grand<Item = Self::Out> { type Out: Plus; }
+    struct T {}
+    impl Grand for T { type Item = u8; }
+    impl P1 for T { type Out = u8; }
+    trait Child: P1 { fn add(_self: Self, x: Self::Item, y: Self::Item) -> Self::Item { x.plus(y) } }
+    impl Child for T {}
+    fn main(x: Field, y: Field) -> pub Field { T {}.add(x, y) }
+    "#;
+    assert_rejected_with(src, "Expected type u8, found type Field");
+}
+
 /// https://github.com/noir-lang/noir-claude/issues/1062
 #[test]
 fn i1062_grandparent_associated_type_fixed_by_a_parent_bound_is_used_in_a_default_method() {
