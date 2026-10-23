@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["IMPL_SEARCH_RECURSION_LIMIT"],"enum":["TraitLookupMode"],"struct":["AssumedTraitImplementations"]};
+window.SIDEBAR_ITEMS = {"constant":["IMPL_SEARCH_RECURSION_LIMIT"],"enum":["TraitLookupMode"],"fn":["as_unknown","has_unknowns","mentions_generic_parameter","unknowns_of"],"struct":["AssumedTraitImplementations"]};

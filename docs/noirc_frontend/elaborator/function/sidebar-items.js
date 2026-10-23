@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["is_identifier_pattern"],"struct":["UnresolvedFunctionMeta"],"type":["ResolvedParametersInfo"]};
+window.SIDEBAR_ITEMS = {"fn":["header_has_projection","is_identifier_pattern"],"struct":["UnresolvedFunctionMeta"],"type":["ResolvedParametersInfo"]};

@@ -4,8 +4,8 @@
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>noirc_errors::Location;
 <a href=#5 id=5 data-nosnippet>5</a>
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span><span class="kw">crate</span>::ast::{
-<a href=#7 id=7 data-nosnippet>7</a>    BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
-<a href=#8 id=8 data-nosnippet>8</a>    UnresolvedType,
+<a href=#7 id=7 data-nosnippet>7</a>    AsTraitPath, BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path,
+<a href=#8 id=8 data-nosnippet>8</a>    UnresolvedGenerics, UnresolvedType, Visitor,
 <a href=#9 id=9 data-nosnippet>9</a>};
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span><span class="kw">crate</span>::token::{Attributes, SecondaryAttribute};
 <a href=#11 id=11 data-nosnippet>11</a>
@@ -390,4 +390,40 @@
 <a href=#390 id=390 data-nosnippet>390</a>    where_clause.extend(paths_without_generics);
 <a href=#391 id=391 data-nosnippet>391</a>    where_clause.extend(paths_with_generics);
 <a href=#392 id=392 data-nosnippet>392</a>    where_clause.extend(others);
-<a href=#393 id=393 data-nosnippet>393</a>}</code></pre></div></section></main></body></html>
+<a href=#393 id=393 data-nosnippet>393</a>}
+<a href=#394 id=394 data-nosnippet>394</a>
+<a href=#395 id=395 data-nosnippet>395</a><span class="doccomment">/// Finds whether a type names an associated item through a path (`V::K`, `&lt;V as Tr&gt;::K`), which
+<a href=#396 id=396 data-nosnippet>396</a>/// can only be resolved once the impl or bound providing that item is known.
+<a href=#397 id=397 data-nosnippet>397</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ProjectionFinder&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#398 id=398 data-nosnippet>398</a>    <span class="doccomment">/// The generics in scope: a path is a projection only when it starts with one of them, so a
+<a href=#399 id=399 data-nosnippet>399</a>    /// module path (`m::S`) isn't one.
+<a href=#400 id=400 data-nosnippet>400</a>    </span>generics: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[UnresolvedGeneric],
+<a href=#401 id=401 data-nosnippet>401</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) found: bool,
+<a href=#402 id=402 data-nosnippet>402</a>}
+<a href=#403 id=403 data-nosnippet>403</a>
+<a href=#404 id=404 data-nosnippet>404</a><span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; ProjectionFinder&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#405 id=405 data-nosnippet>405</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(generics: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[UnresolvedGeneric]) -&gt; <span class="self">Self </span>{
+<a href=#406 id=406 data-nosnippet>406</a>        <span class="self">Self </span>{ generics, found: <span class="bool-val">false </span>}
+<a href=#407 id=407 data-nosnippet>407</a>    }
+<a href=#408 id=408 data-nosnippet>408</a>}
+<a href=#409 id=409 data-nosnippet>409</a>
+<a href=#410 id=410 data-nosnippet>410</a><span class="kw">impl </span>Visitor <span class="kw">for </span>ProjectionFinder&lt;<span class="lifetime">'_</span>&gt; {
+<a href=#411 id=411 data-nosnippet>411</a>    <span class="kw">fn </span>visit_path(<span class="kw-2">&amp;mut </span><span class="self">self</span>, path: <span class="kw-2">&amp;</span>Path) {
+<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(head) = path.segments.first().filter(|<span class="kw">_</span>| path.segments.len() &gt; <span class="number">1</span>) <span class="kw">else </span>{
+<a href=#413 id=413 data-nosnippet>413</a>            <span class="kw">return</span>;
+<a href=#414 id=414 data-nosnippet>414</a>        };
+<a href=#415 id=415 data-nosnippet>415</a>        <span class="self">self</span>.found |= <span class="self">self</span>.generics.iter().any(|generic| {
+<a href=#416 id=416 data-nosnippet>416</a>            generic.ident().ident().is_some_and(|ident| ident.as_str() == head.ident.as_str())
+<a href=#417 id=417 data-nosnippet>417</a>        });
+<a href=#418 id=418 data-nosnippet>418</a>    }
+<a href=#419 id=419 data-nosnippet>419</a>
+<a href=#420 id=420 data-nosnippet>420</a>    <span class="kw">fn </span>visit_as_trait_path_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>AsTraitPath, <span class="kw">_</span>: noirc_errors::Span) -&gt; bool {
+<a href=#421 id=421 data-nosnippet>421</a>        <span class="self">self</span>.found = <span class="bool-val">true</span>;
+<a href=#422 id=422 data-nosnippet>422</a>        <span class="bool-val">false
+<a href=#423 id=423 data-nosnippet>423</a>    </span>}
+<a href=#424 id=424 data-nosnippet>424</a>
+<a href=#425 id=425 data-nosnippet>425</a>    <span class="kw">fn </span>visit_as_trait_path_type_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>AsTraitPath) -&gt; bool {
+<a href=#426 id=426 data-nosnippet>426</a>        <span class="self">self</span>.found = <span class="bool-val">true</span>;
+<a href=#427 id=427 data-nosnippet>427</a>        <span class="bool-val">false
+<a href=#428 id=428 data-nosnippet>428</a>    </span>}
+<a href=#429 id=429 data-nosnippet>429</a>}</code></pre></div></section></main></body></html>
