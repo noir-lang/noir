@@ -1718,3 +1718,211 @@ fn associated_type_bound_arguments_that_swap_the_traits_own_generics() {
     "#;
     assert_no_errors(src);
 }
+
+/// A trait reached through two parents at different arguments (`Quux<u8>`, `Quux<u16>`) is found
+/// through either.
+#[test]
+fn second_parent_path_to_a_trait_at_other_arguments_is_found() {
+    let src = r#"
+    pub trait Quux<X> { fn quux_method() -> X; }
+    pub trait Bar: Quux<u8> {}
+    pub trait Baz: Quux<u16> {}
+    pub trait Foo: Bar + Baz {}
+    fn use_only_u16<T: Foo>() -> u16 { <T as Quux<u16>>::quux_method() }
+    pub struct S {}
+    impl Quux<u8> for S { fn quux_method() -> u8 { 7 } }
+    impl Quux<u16> for S { fn quux_method() -> u16 { 13 } }
+    impl Bar for S {}
+    impl Baz for S {}
+    impl Foo for S {}
+    fn main() { let _ = use_only_u16::<S>(); }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Inside `trait Child: Parent<Item = Field>`, `Self::Item` is `Field`.
+#[test]
+fn parent_bound_fixing_an_associated_type_is_used_in_a_default_method() {
+    let src = r#"
+    pub trait Parent { type Item; }
+    pub trait Child: Parent<Item = Field> {
+        fn to_field(self, item: Self::Item) -> Field { let _ = self; item }
+    }
+    pub struct S {}
+    impl Parent for S { type Item = Field; }
+    impl Child for S {}
+    fn main() { let _ = S {}.to_field(1); }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A parent bound fixing a grandparent's associated type (`Parent: Grand<Item = Field>`) fixes
+/// `Self::Item` in a child trait.
+#[test]
+fn associated_type_fixed_by_a_grandparent_bound_is_used_in_a_default_method() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait Parent: Grand<Item = Field> {}
+    pub trait Child: Parent {
+        fn to_field(self, item: Self::Item) -> Field { let _ = self; item }
+    }
+    pub struct S {}
+    impl Grand for S { type Item = Field; }
+    impl Parent for S {}
+    impl Child for S {}
+    fn main() { let _ = S {}.to_field(1); }
+    "#;
+    assert_no_errors(src);
+}
+
+/// `Self::Item` is the type one parent fixes, whichever parent is listed first.
+#[test]
+fn associated_type_fixed_by_one_of_two_parents_is_used_in_either_order() {
+    for parents in ["P1 + P2", "P2 + P1"] {
+        let src = format!(
+            r#"
+    pub trait Grand {{ type Item; }}
+    pub trait P1: Grand {{}}
+    pub trait P2: Grand<Item = Field> {{}}
+    pub trait Child: {parents} {{
+        fn f(self, x: Self::Item) -> Field {{ let _ = self; x }}
+    }}
+    fn main() {{}}
+    "#
+        );
+        assert_no_errors(&src);
+    }
+}
+
+/// Two parents fixing an associated type to the same type agree on it.
+#[test]
+fn associated_type_fixed_to_one_type_by_two_parents_is_that_type() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait P1: Grand<Item = Field> {}
+    pub trait P2: Grand<Item = Field> {}
+    pub trait Child: P1 + P2 {
+        fn f(self, x: Self::Item) -> Field { let _ = self; x }
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Two parents fixing an associated type to different types make `Self::Item` ambiguous, as in
+/// rustc (E0284).
+#[test]
+fn associated_type_fixed_to_different_types_by_two_parents_is_ambiguous() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait P1: Grand<Item = u8> {}
+    pub trait P2: Grand<Item = Field> {}
+    pub trait Child: P1 + P2 {
+        fn f(self, x: Self::Item) -> Self::Item { let _ = self; x }
+                      ^^^^^^^^^^ Multiple applicable items in scope
+                      ~~~~~~~~~~ Multiple traits which provide `Item` are implemented and in scope: `Grand`, `Grand`
+                                     ^^^^^^^^^^ Multiple applicable items in scope
+                                     ~~~~~~~~~~ Multiple traits which provide `Item` are implemented and in scope: `Grand`, `Grand`
+    }
+    fn main() {}
+    
+    "#;
+    check_errors(src);
+}
+
+/// With `trait P1: Grand<Item = Self::Out>`, `Self::Item` in `trait Child: P1` is `<Self as P1>::Out`,
+/// which each implementor decides; here it is `u8`.
+#[test]
+fn item_fixed_through_a_parents_own_associated_type_is_that_type_in_a_default_method() {
+    let src = r#"
+    pub trait Plus { fn plus(self, other: Self) -> Self; }
+    impl Plus for u8 { fn plus(self, other: u8) -> u8 { self + other } }
+    pub trait Grand { type Item; }
+    pub trait P1: Grand<Item = Self::Out> { type Out: Plus; }
+    pub struct T {}
+    impl Grand for T { type Item = u8; }
+    impl P1 for T { type Out = u8; }
+    pub trait Child: P1 { fn add(_self: Self, x: Self::Item, y: Self::Item) -> Self::Item { x.plus(y) } }
+    impl Child for T {}
+    fn main() -> pub u8 { T {}.add(200, 100) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u8 {
+        add$f1({
+            ()
+        }, 200, 100)
+    }
+    fn add$f1(_self$l0: (), x$l1: u8, y$l2: u8) -> u8 {
+        plus$f2(x$l1, y$l2)
+    }
+    fn plus$f2(self$l3: u8, other$l4: u8) -> u8 {
+        (self$l3 + other$l4)
+    }
+    ");
+}
+
+/// `Self::Item`, fixed through `<Self as P1>::Out`, is a different type for each implementor.
+#[test]
+fn item_fixed_through_a_parents_own_associated_type_differs_per_implementor() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait P1: Grand<Item = Self::Out> { type Out; }
+    pub struct T {}
+    impl Grand for T { type Item = u8; }
+    impl P1 for T { type Out = u8; }
+    pub struct S {}
+    impl Grand for S { type Item = Field; }
+    impl P1 for S { type Out = Field; }
+    pub trait Child: P1 { fn id(self, x: Self::Item) -> Self::Item { let _ = self; x } }
+    impl Child for S {}
+    impl Child for T {}
+    fn main() -> pub Field { let _a: u8 = T {}.id(7); S {}.id(9) }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Inside the trait, `Self::Item` fixed through `<Self as P1>::Out` is not any one concrete type.
+#[test]
+fn item_fixed_through_a_parents_own_associated_type_is_not_a_concrete_type() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait P1: Grand<Item = Self::Out> { type Out; }
+    pub struct T {}
+    impl Grand for T { type Item = u8; }
+    impl P1 for T { type Out = u8; }
+    pub trait Child: P1 { fn f(self) -> bool { let _ = self; let y: Self::Item = true; y } }
+                                                                                 ^^^^ Expected type Self::Out, found type bool
+                                        ^^^^ expected type bool, found type Self::Out
+                                        ~~~~ expected bool because of return type
+                                                                                       ~ Self::Out returned here
+    impl Child for T {}
+    fn main() -> pub bool { T {}.f() }
+    
+    "#;
+    check_errors(src);
+}
+
+/// A call through an implementor takes its type for `Self::Item` (`u8` for `T`).
+#[test]
+fn item_fixed_through_a_parents_own_associated_type_takes_the_implementors_type() {
+    let src = r#"
+    pub trait Plus { fn plus(self, other: Self) -> Self; }
+    impl Plus for u8 { fn plus(self, other: u8) -> u8 { self + other } }
+    pub trait Grand { type Item; }
+    pub trait P1: Grand<Item = Self::Out> { type Out: Plus; }
+    pub struct T {}
+    impl Grand for T { type Item = u8; }
+    impl P1 for T { type Out = u8; }
+    pub trait Child: P1 { fn add(_self: Self, x: Self::Item, y: Self::Item) -> Self::Item { x.plus(y) } }
+    impl Child for T {}
+    fn main(x: Field, y: Field) -> pub Field { T {}.add(x, y) }
+                                                        ^ Expected type u8, found type Field
+                                                           ^ Expected type u8, found type Field
+                                       ^^^^^ expected type Field, found type u8
+                                       ~~~~~ expected Field because of return type
+                                               ~~~~~~~~~~~~~~ u8 returned here
+    
+    "#;
+    check_errors(src);
+}
