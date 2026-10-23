@@ -393,6 +393,40 @@ const CHECKED_AND_RAW: &str = r#"
     type Id<T> = T;
     "#;
 
+/// https://github.com/noir-lang/noir-claude/issues/2837: a bound naming the receiver's type through
+/// an alias inside it serves a method call, so two bounds providing the method make it ambiguous,
+/// as in rustc (E0034).
+#[test]
+fn i2837_bound_through_a_nested_alias_makes_a_method_call_ambiguous() {
+    let src = r#"
+    pub struct W<T> { t: T }
+    trait Checked { fn get(self) -> u8; }
+    trait Raw { fn get(self) -> u8; }
+    impl Checked for W<u8> { fn get(self) -> u8 { assert(self.t < 100); self.t } }
+    impl Raw for W<u8> { fn get(self) -> u8 { self.t } }
+    type Id<T> = T;
+    fn read<T>(t: W<T>) -> u8 where W<Id<T>>: Checked, W<T>: Raw { t.get() }
+    fn main(x: u8) -> pub u8 { read(W { t: x }) }
+    "#;
+    assert_rejected_with(src, "Multiple applicable items in scope");
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2837
+#[test]
+fn i2837_bound_through_a_nested_alias_serves_a_method_call() {
+    let src = r#"
+    pub struct W<T> { t: T }
+    trait Foo { fn foo(self) -> u32; }
+    impl Foo for W<u8> { fn foo(self) -> u32 { self.t as u32 + 41 } }
+    impl Foo for [u8; 2] { fn foo(self) -> u32 { self[0] as u32 } }
+    type Id<T> = T;
+    fn g<T>(t: W<T>) -> u32 where W<Id<T>>: Foo { t.foo() }
+    fn h<T>(t: [T; 2]) -> u32 where [Id<T>; 2]: Foo { t.foo() }
+    fn main(x: u8) -> pub u32 { g(W { t: x }) + h([x, x]) }
+    "#;
+    assert_accepted(src);
+}
+
 /// https://github.com/noir-lang/noir-claude/issues/2793, rustc: E0034
 #[test]
 fn i2793_method_call_sees_a_where_clause_spelled_through_an_alias() {
