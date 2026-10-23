@@ -69,6 +69,7 @@ use tower::Service;
 
 mod actor;
 mod doc_comments;
+mod modules;
 mod notifications;
 mod requests;
 mod server_state_tests;

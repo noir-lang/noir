@@ -3,12 +3,13 @@ use async_lsp::lsp_types::{
     InsertTextFormat, MarkupContent, MarkupKind,
 };
 use iter_extended::vecmap;
+
+use crate::modules::{relative_module_full_path, relative_module_id_path};
 use noirc_frontend::{
     QuotedType, Type,
     ast::AttributeTarget,
     hir::def_map::{ModuleDefId, ModuleId},
     hir_def::{function::FuncMeta, stmt::HirPattern},
-    modules::{relative_module_full_path, relative_module_id_path},
     node_interner::{
         FuncId, GlobalId, ReferenceId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId,
     },

@@ -7,6 +7,8 @@ use noirc_frontend::NamedGeneric;
 use noirc_frontend::hir::comptime::Value;
 use noirc_frontend::hir::def_map::ModuleDefId;
 use noirc_frontend::modules::get_parent_module;
+
+use crate::modules::module_full_path;
 use noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
@@ -15,7 +17,6 @@ use noirc_frontend::{
     ast::ItemVisibility,
     hir::def_map::ModuleId,
     hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait, traits::TraitConstraint},
-    modules::module_full_path,
     node_interner::{
         DefinitionId, DefinitionKind, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
         TraitImplKind, TypeAliasId, TypeId,

@@ -1,9 +1,8 @@
 use async_lsp::lsp_types::TextEdit;
 use noirc_errors::Location;
-use noirc_frontend::{
-    ast::{Ident, Path},
-    modules::module_def_id_relative_path,
-};
+use noirc_frontend::ast::{Ident, Path};
+
+use crate::modules::module_def_id_relative_path;
 
 use crate::{
     byte_span_to_range,
