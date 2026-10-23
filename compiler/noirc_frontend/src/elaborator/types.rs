@@ -527,12 +527,9 @@ impl Elaborator<'_> {
                 visited.insert(parent_id);
                 continue;
             }
-            let bound = parent_bound
-                .instantiate(bindings, |kind| self.interner.next_type_variable_with_kind(kind));
-            let parent_bindings = self
-                .interner
-                .get_trait(parent_id)
-                .bound_bindings(&self_type, &bound.trait_generics);
+            let parent = self.interner.get_trait(parent_id);
+            let bound = parent_bound.instantiate_in_declaration(bindings, parent);
+            let parent_bindings = parent.bound_bindings(&self_type, &bound.trait_generics);
             self.collect_associated_type_in_parent_traits(
                 parent_id,
                 name,
