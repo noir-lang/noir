@@ -96,6 +96,7 @@ pub(super) fn on_did_change_watched_files(
         // A manifest change can alter which workspace a package belongs to, so every cached
         // analysis is dropped and rebuilt on demand.
         state.workspace_cache.clear();
+        state.root_workspace = None;
 
         // Find an open file that lives under this workspace root and trigger reprocessing.
         let open_file_uri = state.input_files.keys().find(|uri| {
@@ -218,7 +219,7 @@ pub(crate) fn workspace_from_document_uri(
         ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
     })?;
 
-    match resolve_workspace_for_source_path(&file_path) {
+    match resolve_workspace_for_source_path(state, &file_path) {
         Ok(workspace) => {
             // If this workspace's Nargo.toml previously had errors, clear them now.
             if let Ok(toml_uri) = Url::from_file_path(workspace.root_dir.join(PKG_FILE))

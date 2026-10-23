@@ -110,6 +110,13 @@ pub(crate) struct LspInitializationOptions {
     #[serde(rename = "enableParsingCache", default = "default_enable_parsing_cache")]
     pub(crate) enable_parsing_cache: bool,
 
+    /// Controls whether every package found under the editor's root is analyzed together, so
+    /// that references and renames see packages that depend on the edited one even when they
+    /// belong to another Nargo workspace. Otherwise each Nargo workspace is analyzed on its own.
+    /// By default this will be set to true (enabled).
+    #[serde(rename = "enableRootAnalysis", default = "default_enable_root_analysis")]
+    pub(crate) enable_root_analysis: bool,
+
     #[serde(rename = "inlayHints", default = "default_inlay_hints")]
     pub(crate) inlay_hints: InlayHintsOptions,
 }
@@ -188,6 +195,10 @@ fn default_enable_lightweight_mode() -> bool {
     false
 }
 
+fn default_enable_root_analysis() -> bool {
+    true
+}
+
 fn default_inlay_hints() -> InlayHintsOptions {
     InlayHintsOptions {
         type_hints: default_type_hints(),
@@ -248,6 +259,7 @@ impl Default for LspInitializationOptions {
             enable_code_actions: default_enable_code_actions(),
             enable_semantic_tokens: default_enable_semantic_tokens(),
             enable_lightweight_mode: default_enable_lightweight_mode(),
+            enable_root_analysis: default_enable_root_analysis(),
         }
     }
 }
@@ -604,7 +616,7 @@ where
     let workspace = if uri.scheme() == "noir-std" {
         fake_stdlib_workspace()
     } else {
-        match resolve_workspace_for_source_path(file_path.as_path()) {
+        match resolve_workspace_for_source_path(state, file_path.as_path()) {
             Ok(workspace) => workspace,
             Err(crate::LspError::ManifestError(..)) => return Ok(T::default()),
             Err(e) => {

@@ -115,6 +115,9 @@ pub struct LspState {
     input_files: HashMap<String, String>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
+    /// The packages found under `root_path` (see [`discover_root_workspace`]), discovered on
+    /// first use. `Some(None)` records that there is no usable root workspace.
+    root_workspace: Option<Option<Workspace>>,
     workspace_symbol_cache: WorkspaceSymbolCache,
 
     options: LspInitializationOptions,
@@ -153,6 +156,7 @@ impl LspState {
             input_files: HashMap::new(),
             cached_parsed_files: HashMap::new(),
             workspace_cache: HashMap::new(),
+            root_workspace: None,
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
@@ -439,10 +443,98 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
     }
 }
 
+/// Packages under the editor's root are analyzed together up to this many. Past it, each
+/// Nargo workspace is analyzed on its own.
+const MAX_ROOT_PACKAGES: usize = 200;
+
+/// Finds the set of packages to analyze together for a source file:
+/// * every package found under the editor's root, when the file belongs to one of them and
+///   root analysis is enabled
+/// * otherwise the outermost Nargo workspace containing the file (see [`enclosing_workspace`])
+/// * otherwise, without a `Nargo.toml`, the parent directory as a dummy workspace
+pub(crate) fn resolve_workspace_for_source_path(
+    state: &mut LspState,
+    file_path: &Path,
+) -> Result<Workspace, LspError> {
+    let workspace = resolve_nargo_workspace_for_source_path(file_path)?;
+    if workspace.is_assumed || !state.options.enable_root_analysis {
+        return Ok(workspace);
+    }
+
+    let Some(package_dir) =
+        workspace_package_for_file(&workspace, file_path).map(|package| &package.root_dir)
+    else {
+        return Ok(workspace);
+    };
+    let package_dir = canonical_or_same(package_dir);
+
+    let Some(root_workspace) = root_workspace(state) else {
+        return Ok(workspace);
+    };
+    let in_root = root_workspace
+        .members
+        .iter()
+        .any(|member| canonical_or_same(&member.root_dir) == package_dir);
+    Ok(if in_root { root_workspace.clone() } else { workspace })
+}
+
+fn root_workspace(state: &mut LspState) -> Option<&Workspace> {
+    if state.root_workspace.is_none() {
+        let root_path = state.root_path.clone()?;
+        state.root_workspace = Some(discover_root_workspace(&root_path));
+    }
+    state.root_workspace.as_ref()?.as_ref()
+}
+
+/// Collects every package found under `root_path` into one workspace, the way rust-analyzer
+/// loads every Cargo workspace under the opened folder. A package listed both by its own
+/// manifest and by a workspace manifest is included once. Manifests that fail to resolve are
+/// skipped; they get their diagnostics when a file of theirs is opened.
+fn discover_root_workspace(root_path: &Path) -> Option<Workspace> {
+    let mut members: Vec<Package> = Vec::new();
+    let mut seen: HashSet<PathBuf> = HashSet::new();
+
+    let walker = walkdir::WalkDir::new(root_path).into_iter().filter_entry(|entry| {
+        if entry.depth() == 0 || !entry.file_type().is_dir() {
+            return true;
+        }
+        let name = entry.file_name().to_string_lossy();
+        name != "target" && name != "node_modules" && !name.starts_with('.')
+    });
+    for entry in walker.filter_map(Result::ok) {
+        if !entry.file_type().is_file() || entry.file_name() != PKG_FILE {
+            continue;
+        }
+        let Ok(workspace) = resolve_workspace_from_toml(
+            entry.path(),
+            PackageSelection::All,
+            Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        ) else {
+            continue;
+        };
+        for package in workspace.members {
+            if seen.insert(canonical_or_same(&package.root_dir)) {
+                members.push(package);
+            }
+        }
+    }
+
+    if members.is_empty() || members.len() > MAX_ROOT_PACKAGES {
+        return None;
+    }
+    Some(Workspace {
+        root_dir: root_path.to_path_buf(),
+        target_dir: None,
+        members,
+        selected_package_index: None,
+        is_assumed: false,
+    })
+}
+
 /// Create a workspace based on the source file location:
 /// * if there is a `Nargo.toml` file, use it to read the workspace
 /// * otherwise treat the parent directory as a dummy workspace
-pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
+fn resolve_nargo_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
     if let Some(toml_path) = find_file_manifest(file_path) {
         return match resolve_workspace_from_toml(
             &toml_path,

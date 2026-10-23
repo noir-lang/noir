@@ -20,6 +20,7 @@ nargo_expand.workspace = true
 nargo_doc.workspace = true
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
+walkdir = "2.5.0"
 noirc_driver.workspace = true
 noirc_errors.workspace = true
 noirc_frontend.workspace = true

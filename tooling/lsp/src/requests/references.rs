@@ -147,6 +147,46 @@ fn main() {
         assert_eq!(test_utils::text_at(&two_lib_src, locations[2].range), "function_one");
     }
 
+    /// Two packages under the editor's root that are not members of a common Nargo workspace,
+    /// where `b` depends on `a` by path: references found from `a` must include `b`'s uses.
+    #[test]
+    fn test_on_references_request_works_across_sibling_workspaces_under_root() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("sibling_workspaces");
+
+        let noir_text_document = noir_text_document.to_file_path().unwrap();
+        let root_dir = noir_text_document.parent().unwrap().parent().unwrap();
+
+        let a_lib = Url::from_file_path(root_dir.join("a/src/lib.nr")).unwrap();
+        let b_lib = Url::from_file_path(root_dir.join("b/src/lib.nr")).unwrap();
+
+        let workspace = workspace_from_document_uri(&mut state, a_lib.clone()).unwrap().unwrap();
+        notifications::process_workspace(&mut state, &workspace).unwrap();
+
+        let params = ReferenceParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: a_lib.clone() },
+                position: Position { line: 0, character: 7 },
+            },
+            work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+            partial_result_params: PartialResultParams { partial_result_token: None },
+            context: ReferenceContext { include_declaration: true },
+        };
+
+        let mut locations = on_references_request(&mut state, params)
+            .expect("Could not execute on_references_request")
+            .unwrap();
+
+        // The definition in `a`, plus the `use` and the call in `b`
+        assert_eq!(locations.len(), 3);
+
+        locations.sort_by_cached_key(|location| {
+            (location.uri.to_file_path().unwrap(), location.range.start.line)
+        });
+        assert_eq!(locations[0].uri, a_lib);
+        assert_eq!(locations[1].uri, b_lib);
+        assert_eq!(locations[2].uri, b_lib);
+    }
+
     #[test]
     fn ignores_macro_expansions() {
         let src = "
