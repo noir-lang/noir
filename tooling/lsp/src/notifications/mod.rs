@@ -372,6 +372,7 @@ pub(crate) fn process_workspace(
             def_maps: context.def_maps,
             usage_tracker: context.usage_tracker,
             package_crate_ids: prepared.package_crate_ids,
+            dependents_stale: false,
         },
     );
 
@@ -479,6 +480,12 @@ pub(crate) fn process_workspace_for_single_file_change(
     );
 
     // Put some things back before restoring the cached data
+    let crate_graph = &context.crate_graph;
+    let analysis_root = *crate_graph.root_crate_id();
+    workspace_cache.dependents_stale |= crate_graph.iter_keys().any(|other| {
+        other != analysis_root
+            && crate_graph[other].dependencies.iter().any(|dep| dep.crate_id == crate_id)
+    });
     workspace_cache.node_interner = context.def_interner;
     workspace_cache.def_maps = context.def_maps;
     workspace_cache.crate_graph = context.crate_graph;

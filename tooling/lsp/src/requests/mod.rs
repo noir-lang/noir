@@ -611,6 +611,34 @@ where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
     T: Default,
 {
+    process_request_with_analysis(state, text_document_position_params, false, callback)
+}
+
+/// Like [`process_request`], for requests that follow references from one package into
+/// another. The workspace is checked again first if a single file change left the crates that
+/// depend on the edited one pointing at its old definitions.
+pub(crate) fn process_cross_package_request<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
+    T: Default,
+{
+    process_request_with_analysis(state, text_document_position_params, true, callback)
+}
+
+fn process_request_with_analysis<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    needs_fresh_dependents: bool,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
+    T: Default,
+{
     let uri = text_document_position_params.text_document.uri.clone();
     let file_path = uri_to_file_path(&uri)?;
     let workspace = if uri.scheme() == "noir-std" {
@@ -629,11 +657,16 @@ where
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
 
-    // In practice when `process_request` is called, a document in the project should already have been
-    // open so the workspace cache will have data. However, just in case this isn't true for some reason,
-    // and also for tests (some tests just test a request without going through the full LSP workflow),
-    // we have a fallback where we type-check the workspace, then continue with processing the request.
-    if !state.workspace_cache.contains_key(&workspace.root_dir) {
+    // The workspace is checked here when it has no analysis yet: no document of it has been
+    // opened since the last `Nargo.toml` change cleared every analysis, or a test sends a request
+    // without opening a document first. It is also checked again when the request needs the
+    // dependents of an edited crate up to date. Like any full check, this publishes diagnostics
+    // and test lists for the workspace.
+    let needs_check = match state.workspace_cache.get(&workspace.root_dir) {
+        None => true,
+        Some(cache) => needs_fresh_dependents && cache.dependents_stale,
+    };
+    if needs_check {
         process_workspace(state, &workspace)
             .map_err(|error| ResponseError::new(ErrorCode::REQUEST_FAILED, format!("{error:?}")))?;
     }

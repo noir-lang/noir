@@ -9,7 +9,7 @@ use noirc_frontend::node_interner::ReferenceId;
 
 use crate::LspState;
 
-use super::{find_all_references_in_workspace, process_request};
+use super::{find_all_references_in_workspace, process_cross_package_request, process_request};
 
 pub(crate) fn on_prepare_rename_request(
     state: &mut LspState,
@@ -31,7 +31,7 @@ pub(crate) fn on_rename_request(
     state: &mut LspState,
     params: RenameParams,
 ) -> Result<Option<WorkspaceEdit>, ResponseError> {
-    process_request(state, params.text_document_position, |args| {
+    process_cross_package_request(state, params.text_document_position, |args| {
         let rename_changes =
             find_all_references_in_workspace(args.location, args.interner, args.files, true, false)
                 .map(|locations| {

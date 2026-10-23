@@ -143,6 +143,10 @@ struct WorkspaceCacheData {
     usage_tracker: UsageTracker,
     /// The crate of each member package, keyed by the package's root directory.
     package_crate_ids: HashMap<PathBuf, CrateId>,
+    /// Set when a single file change re-elaborates a crate that other crates of the analysis
+    /// depend on. Those crates still point at the definitions the change replaced, so lookups
+    /// across packages (references, rename) need the workspace checked again first.
+    dependents_stale: bool,
 }
 
 impl LspState {
