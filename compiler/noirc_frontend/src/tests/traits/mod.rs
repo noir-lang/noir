@@ -4,6 +4,7 @@
 //! Including method signature validation, where clause constraints,
 //! trait inheritance, method resolution, impl validation, associated items, and qualified path syntax.
 
+mod known_issues;
 mod trait_aliases;
 mod trait_as_type;
 mod trait_associated_items;

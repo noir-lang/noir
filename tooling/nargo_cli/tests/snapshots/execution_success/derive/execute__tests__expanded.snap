@@ -181,9 +181,9 @@ impl Ord for EmptyStruct {
 fn main() {
     let s: MyStruct = MyStruct { my_field: 1_u32 };
     s.do_nothing();
-    let o: MyOtherStruct<Field, u32> = MyOtherStruct::<Field, u32>::default();
+    let o: MyOtherStruct<Field, u32> = <MyOtherStruct<Field, u32> as Default>::default();
     assert(o == o);
-    let o: MyOtherStruct<u8, [str<2>]> = MyOtherStruct::<u8, [str<2>]>::default();
+    let o: MyOtherStruct<u8, [str<2>]> = <MyOtherStruct<u8, [str<2>]> as Default>::default();
     assert(o == o);
     let o1: MyOtherStruct<u32, i8> = MyOtherStruct::<u32, i8> {
         field1: 12_u32,
