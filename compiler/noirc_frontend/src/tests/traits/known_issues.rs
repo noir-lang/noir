@@ -992,10 +992,11 @@ fn i2835_type_decided_through_unified_unknowns_keeps_impls_apart_in_either_order
     }
 }
 
-/// An impl serving a bound with fresh unknowns each time (`impl<U> Other for S<W<U>>`) only
-/// decides the bound once, so the overlap check ends, in either order of the impls.
+/// Impls serving bounds with fresh unknowns each time (`impl<U> Other for S<W<U>>`,
+/// `impl<U> Marker for W<U>`) decide each bound once, so the overlap check ends, in either order
+/// of the impls. `S<W<X>>` meets both where clauses, so the impls overlap.
 #[test]
-fn i2835_bound_served_by_one_generic_impl_is_decided_once_in_either_order() {
+fn i2835_bounds_served_by_generic_impls_are_decided_once_in_either_order() {
     let impls =
         ["impl<T> Foo for S<T> where S<T>: Other {}", "impl<A> Foo for S<A> where A: Marker {}"];
     for (first, second) in [(impls[0], impls[1]), (impls[1], impls[0])] {
@@ -1009,10 +1010,11 @@ fn i2835_bound_served_by_one_generic_impl_is_decided_once_in_either_order() {
     {first}
     {second}
     impl<U> Other for S<W<U>> {{}}
+    impl<U> Marker for W<U> {{}}
     fn main() {{}}
     "#
         );
-        assert_accepted(&src);
+        assert_rejected_with(&src, "overlaps with existing impl");
     }
 }
 
