@@ -65,9 +65,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec-foundation/bb.js@npm:6.0.0-rc.6":
-  version: 6.0.0-rc.6
-  resolution: "@aztec-foundation/bb.js@npm:6.0.0-rc.6"
+"@aztec-foundation/bb.js@npm:6.0.0":
+  version: 6.0.0
+  resolution: "@aztec-foundation/bb.js@npm:6.0.0"
   dependencies:
     comlink: "npm:^4.4.1"
     commander: "npm:^12.1.0"
@@ -78,7 +78,7 @@ __metadata:
     tslib: "npm:^2.4.0"
   bin:
     bb: dest/node/bin/index.js
-  checksum: 10/ea3fd053cccf9361d0052a1295e121a348a071d8c551db1d0052cf51845793360f28c538a89dab0c87667eb55eda2729357131c88df8912587c26db37878ad45
+  checksum: 10/6a97365107c8109825674affa60722c6ddfe3d544e596d54d52fcf6cd8823d4ce6e7658f416821654b69831ed57c1ad234b535d7b02e0a94a7cc6fef81716916
   languageName: node
   linkType: hard
 
@@ -4522,7 +4522,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "browser_example@workspace:examples/browser"
   dependencies:
-    "@aztec-foundation/bb.js": "npm:6.0.0-rc.6"
+    "@aztec-foundation/bb.js": "npm:6.0.0"
     "@noir-lang/noir_js": "workspace:*"
     "@playwright/test": "npm:^1.63.0"
     "@types/node": "npm:^22.20.4"
@@ -7375,7 +7375,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec-foundation/bb.js": "npm:6.0.0-rc.6"
+    "@aztec-foundation/bb.js": "npm:6.0.0"
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-ethers": "npm:^4.2.0"
