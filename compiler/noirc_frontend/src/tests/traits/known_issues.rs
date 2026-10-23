@@ -939,6 +939,22 @@ fn i2835_blanket_impls_in_a_library_overlap_before_a_dependent_crate_implements_
     );
 }
 
+/// A bound served only by an impl whose where clause can't hold is known to fail, so the impls it
+/// keeps apart don't overlap, as in rustc: `u32: One` needs `u32: Zero`, which has no impl.
+#[test]
+fn i2835_bound_served_only_by_an_impl_whose_where_clause_fails_keeps_impls_apart() {
+    let src = r#"
+    pub trait Zero {}
+    pub trait One {}
+    pub trait Two {}
+    impl<U> One for U where U: Zero {}
+    impl<T> Two for T where T: One {}
+    impl Two for u32 {}
+    fn main() {}
+    "#;
+    assert_accepted(src);
+}
+
 /// A bound that only one impl can match decides the unknowns it fixes, so another bound can be
 /// known to fail and keep the impls apart, as in rustc.
 #[test]
