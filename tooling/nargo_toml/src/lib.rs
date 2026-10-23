@@ -315,11 +315,32 @@ pub struct PackageMetadata {
     pub expression_width: Option<String>,
 }
 
+/// A point in a git repository to check a dependency out at.
+///
+/// `nargo` follows `cargo`'s git dependency syntax: a dependency may be pinned either to a `tag`
+/// (or branch) name, or to an individual commit via `rev`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GitReference {
+    /// A tag or branch name, e.g. `v0.4.2`.
+    Tag(String),
+    /// A specific commit hash, e.g. `d6f85b8`.
+    Rev(String),
+}
+
+impl GitReference {
+    /// The string used to check out the reference and to name its directory in the cache.
+    pub fn as_str(&self) -> &str {
+        match self {
+            GitReference::Tag(reference) | GitReference::Rev(reference) => reference,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 /// Enum representing the different types of ways to
 /// supply a source for the dependency
 pub enum DependencyConfig {
-    Git { git: String, tag: String, directory: Option<String> },
+    Git { git: String, reference: GitReference, directory: Option<String> },
     Path { path: String },
 }
 
@@ -330,8 +351,8 @@ impl DependencyConfig {
         processed: &mut Vec<String>,
     ) -> Result<Dependency, ManifestError> {
         let dep = match self {
-            Self::Git { git, tag, directory } => {
-                let dir_path = clone_git_repo(git, tag)?;
+            Self::Git { git, reference, directory } => {
+                let dir_path = clone_git_repo(git, reference)?;
                 let project_path = if let Some(directory) = directory {
                     let internal_path = dir_path.join(directory).normalize();
                     if !internal_path.starts_with(&dir_path) {
@@ -412,9 +433,12 @@ pub fn add_dependency_to_manifest(
         DependencyConfig::Path { path } => {
             entry.insert("path", path.as_str().into());
         }
-        DependencyConfig::Git { git, tag, directory } => {
+        DependencyConfig::Git { git, reference, directory } => {
             entry.insert("git", git.as_str().into());
-            entry.insert("tag", tag.as_str().into());
+            match reference {
+                GitReference::Tag(tag) => entry.insert("tag", tag.as_str().into()),
+                GitReference::Rev(rev) => entry.insert("rev", rev.as_str().into()),
+            };
             if let Some(directory) = directory {
                 entry.insert("directory", directory.as_str().into());
             }
@@ -629,7 +653,10 @@ mod tests {
 
     use nargo::constants::PKG_FILE;
 
-    use crate::{Config, DependencyConfig, ManifestError, add_dependency_to_manifest, find_root};
+    use crate::{
+        Config, DependencyConfig, GitReference, ManifestError, add_dependency_to_manifest,
+        find_root,
+    };
 
     /// Writes `contents` to a `Nargo.toml` in a fresh temp dir and returns the temp dir and the
     /// manifest path. The temp dir must be kept alive for the duration of the test.
@@ -692,7 +719,7 @@ authors = [""]
             "bignum",
             &DependencyConfig::Git {
                 git: "https://github.com/noir-lang/noir-bignum".to_string(),
-                tag: "v0.4.2".to_string(),
+                reference: GitReference::Tag("v0.4.2".to_string()),
                 directory: Some("crates/bignum".to_string()),
             },
             false,
@@ -707,6 +734,41 @@ authors = [""]
 
         [dependencies]
         bignum = { git = "https://github.com/noir-lang/noir-bignum", tag = "v0.4.2", directory = "crates/bignum" }
+        "#);
+    }
+
+    #[test]
+    fn add_git_dependency_pinned_to_a_rev() {
+        let (_tmp, toml_path) = manifest_with(
+            r#"[package]
+name = "demo"
+type = "bin"
+authors = [""]
+
+[dependencies]
+"#,
+        );
+
+        add_dependency_to_manifest(
+            &toml_path,
+            "ecrecover",
+            &DependencyConfig::Git {
+                git: "https://github.com/noir-lang/ecrecover".to_string(),
+                reference: GitReference::Rev("d6f85b8".to_string()),
+                directory: None,
+            },
+            false,
+        )
+        .unwrap();
+
+        insta::assert_snapshot!(std::fs::read_to_string(&toml_path).unwrap(), @r#"
+        [package]
+        name = "demo"
+        type = "bin"
+        authors = [""]
+
+        [dependencies]
+        ecrecover = { git = "https://github.com/noir-lang/ecrecover", rev = "d6f85b8" }
         "#);
     }
 
@@ -852,6 +914,46 @@ my_lib = { path = "../my_lib" }
 
         assert!(Config::try_from(String::from(src)).is_ok());
         assert!(Config::try_from(src).is_ok());
+    }
+
+    #[test]
+    fn parses_git_dependency_pinned_to_a_rev() {
+        let src = r#"
+        [package]
+        name = "test"
+        authors = ["kev", "foo"]
+        compiler_version = "*"
+
+        [dependencies]
+        ecrecover = { git = "https://github.com/noir-lang/ecrecover", rev = "d6f85b8" }
+    "#;
+
+        let config = Config::try_from(src).unwrap();
+        let Config::Package { package_config } = config else {
+            panic!("expected a package config")
+        };
+        let dependency = package_config.dependencies.get("ecrecover").unwrap();
+        assert!(
+            matches!(dependency, DependencyConfig::Git { reference: GitReference::Rev(rev), .. } if rev == "d6f85b8")
+        );
+    }
+
+    #[test]
+    fn rejects_git_dependency_with_both_a_tag_and_a_rev() {
+        let src = r#"git = "https://github.com/noir-lang/ecrecover"
+tag = "v0.1.0"
+rev = "d6f85b8"
+"#;
+        let error = toml::from_str::<DependencyConfig>(src).unwrap_err();
+        assert!(error.to_string().contains("not both"), "{error}");
+    }
+
+    #[test]
+    fn rejects_git_dependency_with_neither_a_tag_nor_a_rev() {
+        let src = r#"git = "https://github.com/noir-lang/ecrecover"
+"#;
+        let error = toml::from_str::<DependencyConfig>(src).unwrap_err();
+        assert!(error.to_string().contains("`rev`"), "{error}");
     }
 
     #[test]
