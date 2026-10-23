@@ -1215,6 +1215,25 @@ fn i2756_impl_where_clause_projecting_through_a_later_impl_matches_the_trait() {
     assert_accepted(src);
 }
 
+/// https://github.com/noir-lang/noir-claude/issues/2735: a projection in the arguments of a
+/// where-clause bound, or of an inline bound, also makes the impl wait for the impls it projects
+/// through.
+#[test]
+fn i2735_impl_whose_bound_arguments_project_through_a_later_impl_is_resolved() {
+    let src = r#"
+    pub trait C { type X; }
+    pub trait Foo<Y> {}
+    pub trait Bar {}
+    pub trait Baz {}
+    pub struct S {}
+    impl<T> Bar for T where T: Foo<<S as C>::X> {}
+    impl<T: Foo<<S as C>::X>> Baz for [T; 1] {}
+    impl C for S { type X = u8; }
+    fn main() {}
+    "#;
+    assert_accepted(src);
+}
+
 /// https://github.com/noir-lang/noir-claude/issues/2735
 #[test]
 fn i2735_impl_header_projecting_through_a_later_impl_is_resolved() {

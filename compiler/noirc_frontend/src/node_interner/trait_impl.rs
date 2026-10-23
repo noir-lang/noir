@@ -305,10 +305,7 @@ impl NodeInterner {
         // Remove any prepared implementation for this impl.
         self.remove_prepared_trait_implementation(trait_id, impl_id);
 
-        let mut where_clause = self.get_where_clause_for_impl(impl_id).to_vec();
-        for constraint in &mut where_clause {
-            constraint.apply_instantiation_bindings(&substitutions);
-        }
+        let where_clause = self.instantiated_where_clause(impl_id, &substitutions);
         if let Some(existing) = self.overlapping_impl(
             &instantiated_object_type,
             trait_id,
@@ -780,10 +777,11 @@ impl NodeInterner {
                     !generic.substitute(type_bindings).contains_unbound_type_variable()
                 });
 
-            // A `where` clause is what the function was written against, so a single one that
-            // matches decides the query, as in Rust. For a rigid query it only does when it
-            // names the function's generics (`where u8: Tr<Out = T>`); one naming none
-            // (`where u8: Tr`) only repeats what the single real impl says.
+            // Several impls match. A `where` clause is what the function was written against, so
+            // a single one that matches decides the query, as in Rust. For a rigid query it only
+            // does when it names the function's generics (`where u8: Tr<Out = T>`); one naming
+            // none (`where u8: Tr`) only repeats what the single real impl says, which then
+            // decides. Otherwise the query is ambiguous.
             let decides = |kind: &TraitImplKind| match kind {
                 TraitImplKind::Assumed { trait_generics, .. } => {
                     !query_is_rigid
@@ -801,8 +799,7 @@ impl NodeInterner {
                 .positions(|(kind, ..)| !matches!(kind, TraitImplKind::Assumed { .. }))
                 .collect();
             let selected = match (&deciding[..], &real_impls[..]) {
-                ([index], _) => Some(*index),
-                ([], [index]) if query_is_rigid => Some(*index),
+                ([index], _) | ([], [index]) => Some(*index),
                 _ => None,
             };
             if let Some(index) = selected {
