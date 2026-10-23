@@ -9,7 +9,7 @@
 
 use noirc_errors::CustomDiagnostic;
 
-use crate::test_utils::get_monomorphized;
+use crate::test_utils::{get_monomorphized, get_program_with_stdlib_dependency};
 use crate::tests::get_program_errors;
 
 /// The messages of the errors (not warnings) the frontend reports for `src`.
@@ -878,6 +878,82 @@ fn i2743_a_bound_reached_through_many_impls_is_solved_once() {
     }
     "#;
     assert_accepted(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2835, rustc: E0119. A bound on an unknown type
+/// may hold even with no impl of its trait here, since a dependent crate may implement it for its
+/// own type, so two blanket impls kept apart only by such bounds overlap.
+#[test]
+fn i2835_blanket_impls_whose_bounds_have_no_impls_yet_overlap() {
+    let src = r#"
+    pub trait Bounded {}
+    pub trait Audited {}
+    pub trait Validate { fn validate(self) -> u32; }
+    impl<T> Validate for T where T: Bounded { fn validate(self) -> u32 { 0 } }
+    impl<T> Validate for T where T: Audited { fn validate(self) -> u32 { 1 } }
+    fn main() {}
+    "#;
+    assert_rejected_with(src, "overlaps with existing impl");
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2835
+#[test]
+fn i2835_blanket_impls_where_one_bound_has_an_impl_for_another_type_overlap() {
+    let src = r#"
+    pub trait Bounded {}
+    pub trait Audited {}
+    impl Bounded for u8 {}
+    pub trait Validate { fn validate(self) -> u32; }
+    impl<T> Validate for T where T: Bounded { fn validate(self) -> u32 { 0 } }
+    impl<T> Validate for T where T: Audited { fn validate(self) -> u32 { 1 } }
+    fn main() {}
+    "#;
+    assert_rejected_with(src, "overlaps with existing impl");
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2835: the overlap is reported in the library
+/// that declares the impls, before a dependent crate implements both bounds for its own type.
+#[test]
+fn i2835_blanket_impls_in_a_library_overlap_before_a_dependent_crate_implements_their_bounds() {
+    let library = r#"
+    pub trait Bounded {}
+    pub trait Audited {}
+    pub trait Validate { fn validate(self) -> u32; }
+    impl<T> Validate for T where T: Bounded { fn validate(self) -> u32 { 0 } }
+    impl<T> Validate for T where T: Audited { fn validate(self) -> u32 { assert(false); 1 } }
+    pub fn check_bounded<T>(t: T) -> u32 where T: Bounded { Validate::validate(t) }
+    "#;
+    let application = r#"
+    use std::{Bounded, Audited};
+    pub struct Amount { v: u32 }
+    impl Bounded for Amount {}
+    impl Audited for Amount {}
+    fn main(x: u32) -> pub u32 { let a = Amount { v: x }; std::check_bounded(a) + a.v }
+    "#;
+    let errors = get_program_with_stdlib_dependency(library, application);
+    let messages =
+        errors.iter().map(|error| CustomDiagnostic::from(error).message).collect::<Vec<_>>();
+    assert!(
+        messages.iter().any(|message| message.contains("overlaps with existing impl")),
+        "expected an overlap error, got {messages:?}"
+    );
+}
+
+/// A bound that only one impl can match decides the unknowns it fixes, so another bound can be
+/// known to fail and keep the impls apart, as in rustc.
+#[test]
+fn i2835_bound_with_a_single_impl_decides_its_unknowns_for_the_overlap_check() {
+    let src = r#"
+    trait Marker {}
+    trait Other {}
+    trait Foo { fn value(self) -> Field; }
+    pub struct S<A> { x: A }
+    impl<A> Foo for S<A> where A: Marker { fn value(self) -> Field { 1 } }
+    impl<T> Foo for T where T: Other { fn value(self) -> Field { 2 } }
+    impl Other for S<Field> {}
+    fn main() -> pub Field { S { x: 1 as Field }.value() }
+    "#;
+    assert_runs(src, &["2"], &[]);
 }
 
 /// https://github.com/noir-lang/noir-claude/issues/1958 (R1), rustc: E0119

@@ -339,11 +339,16 @@ impl NodeInterner {
     /// `object_type: trait_id<trait_generics>` and where clause `where_clause` (both instantiated
     /// with unknowns for its generics) applies to as well.
     ///
-    /// Two impls overlap when their headers unify and every bound of both where clauses has an
-    /// impl that can match it: `impl<T> Foo for T where T: A` and `impl Foo for u32` overlap
-    /// unless no impl of `A` matches `u32`. As in rustc, bounds aren't required to hold together:
-    /// `impl<T> Foo for T where T: A` and `impl<T> Foo for T where T: B` overlap whenever `A` and
-    /// `B` have impls.
+    /// As in rustc, two impls overlap when their headers unify and no bound of either where clause
+    /// is known to fail for the unified header. A bound is known to fail when its type has a
+    /// known head (`u32`, `S<_>`) and no impl can match it: by the orphan rule, a dependent crate
+    /// can't add an impl of a trait for a type it doesn't own, so the impls seen here are all of
+    /// them. A bound on a type that is still unknown (`T: Marker`) may hold, whatever impls exist
+    /// here, since a dependent crate may implement it for its own type.
+    ///
+    /// A bound that only one impl can match fixes the unknowns that impl decides
+    /// (`S<?A>: Other` with only `impl Other for S<Field>` makes `?A` `Field`), which can make
+    /// another bound known to fail (`Field: Marker`).
     fn overlapping_impl(
         &self,
         object_type: &Type,
@@ -366,24 +371,49 @@ impl NodeInterner {
             )?;
             let mut obligations = where_clause.to_vec();
             obligations.extend(self.instantiated_where_clause(*existing, &instantiation_bindings));
-            // The impls are disjoint when a bound of either where clause has no impl whose
-            // header matches it for the unified header.
-            let disjoint = obligations.iter().any(|obligation| {
-                let bound = &obligation.trait_bound;
-                let impls = self.trait_implementation_map.get(&bound.trait_id);
-                !impls.into_iter().flatten().any(|(impl_type, impl_kind)| {
-                    matches!(impl_kind, TraitImplKind::Normal(_) | TraitImplKind::Prepared(..))
-                        && self
-                            .unify_with_impl_header(
-                                &obligation.typ.substitute(&bindings),
-                                &bound.trait_generics.ordered,
-                                impl_type,
-                                impl_kind,
-                                &mut bindings.clone(),
-                            )
-                            .is_some()
-                })
-            });
+            // Each bound with a known head, with the bindings of every impl that can match it.
+            let candidates = |bindings: &TypeBindings| {
+                obligations
+                    .iter()
+                    .filter_map(|obligation| {
+                        if obligation.typ.substitute(bindings).is_bindable() {
+                            return None;
+                        }
+                        let impls =
+                            self.trait_implementation_map.get(&obligation.trait_bound.trait_id);
+                        let matching =
+                            impls.into_iter().flatten().filter_map(|(impl_type, kind)| {
+                                if !matches!(
+                                    kind,
+                                    TraitImplKind::Normal(_) | TraitImplKind::Prepared(..)
+                                ) {
+                                    return None;
+                                }
+                                let mut candidate = bindings.clone();
+                                self.unify_with_impl_header(
+                                    &obligation.typ,
+                                    &obligation.trait_bound.trait_generics.ordered,
+                                    impl_type,
+                                    kind,
+                                    &mut candidate,
+                                )?;
+                                Some(candidate)
+                            });
+                        Some(matching.collect::<Vec<_>>())
+                    })
+                    .collect::<Vec<_>>()
+            };
+            // Bounds only one impl can match decide unknowns, which may give another bound a
+            // known head or a single impl: repeat until nothing more is decided.
+            loop {
+                let decided = candidates(&bindings)
+                    .into_iter()
+                    .filter_map(|mut matching| (matching.len() == 1).then(|| matching.remove(0)))
+                    .find(|candidate| candidate.len() > bindings.len());
+                let Some(decided) = decided else { break };
+                bindings = decided;
+            }
+            let disjoint = candidates(&bindings).iter().any(Vec::is_empty);
             (!disjoint).then_some(*existing)
         })
     }
