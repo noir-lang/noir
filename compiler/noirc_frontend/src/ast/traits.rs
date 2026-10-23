@@ -4,8 +4,8 @@ use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::ast::{
-    BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path, UnresolvedGenerics,
-    UnresolvedType,
+    AsTraitPath, BlockExpression, Expression, FunctionReturnType, Ident, NoirFunction, Path,
+    UnresolvedGenerics, UnresolvedType, Visitor,
 };
 use crate::token::{Attributes, SecondaryAttribute};
 
@@ -390,4 +390,40 @@ fn reorder_where_clause(where_clause: &mut Vec<UnresolvedTraitConstraint>) {
     where_clause.extend(paths_without_generics);
     where_clause.extend(paths_with_generics);
     where_clause.extend(others);
+}
+
+/// Finds whether a type names an associated item through a path (`V::K`, `<V as Tr>::K`), which
+/// can only be resolved once the impl or bound providing that item is known.
+pub(crate) struct ProjectionFinder<'a> {
+    /// The generics in scope: a path is a projection only when it starts with one of them, so a
+    /// module path (`m::S`) isn't one.
+    generics: &'a [UnresolvedGeneric],
+    pub(crate) found: bool,
+}
+
+impl<'a> ProjectionFinder<'a> {
+    pub(crate) fn new(generics: &'a [UnresolvedGeneric]) -> Self {
+        Self { generics, found: false }
+    }
+}
+
+impl Visitor for ProjectionFinder<'_> {
+    fn visit_path(&mut self, path: &Path) {
+        let Some(head) = path.segments.first().filter(|_| path.segments.len() > 1) else {
+            return;
+        };
+        self.found |= self.generics.iter().any(|generic| {
+            generic.ident().ident().is_some_and(|ident| ident.as_str() == head.ident.as_str())
+        });
+    }
+
+    fn visit_as_trait_path_type(&mut self, _: &AsTraitPath, _: noirc_errors::Span) -> bool {
+        self.found = true;
+        false
+    }
+
+    fn visit_as_trait_path_type_expression(&mut self, _: &AsTraitPath) -> bool {
+        self.found = true;
+        false
+    }
 }
