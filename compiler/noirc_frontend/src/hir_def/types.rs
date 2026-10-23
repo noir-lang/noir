@@ -2572,8 +2572,8 @@ impl Type {
     /// mapped to another one mapped to `Field` gives `Field`.
     ///
     /// Unification's occurs check doesn't look through `type_bindings`, so they can hold a cycle
-    /// (`?A -> W<?A>`). The substitution then stops after one pass more than there are
-    /// bindings, with a type variable left inside.
+    /// (`?A -> W<?A>`). The substitution then stops after as many passes as there are bindings,
+    /// with a type variable left inside.
     pub fn substitute_fully(&self, type_bindings: &TypeBindings) -> Type {
         let mut typ = self.clone();
         for _ in 0..=type_bindings.len() {
