@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792761627686,
+  "lastUpdate": 1792761846425,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23006,48 +23006,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "81c8f5a73924054bbc719290aba95c6657e6e7e7",
-          "message": "chore(ssa): delete the unused remove_paired_rc pass (#13990)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-10-16T10:10:27Z",
-          "tree_id": "5630349c35fa77ea74a0da117443f0626a964c12",
-          "url": "https://github.com/noir-lang/noir/commit/81c8f5a73924054bbc719290aba95c6657e6e7e7"
-        },
-        "date": 1792146938530,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 172489,
-            "range": "± 285",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 142034,
-            "range": "± 2074",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2653185,
-            "range": "± 15167",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "54c980f9e1ce9a83a1659faf55892846f940621a",
           "message": "chore(stdlib): document hashing, signature and embedded curve functions (#14009)",
           "timestamp": "2026-10-16T10:35:59Z",
@@ -25089,6 +25047,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2650075,
             "range": "± 6850",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d56c6153b45dea3d58d2202f3c1696deaac3d131",
+          "message": "chore(deps-dev): bump cspell from 10.3.6 to 10.4.0 in the npm-minor-and-patch group (#14093)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-23T12:58:51Z",
+          "tree_id": "efe9d86fa260863de06053a6525c564d55a07961",
+          "url": "https://github.com/noir-lang/noir/commit/d56c6153b45dea3d58d2202f3c1696deaac3d131"
+        },
+        "date": 1792761752434,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167826,
+            "range": "± 869",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137394,
+            "range": "± 2926",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651380,
+            "range": "± 11061",
             "unit": "ns/iter"
           }
         ]
