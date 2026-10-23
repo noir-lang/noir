@@ -1,6 +1,10 @@
 //! Tests for trait implementation validation.
 //! Validates duplicate impls, impl target correctness, missing associated items, and generic counts.
 
+use iter_extended::vecmap;
+use noirc_errors::CustomDiagnostic;
+
+use crate::test_utils::get_program_with_stdlib_dependency;
 use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
@@ -809,4 +813,50 @@ fn impl_header_projecting_through_a_later_impl_for_a_type_in_a_module() {
     fn main() -> pub Field { let q = Q {}; E::<u8>::get(q) }
     "#;
     assert_no_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2835: a bound on an unknown type may hold even
+/// with no impl of its trait here, since a dependent crate may implement it for its own type, so
+/// two blanket impls kept apart only by such bounds overlap, as in rustc (E0119).
+#[test]
+fn blanket_impls_whose_bounds_have_no_impls_yet_overlap() {
+    let src = r#"
+    pub trait Bounded {}
+    pub trait Audited {}
+    pub trait Validate { fn validate(self) -> u32; }
+    impl<T> Validate for T where T: Bounded { fn validate(self) -> u32 { 0 } }
+            ~~~~~~~~ Previous impl defined here
+    impl<T> Validate for T where T: Audited { fn validate(self) -> u32 { 1 } }
+                         ^ Impl for type `T` overlaps with existing impl
+                         ~ Overlapping impl
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// https://github.com/noir-lang/noir-claude/issues/2835: the overlap is reported in the library
+/// that declares the impls, before a dependent crate implements both bounds for its own type.
+#[test]
+fn blanket_impls_in_a_library_overlap_before_a_dependent_crate_implements_their_bounds() {
+    let library = r#"
+    pub trait Bounded {}
+    pub trait Audited {}
+    pub trait Validate { fn validate(self) -> u32; }
+    impl<T> Validate for T where T: Bounded { fn validate(self) -> u32 { 0 } }
+    impl<T> Validate for T where T: Audited { fn validate(self) -> u32 { assert(false); 1 } }
+    pub fn check_bounded<T>(t: T) -> u32 where T: Bounded { Validate::validate(t) }
+    "#;
+    let application = r#"
+    use std::{Bounded, Audited};
+    pub struct Amount { v: u32 }
+    impl Bounded for Amount {}
+    impl Audited for Amount {}
+    fn main(x: u32) -> pub u32 { let a = Amount { v: x }; std::check_bounded(a) + a.v }
+    "#;
+    let errors = get_program_with_stdlib_dependency(library, application);
+    let messages = vecmap(&errors, |error| CustomDiagnostic::from(error).message);
+    assert!(
+        messages.iter().any(|message| message.contains("overlaps with existing impl")),
+        "expected an overlap error, got {messages:?}"
+    );
 }
