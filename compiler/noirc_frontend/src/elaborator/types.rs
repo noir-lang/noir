@@ -253,13 +253,29 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
-        use crate::ast::UnresolvedTypeData::*;
-
+        // The types within a whole return type are nested in it.
         let impl_trait_position = self.item.impl_trait_position;
         if impl_trait_position == ImplTraitPosition::ReturnType {
             self.item.impl_trait_position =
                 ImplTraitPosition::Disallowed(ImplTraitDisallowedContext::NestedType);
         }
+        let typ =
+            self.resolve_type_at_position(typ, kind, mode, wildcard_allowed, impl_trait_position);
+        self.item.impl_trait_position = impl_trait_position;
+        typ
+    }
+
+    /// [`Self::resolve_type_with_kind_inner`] for a type at `impl_trait_position`.
+    fn resolve_type_at_position(
+        &mut self,
+        typ: UnresolvedType,
+        kind: &Kind,
+        mode: PathResolutionMode,
+        wildcard_allowed: WildcardAllowed,
+        impl_trait_position: ImplTraitPosition,
+    ) -> Type {
+        use crate::ast::UnresolvedTypeData::*;
+
         let location = typ.location;
         let (named_path_location, is_self_type_name, is_synthetic) =
             if let Named(ref named_path, _, synthetic) = typ.typ {
