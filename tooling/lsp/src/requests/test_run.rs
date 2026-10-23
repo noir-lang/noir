@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{cell::RefCell, io::Write, rc::Rc, sync::Arc};
 
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
@@ -7,8 +7,8 @@ use nargo::{
     ops::{TestStatus, run_test},
 };
 use nargo_toml::{PackageSelection, find_package_manifest, resolve_workspace_from_toml};
-use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING, check_crate};
-use noirc_frontend::hir::FunctionNameMatch;
+use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING, check_crate_with_comptime_io};
+use noirc_frontend::hir::{FunctionNameMatch, comptime::ComptimeIo};
 
 use crate::{
     LspState, parse_diff,
@@ -62,7 +62,16 @@ fn on_test_run_request_inner(
         Some(package) => {
             let (context, crate_id) =
                 nargo::prepare_package(&workspace_file_manager, &parsed_files, package);
-            let (context, result) = check_crate(context, crate_id, &Default::default());
+            // The test runs the way `nargo test` runs it, so LSP mode stays off: its comptime loop
+            // limit is a warning that leaves the halted code behind for monomorphization to trip
+            // on. Comptime output goes to stderr because stdout carries the LSP protocol.
+            let stderr: Rc<RefCell<dyn Write>> = Rc::new(RefCell::new(std::io::stderr()));
+            let (context, result) = check_crate_with_comptime_io(
+                context,
+                crate_id,
+                &Default::default(),
+                &mut ComptimeIo::printing_to(stderr),
+            );
             if result.is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
@@ -88,7 +97,8 @@ fn on_test_run_request_inner(
                 &state.solver,
                 &context,
                 &test_function,
-                std::io::stdout(),
+                // stdout carries the LSP protocol.
+                std::io::stderr(),
                 &CompileOptions::default(),
                 |output, base| {
                     DefaultForeignCallBuilder {
@@ -129,5 +139,29 @@ fn on_test_run_request_inner(
             ErrorCode::REQUEST_FAILED,
             format!("Could not locate package named: {crate_name}"),
         )),
+    }
+}
+
+#[cfg(test)]
+mod test_run_tests {
+    use std::str::FromStr;
+
+    use nargo::package::CrateName;
+
+    use super::on_test_run_request;
+    use crate::test_utils;
+    use crate::types::{NargoTestId, NargoTestRunParams};
+
+    #[test]
+    fn runs_a_test_whose_comptime_loop_exceeds_the_editor_iteration_limit() {
+        let (mut state, _) = test_utils::init_lsp_server("comptime_loop_test");
+
+        let crate_name = CrateName::from_str("comptime_loop_test").unwrap();
+        let params =
+            NargoTestRunParams { id: NargoTestId::new(crate_name, "test_spin".to_string()) };
+        let result = on_test_run_request(&mut state, params).unwrap();
+
+        // The editor halts comptime loops after 10,000 iterations; running a test does not.
+        assert_eq!(result.result, "pass", "{:?}", result.message);
     }
 }
