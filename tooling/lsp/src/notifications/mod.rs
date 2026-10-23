@@ -402,17 +402,33 @@ pub(crate) fn process_workspace_for_single_file_change(
         return Ok(());
     };
 
-    let mut workspace_cache = state.workspace_cache.remove(root_dir).unwrap();
-    let Some(crate_id) = workspace_cache.package_crate_ids.get(&package.root_dir).copied() else {
-        state.workspace_cache.insert(root_dir.clone(), workspace_cache);
+    let Some(workspace_cache) = state.workspace_cache.get(root_dir) else {
         return Ok(());
     };
+    let Some(crate_id) = workspace_cache.package_crate_ids.get(&package.root_dir).copied() else {
+        return Ok(());
+    };
+    let file_id = file_path_to_file_id(
+        workspace_cache.file_manager.as_file_map(),
+        &PathString::from(&file_path),
+    )?;
 
-    let mut file_manager = workspace_cache.file_manager;
-    let file_map = file_manager.as_file_map();
+    // Find out the local module ID corresponding to this file. A file that no `mod` declares is
+    // not part of the crate, so there is nothing to check.
+    let Some(module_index) = workspace_cache.def_maps[&crate_id]
+        .modules()
+        .iter()
+        .find(|(_, module_data)| module_data.location.file == file_id)
+        .map(|(module_index, _)| module_index)
+    else {
+        return Ok(());
+    };
+    let module_id = LocalModuleId::new(module_index);
+
+    let mut workspace_cache = state.workspace_cache.remove(root_dir).unwrap();
 
     // We need to replace the file's source in the file manager
-    let file_id = file_path_to_file_id(file_map, &PathString::from(&file_path))?;
+    let mut file_manager = workspace_cache.file_manager;
     Arc::make_mut(&mut file_manager).replace_file(file_id, file_source.to_string());
 
     let mut node_interner = workspace_cache.node_interner;
@@ -428,15 +444,6 @@ pub(crate) fn process_workspace_for_single_file_change(
     // Get a hold of the CrateDefMap for this crate, by removing it.
     // There's no need to explicitly add it back: DefCollector::collect_defs_and_elaborate will do it.
     let mut crate_def_map = def_maps.remove(&crate_id).unwrap();
-
-    // Find out the local module ID corresponding to this file
-    let module_index = crate_def_map
-        .modules()
-        .iter()
-        .find(|(_, module_data)| module_data.location.file == file_id)
-        .unwrap()
-        .0;
-    let module_id = LocalModuleId::new(module_index);
 
     // Clear all the definitions in the existing module (and its children, as long as they happen in
     // the same file), as they shouldn't be offered in autocompletion, references, etc., anymore.
@@ -755,5 +762,29 @@ mod notification_tests {
         } else {
             panic!("Expected InlayHintLabel::LabelParts, got {:?}", inlay_hint.label);
         }
+    }
+}
+
+#[cfg(test)]
+mod single_file_change_tests {
+    use super::*;
+    use crate::test_utils;
+
+    #[test]
+    fn ignores_a_change_to_a_file_outside_the_module_tree() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("undeclared_module");
+        let package_dir = noir_text_document.to_file_path().unwrap();
+        let package_dir = package_dir.parent().unwrap().parent().unwrap();
+        let undeclared = Url::from_file_path(package_dir.join("src/undeclared.nr")).unwrap();
+
+        let workspace =
+            workspace_from_document_uri(&mut state, undeclared.clone()).unwrap().unwrap();
+        process_workspace(&mut state, &workspace).unwrap();
+
+        let source = "pub fn undeclared() {}\npub fn another() {}\n";
+        process_workspace_for_single_file_change(&mut state, &workspace, undeclared, source)
+            .unwrap();
+
+        assert!(state.workspace_cache.contains_key(&workspace.root_dir));
     }
 }
