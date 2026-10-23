@@ -1,0 +1,39 @@
+name: Build baseline nargo
+description: >-
+  Builds `nargo` at the first parent of the checked-out merge commit, so the PR's base branch, into
+  ./target/release/nargo. Reads the Rust cache saved by the PR's own release build, and never saves
+  one. The checkout must have fetched that parent (`fetch-depth: 2`).
+inputs:
+  shared-key:
+    description: The `shared-key` of the `Swatinem/rust-cache` step in the job that builds the PR's `nargo`
+    required: true
+outputs:
+  sha:
+    description: The commit `nargo` was built from
+    value: ${{ steps.base.outputs.sha }}
+runs:
+  using: composite
+  steps:
+    # A separate worktree keeps this action's own files in the workspace for its post steps.
+    - name: Check out the base of the PR's merge commit
+      id: base
+      shell: bash
+      run: |
+        git worktree add --detach "$RUNNER_TEMP/nargo-baseline-src" HEAD^1
+        git -C "$RUNNER_TEMP/nargo-baseline-src" log -1 --oneline
+        echo "sha=$(git -C "$RUNNER_TEMP/nargo-baseline-src" rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+    - name: Setup toolchain
+      uses: dtolnay/rust-toolchain@1.89.0
+
+    - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      with:
+        shared-key: ${{ inputs.shared-key }}
+        key: x86_64-unknown-linux-gnu
+        save-if: false
+
+    # Builds into the workspace's `target`, where the cache was restored.
+    - name: Build nargo
+      shell: bash
+      working-directory: ${{ runner.temp }}/nargo-baseline-src
+      run: cargo build --package nargo_cli --release --target-dir "$GITHUB_WORKSPACE/target"
