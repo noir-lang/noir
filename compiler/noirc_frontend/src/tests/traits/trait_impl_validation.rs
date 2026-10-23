@@ -913,3 +913,50 @@ fn impl_whose_bound_arguments_project_through_a_later_impl_is_resolved() {
     "#;
     assert_no_errors(src);
 }
+
+/// A type a single-impl bound decides is seen through every unknown it was unified with, so the
+/// overlap verdict doesn't depend on which impl comes first, as in rustc.
+#[test]
+fn type_decided_through_unified_unknowns_keeps_impls_apart_in_either_order() {
+    let impls =
+        ["impl<T> Foo for S<T> where S<T>: Other {}", "impl<A> Foo for S<A> where A: Marker {}"];
+    for (first, second) in [(impls[0], impls[1]), (impls[1], impls[0])] {
+        let src = format!(
+            r#"
+    pub trait Marker {{}}
+    pub trait Other {{}}
+    pub trait Foo {{}}
+    pub struct S<A> {{ x: A }}
+    {first}
+    {second}
+    impl Other for S<Field> {{}}
+    fn main() {{}}
+    "#
+        );
+        assert_no_errors(&src);
+    }
+}
+
+/// An impl serving a bound with fresh unknowns each time (`impl<U> Other for S<W<U>>`) only
+/// decides the bound once, so the overlap check ends, in either order of the impls.
+#[test]
+fn bound_served_by_one_generic_impl_is_decided_once_in_either_order() {
+    let impls =
+        ["impl<T> Foo for S<T> where S<T>: Other {}", "impl<A> Foo for S<A> where A: Marker {}"];
+    for (first, second) in [(impls[0], impls[1]), (impls[1], impls[0])] {
+        let src = format!(
+            r#"
+    pub trait Marker {{}}
+    pub trait Other {{}}
+    pub trait Foo {{}}
+    pub struct S<A> {{ x: A }}
+    pub struct W<A> {{ x: A }}
+    {first}
+    {second}
+    impl<U> Other for S<W<U>> {{}}
+    fn main() {{}}
+    "#
+        );
+        assert_no_errors(&src);
+    }
+}
