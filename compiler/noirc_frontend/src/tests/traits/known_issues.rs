@@ -955,6 +955,20 @@ fn i2835_bound_served_only_by_an_impl_whose_where_clause_fails_keeps_impls_apart
     assert_accepted(src);
 }
 
+/// A bound served only by an impl for all types decides nothing more, so the overlap check ends.
+#[test]
+fn i2835_bound_served_only_by_an_impl_for_all_types_is_checked_once() {
+    let src = r#"
+    pub trait One {}
+    pub trait Two {}
+    impl<U> One for U {}
+    impl<T> Two for T where T: One {}
+    impl Two for u32 {}
+    fn main() {}
+    "#;
+    assert_rejected_with(src, "overlaps with existing impl");
+}
+
 /// A bound that only one impl can match decides the unknowns it fixes, so another bound can be
 /// known to fail and keep the impls apart, as in rustc.
 #[test]
