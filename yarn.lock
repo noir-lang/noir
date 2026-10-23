@@ -728,6 +728,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@dual-bundle/import-meta-resolve@npm:^4.2.1":
+  version: 4.2.1
+  resolution: "@dual-bundle/import-meta-resolve@npm:4.2.1"
+  checksum: 10/c93f600fe0af015fdf1d6e58cd2823b8282d02e44eb6207eb5fc17e95f6c76bf67c018b12bd6ea71017b214269b59791dad2f3d560131be2df4e995400063258
+  languageName: node
+  linkType: hard
+
 "@esbuild/aix-ppc64@npm:0.28.2":
   version: 0.28.2
   resolution: "@esbuild/aix-ppc64@npm:0.28.2"
@@ -1745,7 +1752,7 @@ __metadata:
     "@web/test-runner-playwright": "npm:^1.0.0"
     chai: "npm:^6.3.0"
     eslint: "npm:^10.12.0"
-    eslint-plugin-prettier: "npm:^5.5.6"
+    eslint-plugin-prettier: "npm:^5.5.7"
     mocha: "npm:^12.0.3"
     prettier: "npm:3.9.10"
     tsx: "npm:^4.23.15"
@@ -1765,7 +1772,7 @@ __metadata:
     "@types/prettier": "npm:^3.0.0"
     chai: "npm:^6.3.0"
     eslint: "npm:^10.12.0"
-    eslint-plugin-prettier: "npm:^5.5.6"
+    eslint-plugin-prettier: "npm:^5.5.7"
     glob: "npm:^13.0.6"
     mocha: "npm:^12.0.3"
     prettier: "npm:3.9.10"
@@ -1791,7 +1798,7 @@ __metadata:
     "@types/prettier": "npm:^3.0.0"
     chai: "npm:^6.3.0"
     eslint: "npm:^10.12.0"
-    eslint-plugin-prettier: "npm:^5.5.6"
+    eslint-plugin-prettier: "npm:^5.5.7"
     mocha: "npm:^12.0.3"
     pako: "npm:^3.0.2"
     prettier: "npm:3.9.10"
@@ -1828,7 +1835,7 @@ __metadata:
     copy-webpack-plugin: "npm:^14.0.0"
     esbuild-register: "npm:^3.6.0"
     eslint: "npm:^10.12.0"
-    eslint-plugin-prettier: "npm:^5.5.6"
+    eslint-plugin-prettier: "npm:^5.5.7"
     html-webpack-plugin: "npm:^5.6.8"
     memfs: "npm:^4.80.0"
     mocha: "npm:^12.0.3"
@@ -1875,7 +1882,7 @@ __metadata:
     chai: "npm:^6.3.0"
     cspell: "npm:^10.3.6"
     eslint: "npm:^10.12.0"
-    eslint-plugin-prettier: "npm:^5.5.6"
+    eslint-plugin-prettier: "npm:^5.5.7"
     globals: "npm:^17.13.0"
     mocha: "npm:^12.0.3"
     prettier: "npm:3.9.10"
@@ -1890,7 +1897,7 @@ __metadata:
   dependencies:
     "@types/prettier": "npm:^3.0.0"
     eslint: "npm:^10.12.0"
-    eslint-plugin-prettier: "npm:^5.5.6"
+    eslint-plugin-prettier: "npm:^5.5.7"
     prettier: "npm:3.9.10"
     typescript: "npm:^6.0.3"
   languageName: unknown
@@ -6177,12 +6184,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint-plugin-prettier@npm:^5.5.6":
-  version: 5.5.6
-  resolution: "eslint-plugin-prettier@npm:5.5.6"
+"eslint-plugin-prettier@npm:^5.5.7":
+  version: 5.5.7
+  resolution: "eslint-plugin-prettier@npm:5.5.7"
   dependencies:
     prettier-linter-helpers: "npm:^1.0.1"
-    synckit: "npm:^0.11.13"
+    synckit: "npm:^0.12.3"
   peerDependencies:
     "@types/eslint": ">=8.0.0"
     eslint: ">=8.0.0"
@@ -6193,7 +6200,7 @@ __metadata:
       optional: true
     eslint-config-prettier:
       optional: true
-  checksum: 10/18a0189e084dd5f1e4e3944a8ff89f20d69c14f100965033a94edd8de16fb7abdcbf226fbc40f27b7ac6cfdb779065272dd8a9e6ca34ed86a59d895e630bd48b
+  checksum: 10/c75f9cc10d41a76c29ba28b7cd660cec151929abcb256894b4a5816d38541379d80daf32c7c922803f46fb17d6e0d53e27f661f0c6899c0ecfc6e54b98f46fa3
   languageName: node
   linkType: hard
 
@@ -7380,7 +7387,7 @@ __metadata:
     "@web/test-runner-playwright": "npm:^1.0.0"
     buffer-esm: "npm:^1.2.0"
     eslint: "npm:^10.12.0"
-    eslint-plugin-prettier: "npm:^5.5.6"
+    eslint-plugin-prettier: "npm:^5.5.7"
     ethers: "npm:^6.17.0"
     hardhat: "npm:^3.19.0"
     prettier: "npm:3.9.10"
@@ -10816,12 +10823,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"synckit@npm:^0.11.13":
-  version: 0.11.13
-  resolution: "synckit@npm:0.11.13"
+"synckit@npm:^0.12.3":
+  version: 0.12.3
+  resolution: "synckit@npm:0.12.3"
   dependencies:
+    "@dual-bundle/import-meta-resolve": "npm:^4.2.1"
     "@pkgr/core": "npm:^0.3.6"
-  checksum: 10/188544a829dbd38abd144281960835c1f8027aaa495b7c40d39ebf0c1c63a4a41c0edc42818b7ada9b5c0c15fba2f625b472220d128798fe98f9181fed84e6a2
+  checksum: 10/0421a933e0dee17ab6c39520401343cda97c4bb1630a3bb6850fddc0a8339510fa647c58ba0049bfe2177b215b01b1f52441356e4a76643c24beadc2f4564ad9
   languageName: node
   linkType: hard
 
