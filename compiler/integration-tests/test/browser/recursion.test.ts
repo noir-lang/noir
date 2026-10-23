@@ -3,7 +3,7 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 import { Logger } from 'tslog';
 import { acvm, abi, Noir } from '@noir-lang/noir_js';
 
-import { Barretenberg, deflattenFields, UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec/bb.js';
+import { Barretenberg, deflattenFields, UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec-foundation/bb.js';
 import { getFile } from './utils.js';
 import { InputMap } from '@noir-lang/noirc_abi';
 import { createFileManager, compile } from '@noir-lang/noir_wasm';
