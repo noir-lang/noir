@@ -129,13 +129,14 @@ jobs:
   # Builds the base branch's `nargo` so `external_repo_reports` can time it next to the PR's on the
   # same runner. The `upload_*` jobs for times then compare the PR against those results.
   build-nargo-baseline:
-    if: github.event_name == 'pull_request'
+    # External PRs don't store benchmark results, so they have no use for the baseline.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     permissions:
       contents: read
     outputs:
-      sha: ${{ steps.base.outputs.sha }}
+      sha: ${{ steps.build.outputs.sha }}
 
     steps:
       - name: Checkout Noir repo
@@ -143,37 +144,19 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Check out the base of the PR's merge commit
-        id: base
-        run: |
-          git checkout --detach HEAD^1
-          git log -1 --oneline
-          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.89.0
-
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: Build the base branch's nargo
+        id: build
+        uses: ./.github/actions/build-nargo-baseline
         with:
           shared-key: nargo-release
-          key: x86_64-unknown-linux-gnu
-          save-if: false
-
-      - name: Build Nargo
-        run: cargo build --package nargo_cli --release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Package artifacts
-        run: |
-          mkdir dist
-          cp ./target/release/nargo ./dist/nargo
 
       - name: Upload artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: nargo-baseline
-          path: ./dist/*
+          path: ./target/release/nargo
           retention-days: 3
 
   build-noir-inspector:
@@ -702,9 +685,7 @@ jobs:
 
       - name: Use the base branch's results as the previous ones
         if: needs.build-nargo-baseline.result == 'success'
-        run: |
-          jq --slurp 'map(.baseline_compilation_time | select(.))' ./reports/* > baseline_bench.json
-          .github/scripts/baseline-benchmark-data.sh "Compilation Time" "$BASE_SHA" baseline_bench.json > baseline_data.json
+        run: .github/scripts/baseline-benchmark-data.sh "Compilation Time" "$BASE_SHA" baseline_compilation_time ./reports/* > baseline_data.json
         env:
           BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
 
@@ -761,9 +742,7 @@ jobs:
 
       - name: Use the base branch's results as the previous ones
         if: needs.build-nargo-baseline.result == 'success'
-        run: |
-          jq --slurp 'map(.baseline_elaboration_time | select(.))' ./reports/* > baseline_bench.json
-          .github/scripts/baseline-benchmark-data.sh "Elaboration Time" "$BASE_SHA" baseline_bench.json > baseline_data.json
+        run: .github/scripts/baseline-benchmark-data.sh "Elaboration Time" "$BASE_SHA" baseline_elaboration_time ./reports/* > baseline_data.json
         env:
           BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
 
@@ -820,9 +799,7 @@ jobs:
 
       - name: Use the base branch's results as the previous ones
         if: needs.build-nargo-baseline.result == 'success'
-        run: |
-          jq --slurp 'map(.baseline_execution_time | select(.))' ./reports/* > baseline_bench.json
-          .github/scripts/baseline-benchmark-data.sh "Execution Time" "$BASE_SHA" baseline_bench.json > baseline_data.json
+        run: .github/scripts/baseline-benchmark-data.sh "Execution Time" "$BASE_SHA" baseline_execution_time ./reports/* > baseline_data.json
         env:
           BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
 
@@ -975,9 +952,7 @@ jobs:
 
       - name: Use the base branch's results as the previous ones
         if: needs.build-nargo-baseline.result == 'success'
-        run: |
-          jq --slurp 'map(.baseline_brillig_compilation_time | select(.))' ./reports/* > baseline_bench.json
-          .github/scripts/baseline-benchmark-data.sh "Brillig Compilation Time" "$BASE_SHA" baseline_bench.json > baseline_data.json
+        run: .github/scripts/baseline-benchmark-data.sh "Brillig Compilation Time" "$BASE_SHA" baseline_brillig_compilation_time ./reports/* > baseline_data.json
         env:
           BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
 
@@ -1034,9 +1009,7 @@ jobs:
 
       - name: Use the base branch's results as the previous ones
         if: needs.build-nargo-baseline.result == 'success'
-        run: |
-          jq --slurp 'map(.baseline_brillig_execution_time | select(.))' ./reports/* > baseline_bench.json
-          .github/scripts/baseline-benchmark-data.sh "Brillig Execution Time" "$BASE_SHA" baseline_bench.json > baseline_data.json
+        run: .github/scripts/baseline-benchmark-data.sh "Brillig Execution Time" "$BASE_SHA" baseline_brillig_execution_time ./reports/* > baseline_data.json
         env:
           BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
 

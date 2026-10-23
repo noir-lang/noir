@@ -119,13 +119,14 @@ jobs:
   # Builds the base branch's `nargo` so `external-repo-checks` can time each library's tests with it
   # next to the PR's, on the same runner.
   build-nargo-baseline:
-    if: github.event_name == 'pull_request'
+    # External PRs don't store benchmark results, so they have no use for the baseline.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
       contents: read
     outputs:
-      sha: ${{ steps.base.outputs.sha }}
+      sha: ${{ steps.build.outputs.sha }}
 
     steps:
       - name: Checkout Noir repo
@@ -133,24 +134,11 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Check out the base of the PR's merge commit
-        id: base
-        run: |
-          git checkout --detach HEAD^1
-          git log -1 --oneline
-          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.89.0
-
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: Build the base branch's nargo
+        id: build
+        uses: ./.github/actions/build-nargo-baseline
         with:
           shared-key: binaries-release
-          key: x86_64-unknown-linux-gnu
-          save-if: false
-
-      - name: Build nargo
-        run: cargo build --package nargo_cli --release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -791,10 +779,19 @@ jobs:
       # Runs after the PR's tests, so anything left warm by the first run can only favour the base.
       - name: Run nargo test with the base branch's nargo
         if: needs.build-nargo-baseline.result == 'success' && matrix.timeout > 20
+        # The base branch's results only add a comparison, so they never fail the library's checks.
+        continue-on-error: true
         run: |
           chmod +x "$NARGO"
 
           .github/scripts/run-external-repo-tests.sh
+
+          # No test output means the base branch's nargo failed before running any tests, for example
+          # on a library ref that needs the PR's compiler. Its time then isn't comparable.
+          if [ ! -f "$OUTPUT_FILE" ]; then
+            echo "::warning::The base branch's nargo didn't run the tests; not comparing their duration"
+            rm -f "$BENCHMARK_FILE"
+          fi
         env:
           NARGO: ${{ runner.temp }}/nargo-baseline/nargo
           REPO_DIR: ./test-repo
@@ -813,6 +810,7 @@ jobs:
           name: baseline_${{ steps.test_report_name.outputs.test_report_name }}
           path: baseline_${{ steps.test_report_name.outputs.test_report_name }}.json
           retention-days: 3
+          if-no-files-found: ignore
           overwrite: true
 
       - name: Compare test results
@@ -1005,9 +1003,10 @@ jobs:
 
       - name: Use the base branch's results as the previous ones
         if: needs.build-nargo-baseline.result == 'success'
+        # A library whose baseline run failed has no report, so there may be none at all.
         run: |
-          jq --slurp '. | flatten' ./baseline_reports/* > baseline_bench.json
-          .github/scripts/baseline-benchmark-data.sh "Test Suite Duration" "$BASE_SHA" baseline_bench.json > baseline_data.json
+          shopt -s nullglob
+          .github/scripts/baseline-benchmark-data.sh "Test Suite Duration" "$BASE_SHA" "" ./baseline_reports/* > baseline_data.json
         env:
           BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
 
