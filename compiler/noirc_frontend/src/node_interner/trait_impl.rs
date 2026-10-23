@@ -377,14 +377,24 @@ impl NodeInterner {
                     self.impls_that_may_serve(obligation, bindings, IMPL_SEARCH_RECURSION_LIMIT)
                 })
             };
+            // The obligations as `bindings` decide them, to tell whether an impl decides more.
+            let decided_obligations = |bindings: &TypeBindings| {
+                vecmap(&obligations, |obligation| {
+                    let generics = &obligation.trait_bound.trait_generics.ordered;
+                    let generics = vecmap(generics, |generic| generic.substitute(bindings));
+                    (obligation.typ.substitute(bindings), generics)
+                })
+            };
             // Bounds only one impl can serve decide unknowns, which may give another bound a
-            // known head or a single impl: repeat until nothing more is decided.
+            // known head or a single impl: repeat until nothing more is decided. An impl's own
+            // generics are fresh each time, so progress is judged on the obligations.
             loop {
+                let current = decided_obligations(&bindings);
                 let decided = candidates(&bindings)
                     .into_iter()
                     .flatten()
                     .filter_map(|mut serving| (serving.len() == 1).then(|| serving.remove(0)))
-                    .find(|candidate| candidate.len() > bindings.len());
+                    .find(|candidate| decided_obligations(candidate) != current);
                 let Some(decided) = decided else { break };
                 bindings = decided;
             }
