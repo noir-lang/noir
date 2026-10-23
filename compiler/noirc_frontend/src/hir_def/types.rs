@@ -2568,6 +2568,24 @@ impl Type {
         }
     }
 
+    /// Like [`Self::substitute`], but also substitutes inside each replacement, so a type variable
+    /// mapped to another one mapped to `Field` gives `Field`.
+    ///
+    /// Unification's occurs check doesn't look through `type_bindings`, so they can hold a cycle
+    /// (`?A -> W<?A>`). The substitution then stops after as many passes as there are bindings,
+    /// with a type variable left inside.
+    pub fn substitute_fully(&self, type_bindings: &TypeBindings) -> Type {
+        let mut typ = self.clone();
+        for _ in 0..=type_bindings.len() {
+            let next = typ.substitute(type_bindings);
+            if next == typ {
+                break;
+            }
+            typ = next;
+        }
+        typ
+    }
+
     /// True if the given `TypeVariableId` is free anywhere within self
     pub fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {

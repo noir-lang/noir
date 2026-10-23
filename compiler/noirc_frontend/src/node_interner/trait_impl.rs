@@ -371,17 +371,17 @@ impl NodeInterner {
             )?;
             let mut obligations = where_clause.to_vec();
             obligations.extend(self.instantiated_where_clause(*existing, &instantiation_bindings));
-            // How much of the obligations `bindings` decides. An impl's own generics are fresh
-            // each time it serves a bound, so unifying one unknown with another decides nothing.
+            // How much of the obligations' unknowns `bindings` decides: one for each unknown with
+            // a known head, and one more for each that is fully known. That is at most twice the
+            // number of unknowns, so the loop ends even if the bindings hold a cycle. An impl's
+            // own generics are fresh each time it serves a bound, so they aren't counted.
+            let unknowns = unknowns_of(&obligations);
             let decided = |bindings: &TypeBindings| -> usize {
-                obligations
+                unknowns
                     .iter()
-                    .map(|obligation| {
-                        let generics = obligation.trait_bound.trait_generics.ordered.iter();
-                        std::iter::once(&obligation.typ)
-                            .chain(generics)
-                            .map(|typ| known_size(&resolve(typ, bindings)))
-                            .sum::<usize>()
+                    .map(|unknown| {
+                        let typ = unknown.substitute_fully(bindings);
+                        usize::from(!typ.is_bindable()) + usize::from(!has_unknowns(&typ))
                     })
                     .sum()
             };
@@ -389,59 +389,45 @@ impl NodeInterner {
             // head or a single serving impl: repeat until a bound is known to fail, or nothing
             // more is decided.
             loop {
-                let serving = vecmap(&obligations, |obligation| {
-                    self.impls_that_may_serve(obligation, &bindings, IMPL_SEARCH_RECURSION_LIMIT)
-                });
-                if serving.iter().flatten().any(Vec::is_empty) {
-                    return None;
-                }
                 let current = decided(&bindings);
-                let decides_more = serving
-                    .into_iter()
-                    .flatten()
-                    .filter_map(|mut serving| (serving.len() == 1).then(|| serving.remove(0)))
-                    .find(|candidate| decided(candidate) > current);
+                let mut decides_more = None;
+                for obligation in &obligations {
+                    match self.serving(obligation, &bindings, IMPL_SEARCH_RECURSION_LIMIT) {
+                        Serving::Fails => return None,
+                        Serving::One(candidate)
+                            if decides_more.is_none() && decided(&candidate) > current =>
+                        {
+                            decides_more = Some(candidate);
+                        }
+                        Serving::CantTell | Serving::One(_) | Serving::Several => {}
+                    }
+                }
                 let Some(decides_more) = decides_more else { return Some(*existing) };
                 bindings = decides_more;
             }
         })
     }
 
-    /// The bindings of each impl that serves `obligation` under `bindings` (see
-    /// [`Self::overlapping_impl`]), looking `recursion_limit` where clauses deep. `None` when the
-    /// obligation can't be ruled out whatever the impls here: its type is still unknown, or the
-    /// limit is reached.
-    fn impls_that_may_serve(
+    /// Which impls serve `obligation` under `bindings` (see [`Self::overlapping_impl`]), looking
+    /// `recursion_limit` where clauses deep.
+    fn serving(
         &self,
         obligation: &TraitConstraint,
         bindings: &TypeBindings,
         recursion_limit: u32,
-    ) -> Option<Vec<TypeBindings>> {
-        if recursion_limit == 0 || resolve(&obligation.typ, bindings).is_bindable() {
-            return None;
+    ) -> Serving {
+        if recursion_limit == 0 || obligation.typ.substitute_fully(bindings).is_bindable() {
+            return Serving::CantTell;
         }
         let impls = self.trait_implementation_map.get(&obligation.trait_bound.trait_id);
-        let serving = impls.into_iter().flatten().filter_map(|(impl_type, kind)| {
+        let mut serving = impls.into_iter().flatten().filter_map(|(impl_type, kind)| {
             self.impl_may_serve(obligation, bindings, impl_type, kind, recursion_limit)
         });
-        Some(serving.collect())
-    }
-
-    /// Whether `obligation` may hold under `bindings`: some impl may serve it, or it can't be
-    /// ruled out (see [`Self::impls_that_may_serve`]).
-    fn may_hold(
-        &self,
-        obligation: &TraitConstraint,
-        bindings: &TypeBindings,
-        recursion_limit: u32,
-    ) -> bool {
-        if recursion_limit == 0 || resolve(&obligation.typ, bindings).is_bindable() {
-            return true;
+        match (serving.next(), serving.next()) {
+            (None, _) => Serving::Fails,
+            (Some(candidate), None) => Serving::One(candidate),
+            (Some(_), Some(_)) => Serving::Several,
         }
-        let impls = self.trait_implementation_map.get(&obligation.trait_bound.trait_id);
-        impls.into_iter().flatten().any(|(impl_type, kind)| {
-            self.impl_may_serve(obligation, bindings, impl_type, kind, recursion_limit).is_some()
-        })
     }
 
     /// The bindings under which the impl entry `impl_type`/`impl_kind` serves `obligation`: its
@@ -466,8 +452,9 @@ impl NodeInterner {
             &mut candidate,
         )?;
         let where_clause = self.instantiated_where_clause(*impl_id, &instantiation_bindings);
-        let may_hold =
-            where_clause.iter().all(|bound| self.may_hold(bound, &candidate, recursion_limit - 1));
+        let may_hold = where_clause.iter().all(|bound| {
+            !matches!(self.serving(bound, &candidate, recursion_limit - 1), Serving::Fails)
+        });
         may_hold.then_some(candidate)
     }
 
@@ -989,32 +976,44 @@ impl NodeInterner {
     }
 }
 
-/// `typ` with the unknowns `bindings` decides replaced, following an unknown bound to another
-/// unknown to what that one is bound to.
-fn resolve(typ: &Type, bindings: &TypeBindings) -> Type {
-    let mut typ = typ.clone();
-    // Each pass follows one more link of a chain; unification doesn't bind an unknown to itself
-    // through a chain, so there are at most as many links as bindings.
-    for _ in 0..=bindings.len() {
-        let next = typ.substitute(bindings);
-        if next == typ {
-            break;
-        }
-        typ = next;
-    }
-    typ
+/// Which impls serve a bound in the overlap check.
+enum Serving {
+    /// The bound can't be ruled out whatever the impls here: its type is still unknown, or the
+    /// search reached its depth limit.
+    CantTell,
+    /// No impl serves the bound: it is known to fail.
+    Fails,
+    /// Exactly one impl serves the bound, under these bindings.
+    One(TypeBindings),
+    /// More than one impl serves the bound.
+    Several,
 }
 
-/// How many parts of `typ` are known: every node but its unknowns.
-fn known_size(typ: &Type) -> usize {
-    let mut size = 0;
-    typ.visit(&mut |typ| {
-        if !matches!(typ, Type::TypeVariable(_)) {
-            size += 1;
+/// The unknowns the types of `obligations` mention, their trait arguments included.
+fn unknowns_of(obligations: &[TraitConstraint]) -> Vec<Type> {
+    let mut unknowns = Vec::new();
+    for obligation in obligations {
+        let generics = obligation.trait_bound.trait_generics.ordered.iter();
+        for typ in std::iter::once(&obligation.typ).chain(generics) {
+            typ.visit(&mut |typ| {
+                if matches!(typ, Type::TypeVariable(_)) && !unknowns.contains(typ) {
+                    unknowns.push(typ.clone());
+                }
+                true
+            });
         }
-        true
+    }
+    unknowns
+}
+
+/// Whether `typ` mentions an unknown.
+fn has_unknowns(typ: &Type) -> bool {
+    let mut found = false;
+    typ.visit(&mut |typ| {
+        found |= matches!(typ, Type::TypeVariable(_));
+        !found
     });
-    size
+    found
 }
 
 /// Whether `typ` mentions a generic parameter (`T`, not an associated item like

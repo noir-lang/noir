@@ -937,26 +937,42 @@ fn type_decided_through_unified_unknowns_keeps_impls_apart_in_either_order() {
     }
 }
 
-/// An impl serving a bound with fresh unknowns each time (`impl<U> Other for S<W<U>>`) only
-/// decides the bound once, so the overlap check ends, in either order of the impls.
+/// Impls serving bounds with fresh unknowns each time (`impl<U> Other for S<W<U>>`,
+/// `impl<U> Marker for W<U>`) decide each bound once, so the overlap check ends, in either order
+/// of the impls. `S<W<X>>` meets both where clauses, so the impls overlap.
 #[test]
-fn bound_served_by_one_generic_impl_is_decided_once_in_either_order() {
-    let impls =
-        ["impl<T> Foo for S<T> where S<T>: Other {}", "impl<A> Foo for S<A> where A: Marker {}"];
-    for (first, second) in [(impls[0], impls[1]), (impls[1], impls[0])] {
-        let src = format!(
-            r#"
-    pub trait Marker {{}}
-    pub trait Other {{}}
-    pub trait Foo {{}}
-    pub struct S<A> {{ x: A }}
-    pub struct W<A> {{ x: A }}
-    {first}
-    {second}
-    impl<U> Other for S<W<U>> {{}}
-    fn main() {{}}
-    "#
-        );
-        assert_no_errors(&src);
-    }
+fn bounds_served_by_generic_impls_are_decided_once_in_either_order() {
+    let src = r#"
+    pub trait Marker {}
+    pub trait Other {}
+    pub trait Foo {}
+    pub struct S<A> { x: A }
+    pub struct W<A> { x: A }
+    impl<T> Foo for S<T> where S<T>: Other {}
+            ~~~ Previous impl defined here
+    impl<A> Foo for S<A> where A: Marker {}
+                    ^^^^ Impl for type `S<A>` overlaps with existing impl
+                    ~~~~ Overlapping impl
+    impl<U> Other for S<W<U>> {}
+    impl<U> Marker for W<U> {}
+    fn main() {}
+    "#;
+    check_errors(src);
+
+    let src = r#"
+    pub trait Marker {}
+    pub trait Other {}
+    pub trait Foo {}
+    pub struct S<A> { x: A }
+    pub struct W<A> { x: A }
+    impl<A> Foo for S<A> where A: Marker {}
+            ~~~ Previous impl defined here
+    impl<T> Foo for S<T> where S<T>: Other {}
+                    ^^^^ Impl for type `S<T>` overlaps with existing impl
+                    ~~~~ Overlapping impl
+    impl<U> Other for S<W<U>> {}
+    impl<U> Marker for W<U> {}
+    fn main() {}
+    "#;
+    check_errors(src);
 }
