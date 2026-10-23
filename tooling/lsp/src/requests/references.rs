@@ -14,7 +14,6 @@ pub(crate) fn on_references_request(
         find_all_references_in_workspace(
             args.location,
             args.interner,
-            args.package_cache,
             args.files,
             include_declaration,
             true,
@@ -95,10 +94,6 @@ fn main() {
         check_references_succeeds(ANOTHER_FUNCTION_SRC, "another_function", 0, false);
     }
 
-    // Ignored because making this work slows down everything, so for now things will not work
-    // as ideally, but they'll be fast.
-    // See https://github.com/noir-lang/noir/issues/5460
-    #[ignore]
     #[test]
     fn test_on_references_request_works_across_workspace_packages() {
         let (mut state, noir_text_document) = test_utils::init_lsp_server("workspace");

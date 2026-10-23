@@ -29,6 +29,7 @@ use async_lsp::{
 };
 use fm::{FileManager, codespan_files as files};
 use nargo::{
+    constants::PKG_FILE,
     package::{Package, PackageType},
     parse_all,
     workspace::Workspace,
@@ -36,7 +37,7 @@ use nargo::{
 use nargo_toml::{
     ManifestError, PackageSelection, find_file_manifest, resolve_workspace_from_toml,
 };
-use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_driver::{NOIR_ARTIFACT_VERSION_STRING, add_dep, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
@@ -114,28 +115,30 @@ pub struct LspState {
     input_files: HashMap<String, String>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
-    package_cache: HashMap<PathBuf, PackageCacheData>,
     workspace_symbol_cache: WorkspaceSymbolCache,
 
     options: LspInitializationOptions,
 
-    // Tracks files that currently have errors, by package root.
+    // Tracks files that currently have errors, by workspace root.
     files_with_errors: HashMap<PathBuf, HashSet<Url>>,
 
     // Tracks Nargo.toml files that currently have diagnostics published to them.
     toml_files_with_errors: HashSet<Url>,
 }
 
+/// The analysis of a whole workspace. Every member package is a crate of one `CrateGraph`,
+/// elaborated into one `NodeInterner`, so lookups that walk the interner (references, rename)
+/// see every package of the workspace and not only the one a file belongs to.
+///
+/// The analysis is cached in parts so that single file changes can update them in place.
 struct WorkspaceCacheData {
     file_manager: Arc<FileManager>,
-}
-
-struct PackageCacheData {
-    crate_id: CrateId,
     crate_graph: CrateGraph,
     node_interner: NodeInterner,
     def_maps: BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: UsageTracker,
+    /// The crate of each member package, keyed by the package's root directory.
+    package_crate_ids: HashMap<PathBuf, CrateId>,
 }
 
 impl LspState {
@@ -150,7 +153,6 @@ impl LspState {
             input_files: HashMap::new(),
             cached_parsed_files: HashMap::new(),
             workspace_cache: HashMap::new(),
-            package_cache: HashMap::new(),
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
@@ -442,16 +444,14 @@ fn byte_span_to_range<'a, F: files::Files<'a> + ?Sized>(
 /// * otherwise treat the parent directory as a dummy workspace
 pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Workspace, LspError> {
     if let Some(toml_path) = find_file_manifest(file_path) {
-        match resolve_workspace_from_toml(
+        return match resolve_workspace_from_toml(
             &toml_path,
             PackageSelection::All,
             Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
         ) {
-            Ok(workspace) => return Ok(workspace),
-            Err(error) => {
-                return Err(LspError::ManifestError(toml_path, error));
-            }
-        }
+            Ok(workspace) => Ok(enclosing_workspace(workspace, &toml_path)),
+            Err(error) => Err(LspError::ManifestError(toml_path, error)),
+        };
     }
 
     let Some(parent_folder) = file_path
@@ -493,6 +493,43 @@ pub(crate) fn resolve_workspace_for_source_path(file_path: &Path) -> Result<Work
     Ok(workspace)
 }
 
+/// Widens `workspace`, resolved from the manifest at `toml_path`, to the outermost ancestor
+/// workspace that lists it as a member. Analyzing that workspace is what lets a package see the
+/// packages that depend on it.
+fn enclosing_workspace(workspace: Workspace, toml_path: &Path) -> Workspace {
+    let Some(package_dir) = toml_path.parent() else {
+        return workspace;
+    };
+    let package_dir = canonical_or_same(package_dir);
+
+    let mut workspace = workspace;
+    for ancestor in package_dir.ancestors().skip(1) {
+        let candidate_toml = ancestor.join(PKG_FILE);
+        if !candidate_toml.is_file() {
+            continue;
+        }
+        let Ok(candidate) = resolve_workspace_from_toml(
+            &candidate_toml,
+            PackageSelection::All,
+            Some(NOIR_ARTIFACT_VERSION_STRING.to_string()),
+        ) else {
+            continue;
+        };
+        let is_member = candidate
+            .members
+            .iter()
+            .any(|member| canonical_or_same(&member.root_dir) == package_dir);
+        if is_member && canonical_or_same(&candidate.root_dir) != package_dir {
+            workspace = candidate;
+        }
+    }
+    workspace
+}
+
+fn canonical_or_same(path: &Path) -> PathBuf {
+    path.canonicalize().unwrap_or_else(|_| path.to_path_buf())
+}
+
 pub(crate) fn workspace_package_for_file<'a>(
     workspace: &'a Workspace,
     file_path: &Path,
@@ -500,18 +537,73 @@ pub(crate) fn workspace_package_for_file<'a>(
     if workspace.is_assumed {
         workspace.members.first()
     } else {
-        workspace.members.iter().find(|package| file_path.starts_with(&package.root_dir))
+        // Packages can be nested, so the innermost one containing the file wins.
+        workspace
+            .members
+            .iter()
+            .filter(|package| file_path.starts_with(&package.root_dir))
+            .max_by_key(|package| package.root_dir.as_os_str().len())
     }
 }
 
-pub(crate) fn prepare_package(
+/// The root crate of a workspace's analysis is an empty crate that depends on every member
+/// package, so that checking it elaborates all of them into one context. Its file exists only
+/// in the file manager.
+fn workspace_root_file_path(workspace: &Workspace) -> PathBuf {
+    workspace.root_dir.join("__nargo_lsp_workspace_root__.nr")
+}
+
+/// Adds the file of the workspace's root crate (see [`workspace_root_file_path`]) to a file
+/// manager that already holds the workspace's sources, so that [`prepare_workspace`] finds it.
+pub(crate) fn add_workspace_root_file(workspace: &Workspace, file_manager: &mut FileManager) {
+    if !workspace.is_assumed {
+        file_manager.add_file_with_source_canonical_path(
+            &workspace_root_file_path(workspace),
+            String::new(),
+        );
+    }
+}
+
+pub(crate) struct PreparedWorkspace {
+    pub(crate) context: Context,
+    /// The crate to check: checking it elaborates every member package.
+    pub(crate) root_crate_id: CrateId,
+    /// The crate of each member package, keyed by the package's root directory.
+    pub(crate) package_crate_ids: HashMap<PathBuf, CrateId>,
+}
+
+/// Builds the crate graph of a whole workspace in one context. Member packages that depend on
+/// each other share a single crate, as the crate graph identifies crates by their root file.
+pub(crate) fn prepare_workspace(
     file_manager: &Arc<FileManager>,
     parsed_files: &Arc<ParsedFiles>,
-    package: &Package,
-) -> (Context, CrateId) {
-    let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
+    workspace: &Workspace,
+) -> PreparedWorkspace {
+    let mut package_crate_ids = HashMap::new();
+
+    let (mut context, root_crate_id) = if workspace.is_assumed {
+        // An assumed workspace has a single package and no manifest, so there is nothing to share.
+        let package = workspace.members.first().expect("an assumed workspace has one package");
+        let (context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
+        package_crate_ids.insert(package.root_dir.clone(), crate_id);
+        (context, crate_id)
+    } else {
+        let mut context = Context::new(Arc::clone(file_manager), Arc::clone(parsed_files));
+        let root_crate_id = prepare_crate(&mut context, &workspace_root_file_path(workspace));
+        for package in &workspace.members {
+            let crate_id = prepare_dependency(&mut context, &package.entry_path);
+            context
+                .required_unstable_features
+                .insert(crate_id, package.compiler_required_unstable_features.clone());
+            add_dep(&mut context, root_crate_id, crate_id, package.name.clone());
+            nargo::prepare_dependencies(&mut context, crate_id, &package.dependencies);
+            package_crate_ids.insert(package.root_dir.clone(), crate_id);
+        }
+        (context, root_crate_id)
+    };
+
     context.activate_lsp_mode(LspMode::Full);
-    (context, crate_id)
+    PreparedWorkspace { context, root_crate_id, package_crate_ids }
 }
 
 fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {

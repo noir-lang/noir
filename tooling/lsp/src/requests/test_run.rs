@@ -61,7 +61,7 @@ fn on_test_run_request_inner(
     match workspace.into_iter().next() {
         Some(package) => {
             let (context, crate_id) =
-                crate::prepare_package(&workspace_file_manager, &parsed_files, package);
+                nargo::prepare_package(&workspace_file_manager, &parsed_files, package);
             let (context, result) = check_crate(context, crate_id, &Default::default());
             if result.is_err() {
                 let result = NargoTestRunResult {

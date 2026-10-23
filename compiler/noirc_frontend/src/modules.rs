@@ -97,40 +97,53 @@ pub fn relative_module_id_path(
     let mut segments: Vec<&str> = Vec::new();
     let mut is_relative = false;
 
-    if let Some(module_attributes) = interner.try_module_attributes(target_module_id) {
-        segments.push(&module_attributes.name);
+    // A crate's root module is named after the crate when it's reached from a crate that depends on
+    // it, but from inside the crate itself it is always `crate`.
+    let same_crate = target_module_id.krate == current_module_id.krate;
 
-        let mut current_attributes = module_attributes;
-        while let Some(parent_local_id) = current_attributes.parent {
-            let parent_module_id =
-                &ModuleId { krate: target_module_id.krate, local_id: parent_local_id };
-
-            if current_module_id == *parent_module_id {
-                is_relative = true;
-                break;
+    match interner.try_module_attributes(target_module_id) {
+        Some(module_attributes) if module_attributes.parent.is_none() => {
+            if !same_crate {
+                segments.push(&module_attributes.name);
             }
-
-            if current_module_parent_id == Some(*parent_module_id) {
-                segments.push("super");
-                is_relative = true;
-                break;
-            }
-
-            let Some(parent_attributes) = interner.try_module_attributes(*parent_module_id) else {
-                break;
-            };
-
-            segments.push(&parent_attributes.name);
-            current_attributes = parent_attributes;
         }
+        Some(module_attributes) => {
+            segments.push(&module_attributes.name);
+
+            let mut current_attributes = module_attributes;
+            while let Some(parent_local_id) = current_attributes.parent {
+                let parent_module_id =
+                    &ModuleId { krate: target_module_id.krate, local_id: parent_local_id };
+
+                if current_module_id == *parent_module_id {
+                    is_relative = true;
+                    break;
+                }
+
+                if current_module_parent_id == Some(*parent_module_id) {
+                    segments.push("super");
+                    is_relative = true;
+                    break;
+                }
+
+                let Some(parent_attributes) = interner.try_module_attributes(*parent_module_id)
+                else {
+                    break;
+                };
+
+                if parent_attributes.parent.is_none() && same_crate {
+                    break;
+                }
+
+                segments.push(&parent_attributes.name);
+                current_attributes = parent_attributes;
+            }
+        }
+        None => {}
     }
 
-    if !is_relative {
-        // We don't record module attributes for the root module,
-        // so we handle that case separately
-        if target_module_id.krate.is_root() {
-            segments.push("crate");
-        }
+    if !is_relative && same_crate {
+        segments.push("crate");
     }
 
     segments.reverse();

@@ -382,7 +382,7 @@ impl CompileOptions {
 }
 
 impl CompileOptions {
-    pub(crate) fn frontend_options(&self) -> FrontendOptions {
+    pub fn frontend_options(&self) -> FrontendOptions {
         FrontendOptions {
             debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
             enabled_unstable_features: &self.unstable_features,
