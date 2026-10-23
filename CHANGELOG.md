@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0-rc.7](https://github.com/noir-lang/noir/compare/v1.0.0-rc.6...v1.0.0-rc.7) (2026-10-23)
+
+
+### Bug Fixes
+
+* An impl method's bounds are checked by solving them under the trait method's bounds ([#14084](https://github.com/noir-lang/noir/issues/14084)) ([bcb5f3f](https://github.com/noir-lang/noir/commit/bcb5f3f48db88455dbe9d3d59c41436a1309e4cc))
+* **frontend:** Check infix operators against the operands' resolved types ([#14073](https://github.com/noir-lang/noir/issues/14073)) ([1355b05](https://github.com/noir-lang/noir/commit/1355b054f1a470f442fa9184332a3a348065c3c5))
+* **frontend:** Lex `<<` as one token so `a < <T as Trait>::f()` parses as a comparison ([#14072](https://github.com/noir-lang/noir/issues/14072)) ([a048edd](https://github.com/noir-lang/noir/commit/a048edd56caf016c8ae7962634a1dc2884c3ecb0))
+* **nargo_doc:** Resolve doc links in an impl against the module that declares the impl ([#14074](https://github.com/noir-lang/noir/issues/14074)) ([f50f500](https://github.com/noir-lang/noir/commit/f50f50000eeb58d4e7e7af55612bbc5883b389e2))
+* **nargo:** Make `nargo doc --deny-warnings` fail on broken links, and use it on the stdlib in CI ([#14067](https://github.com/noir-lang/noir/issues/14067)) ([dc94d70](https://github.com/noir-lang/noir/commit/dc94d703c56767aa1ea1094325c2df597ad7b6e2))
+* Projecting impls are prepared after the others, and impls overlap as in rustc ([#14085](https://github.com/noir-lang/noir/issues/14085)) ([8e6475b](https://github.com/noir-lang/noir/commit/8e6475b0c4538062372ed0c6316db9d9dc04e052))
+* **ssa:** Treat an array input passed to a call returning an array as moved in purity analysis ([#14081](https://github.com/noir-lang/noir/issues/14081)) ([99ad7fb](https://github.com/noir-lang/noir/commit/99ad7fbf601dede6112c61e076bd43b09dc7adab))
+
 ## [1.0.0-rc.6](https://github.com/noir-lang/noir/compare/v1.0.0-rc.5...v1.0.0-rc.6) (2026-10-20)
 
 
