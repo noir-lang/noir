@@ -37,7 +37,11 @@ use nargo::{
 use nargo_toml::{
     ManifestError, PackageSelection, find_file_manifest, resolve_workspace_from_toml,
 };
-use noirc_driver::{NOIR_ARTIFACT_VERSION_STRING, add_dep, prepare_crate, prepare_dependency};
+use noirc_driver::{
+    CompileOptions, NOIR_ARTIFACT_VERSION_STRING, add_dep, check_crate_keeping_warnings_from,
+    prepare_crate, prepare_dependency,
+};
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
@@ -701,6 +705,53 @@ pub(crate) fn prepare_workspace(
 
     context.activate_lsp_mode(LspMode::Full);
     PreparedWorkspace { context, root_crate_id, package_crate_ids }
+}
+
+pub(crate) struct CheckedWorkspace {
+    pub(crate) context: CheckedContext,
+    pub(crate) file_manager: Arc<FileManager>,
+    /// The crate of each member package, keyed by the package's root directory.
+    pub(crate) package_crate_ids: HashMap<PathBuf, CrateId>,
+    /// Errors from every crate, and warnings from member packages only: an error in a
+    /// dependency breaks the packages that use it, but its warnings are not the user's to fix.
+    pub(crate) diagnostics: Vec<CustomDiagnostic>,
+}
+
+/// Type-checks every member package of `workspace` in one context, reading open documents
+/// from their editor contents.
+pub(crate) fn check_workspace(state: &mut LspState, workspace: &Workspace) -> CheckedWorkspace {
+    let mut file_manager = workspace.new_file_manager();
+    if workspace.is_assumed {
+        let package = workspace.members.first().unwrap();
+        file_manager.add_file_with_source_canonical_path(&package.entry_path, String::new());
+    } else {
+        insert_all_files_for_workspace_into_file_manager(state, workspace, &mut file_manager);
+    }
+    add_workspace_root_file(workspace, &mut file_manager);
+
+    let parsed_files = Arc::new(parse_diff(&file_manager, state));
+    let file_manager = Arc::new(file_manager);
+
+    let prepared = prepare_workspace(&file_manager, &parsed_files, workspace);
+    let member_crates: Vec<CrateId> = prepared.package_crate_ids.values().copied().collect();
+    let options = CompileOptions::default();
+    let (context, result) = check_crate_keeping_warnings_from(
+        prepared.context,
+        prepared.root_crate_id,
+        &member_crates,
+        &options,
+        &mut options.comptime_io(),
+    );
+    let diagnostics = match result {
+        Ok(((), diagnostics)) | Err(diagnostics) => diagnostics,
+    };
+
+    CheckedWorkspace {
+        context,
+        file_manager,
+        package_crate_ids: prepared.package_crate_ids,
+        diagnostics,
+    }
 }
 
 fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {

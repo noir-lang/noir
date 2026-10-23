@@ -1,13 +1,10 @@
-use std::sync::Arc;
-
-use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::lsp_types::{LogMessageParams, MessageType};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use nargo_toml::{PackageSelection, find_package_manifest, resolve_workspace_from_toml};
-use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
 
 use crate::{
-    LspState, add_workspace_root_file, get_package_tests_in_crate, parse_diff, prepare_workspace,
+    CheckedWorkspace, LspState, check_workspace, get_package_tests_in_crate,
     types::{NargoPackageTests, NargoTestsParams, NargoTestsResult},
 };
 
@@ -49,30 +46,14 @@ fn on_tests_request_inner(
         ResponseError::new(ErrorCode::REQUEST_FAILED, err)
     })?;
 
-    let mut workspace_file_manager = workspace.new_file_manager();
-    insert_all_files_for_workspace_into_file_manager(
-        state,
-        &workspace,
-        &mut workspace_file_manager,
-    );
-    add_workspace_root_file(&workspace, &mut workspace_file_manager);
-    let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
-    let workspace_file_manager = Arc::new(workspace_file_manager);
-
-    let prepared = prepare_workspace(&workspace_file_manager, &parsed_files, &workspace);
-    // We ignore the warnings and errors produced by compilation for producing tests
-    // because we can still get the test functions even if compilation fails
-    let options = CompileOptions::default();
-    let (context, _) = prepared.context.check_crate(
-        prepared.root_crate_id,
-        options.frontend_options(),
-        &mut options.comptime_io(),
-    );
+    // Test functions are found even if the workspace fails to compile, so the diagnostics are
+    // not needed here.
+    let CheckedWorkspace { context, package_crate_ids, .. } = check_workspace(state, &workspace);
 
     let package_tests: Vec<_> = workspace
         .into_iter()
         .filter_map(|package| {
-            let crate_id = prepared.package_crate_ids.get(&package.root_dir)?;
+            let crate_id = package_crate_ids.get(&package.root_dir)?;
             // We don't add test headings for a package if it contains no `#[test]` functions
             get_package_tests_in_crate(&context, crate_id, &package.name)
                 .map(|tests| NargoPackageTests { package: package.name.to_string(), tests })

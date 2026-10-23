@@ -5,10 +5,7 @@ use std::str::FromStr as _;
 use std::sync::Arc;
 
 use crate::requests::{file_path_to_file_id, uri_to_file_path};
-use crate::{
-    WorkspaceCacheData, add_workspace_root_file, insert_all_files_for_workspace_into_file_manager,
-    prepare_workspace, workspace_package_for_file,
-};
+use crate::{CheckedWorkspace, WorkspaceCacheData, check_workspace, workspace_package_for_file};
 use async_lsp::lsp_types;
 use async_lsp::lsp_types::{
     DiagnosticRelatedInformation, DiagnosticTag, DidChangeWatchedFilesParams,
@@ -20,7 +17,6 @@ use fm::{FileId, FileManager, FileMap, PathString};
 use nargo::constants::PKG_FILE;
 use nargo::package::{Package, PackageType};
 use nargo::workspace::Workspace;
-use noirc_driver::CompileOptions;
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
@@ -308,47 +304,11 @@ pub(crate) fn process_workspace(
     state: &mut LspState,
     workspace: &Workspace,
 ) -> Result<(), async_lsp::Error> {
-    let mut workspace_file_manager = workspace.new_file_manager();
-    if workspace.is_assumed {
-        let package = workspace.members.first().unwrap();
-        workspace_file_manager
-            .add_file_with_source_canonical_path(&package.entry_path, String::new());
-    } else {
-        insert_all_files_for_workspace_into_file_manager(
-            state,
-            workspace,
-            &mut workspace_file_manager,
-        );
-    }
-
-    add_workspace_root_file(workspace, &mut workspace_file_manager);
-
-    let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
-    let workspace_file_manager = Arc::new(workspace_file_manager);
-
-    let prepared = prepare_workspace(&workspace_file_manager, &parsed_files, workspace);
-    let options = CompileOptions::default();
-    let (context, diagnostics) = prepared.context.check_crate(
-        prepared.root_crate_id,
-        options.frontend_options(),
-        &mut options.comptime_io(),
-    );
-
-    // Warnings are reported for the workspace's own packages only. Errors are kept wherever
-    // they are, as an error in a dependency breaks the packages that use it.
-    let workspace_files: HashSet<FileId> = prepared
-        .package_crate_ids
-        .values()
-        .flat_map(|crate_id| context.crate_files(crate_id))
-        .collect();
-    let file_diagnostics: Vec<CustomDiagnostic> = diagnostics
-        .iter()
-        .map(CustomDiagnostic::from)
-        .filter(|diagnostic| !diagnostic.is_warning() || workspace_files.contains(&diagnostic.file))
-        .collect();
+    let CheckedWorkspace { context, file_manager, package_crate_ids, diagnostics } =
+        check_workspace(state, workspace);
 
     for package in &workspace.members {
-        let Some(crate_id) = prepared.package_crate_ids.get(&package.root_dir) else {
+        let Some(crate_id) = package_crate_ids.get(&package.root_dir) else {
             continue;
         };
         // We don't add test headings for a package if it contains no `#[test]` functions
@@ -361,17 +321,17 @@ pub(crate) fn process_workspace(
     }
 
     let context = context.into_context();
-    publish_diagnostics(state, &workspace.root_dir, &context.file_manager, file_diagnostics);
+    publish_diagnostics(state, &workspace.root_dir, &context.file_manager, diagnostics);
 
     state.workspace_cache.insert(
         workspace.root_dir.clone(),
         WorkspaceCacheData {
-            file_manager: workspace_file_manager,
+            file_manager,
             crate_graph: context.crate_graph,
             node_interner: context.def_interner,
             def_maps: context.def_maps,
             usage_tracker: context.usage_tracker,
-            package_crate_ids: prepared.package_crate_ids,
+            package_crate_ids,
             dependents_stale: false,
         },
     );

@@ -4,6 +4,7 @@
 #[cfg(test)]
 use insta as _;
 
+use std::collections::HashSet;
 use std::hash::BuildHasher;
 use std::sync::OnceLock;
 
@@ -382,7 +383,7 @@ impl CompileOptions {
 }
 
 impl CompileOptions {
-    pub fn frontend_options(&self) -> FrontendOptions {
+    pub(crate) fn frontend_options(&self) -> FrontendOptions {
         FrontendOptions {
             debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
             enabled_unstable_features: &self.unstable_features,
@@ -455,9 +456,22 @@ pub fn check_crate_with_comptime_io(
     options: &CompileOptions,
     comptime_io: &mut ComptimeIo,
 ) -> (CheckedContext, CompilationResult<()>) {
+    check_crate_keeping_warnings_from(context, crate_id, &[crate_id], options, comptime_io)
+}
+
+/// Same as [`check_crate_with_comptime_io`], keeping the warnings raised in any of
+/// `warning_crates`. Errors are kept wherever they are raised.
+pub fn check_crate_keeping_warnings_from(
+    context: Context,
+    crate_id: CrateId,
+    warning_crates: &[CrateId],
+    options: &CompileOptions,
+    comptime_io: &mut ComptimeIo,
+) -> (CheckedContext, CompilationResult<()>) {
     let (context, diagnostics) =
         context.check_crate(crate_id, options.frontend_options(), comptime_io);
-    let crate_files = context.crate_files(&crate_id);
+    let crate_files: HashSet<FileId> =
+        warning_crates.iter().flat_map(|crate_id| context.crate_files(crate_id)).collect();
     let warnings_and_errors: Vec<CustomDiagnostic> = diagnostics
         .iter()
         .map(CustomDiagnostic::from)
@@ -466,7 +480,7 @@ pub fn check_crate_with_comptime_io(
             !options.silence_warnings || !diagnostic.is_warning()
         })
         .filter(|error| {
-            // Only keep warnings from the crate we are checking
+            // Only keep warnings from the crates asked for
             if error.is_warning() { crate_files.contains(&error.file) } else { true }
         })
         .collect();
