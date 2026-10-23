@@ -27,9 +27,13 @@ set +e
 sed -i '/^compiler_version/d' {Nargo.toml,./**/Nargo.toml}
 set -e
 
-BEFORE=$SECONDS
+# Fetch dependencies first so their download time isn't part of the test suite's duration. A
+# package that fails to resolve fails `nargo test` the same way, which reports it below.
+$NARGO fetch || true
+
+BEFORE=$(date +%s.%N)
 $NARGO test --silence-warnings --skip-brillig-constraints-check --format json $NARGO_ARGS | tee $OUTPUT_FILE
-TIME=$(($SECONDS-$BEFORE))
+TIME=$(awk "BEGIN { printf \"%.3f\", $(date +%s.%N) - $BEFORE }")
 
 if [ ! -s $OUTPUT_FILE ]; then
 # The file is empty so we delete it to signal that `nargo test` failed before it could run any tests
