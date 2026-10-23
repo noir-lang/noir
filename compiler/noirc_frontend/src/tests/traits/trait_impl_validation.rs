@@ -998,3 +998,64 @@ fn bounds_served_by_generic_impls_are_decided_once_in_either_order() {
     "#;
     check_errors(src);
 }
+
+/// An impl of a comptime trait method must be comptime.
+#[test]
+fn runtime_impl_of_a_comptime_trait_method_is_rejected() {
+    let src = r#"
+    pub trait Foo { comptime fn foo(x: Field) -> Field; }
+    pub struct S {}
+    impl Foo for S { fn foo(x: Field) -> Field { x + 1 } }
+                        ^^^ foo is expected to be comptime
+    fn main() {}
+    
+    "#;
+    check_errors(src);
+}
+
+/// An impl may make a runtime trait method comptime.
+#[test]
+fn comptime_impl_of_a_runtime_trait_method_is_accepted() {
+    let src = r#"
+    pub trait Foo { fn foo(x: Field) -> Field; }
+    pub struct S {}
+    impl Foo for S { comptime fn foo(x: Field) -> Field { x + 1 } }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// An impl generic used only under an operation that loses it (`N * 0`) is not constrained by the
+/// impl.
+#[test]
+fn impl_generic_its_self_type_does_not_determine_is_rejected() {
+    let src = r#"
+    pub trait Foo { fn foo(self) -> u32; }
+    impl<let N: u32> Foo for [u8; N * 0] { fn foo(self) -> u32 { 7 } }
+             ^ The type parameter `N` is not constrained by the impl trait, self type, or predicates
+             ~ Hint: remove the `N` type parameter
+    fn main() -> pub u32 { let a: [u8; 0] = []; a.foo() }
+    
+    "#;
+    check_errors(src);
+}
+
+/// `Self::u8` in an inherent impl names neither the primitive type nor a trait's associated type.
+#[test]
+fn self_associated_type_named_like_a_primitive_in_an_inherent_impl_is_rejected() {
+    let src = r#"
+    pub trait Tr { type u8; }
+    pub struct Foo { x: Field }
+    impl Tr for Foo { type u8 = Field; }
+    impl Foo {
+        fn g(v: u64) -> Field { let y: Self::u8 = v as Self::u8; y as Field + 1 }
+                                             ^^ associated type `u8` cannot be accessed directly
+                                             ~~ use the fully-qualified syntax `<Foo as Tr>::u8` instead
+                                                             ^^ associated type `u8` cannot be accessed directly
+                                                             ~~ use the fully-qualified syntax `<Foo as Tr>::u8` instead
+    }
+    fn main() -> pub Field { Foo::g(1000) }
+    
+    "#;
+    check_errors(src);
+}

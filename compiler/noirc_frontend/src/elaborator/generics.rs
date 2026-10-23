@@ -8,10 +8,11 @@ use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable,
+    BinaryTypeOperator, Kind, NamedGeneric, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable,
     ast::{
         Ident, IdentOrQuotedType, Path, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType, Visitor,
+        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeExpression,
+        UnsupportedNumericGenericType, Visitor,
     },
     elaborator::types::{WildcardAllowed, WildcardDisallowedContext},
     hir::resolution::errors::ResolverError,
@@ -316,6 +317,31 @@ impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
 }
 
 impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_, '_> {
+    /// An operation with a constant determines its other operand when it is `+`, `-`, or a
+    /// multiplication by a non-zero constant. Any other one loses it (`N * 0` and `N % 2` are the
+    /// same for different `N`), so a generic appearing only there isn't determined by the type.
+    /// Operations between two generics (`N * M`) count for both, as other uses can determine them.
+    fn visit_binary_type_expression(
+        &mut self,
+        lhs: &UnresolvedTypeExpression,
+        op: BinaryTypeOperator,
+        rhs: &UnresolvedTypeExpression,
+        _span: noirc_errors::Span,
+    ) -> bool {
+        let constant = |expr: &UnresolvedTypeExpression| match expr {
+            UnresolvedTypeExpression::Constant(value, ..) => Some(value.clone()),
+            _ => None,
+        };
+        let Some(constant) = constant(lhs).or_else(|| constant(rhs)) else {
+            return true;
+        };
+        match op {
+            BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction => true,
+            BinaryTypeOperator::Multiplication => constant != 0.into(),
+            _ => false,
+        }
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn visit_path(&mut self, path: &Path) {
         if let Some(ident) = path.as_ident() {

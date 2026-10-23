@@ -644,8 +644,9 @@ fn self_associated_constant_from_different_trait() {
 }
 
 #[test]
-fn self_associated_constant_does_not_cross_trait_boundaries() {
-    // Self::AssociatedConstant cannot access constants from other trait impls
+fn self_associated_constant_of_another_trait_impl_is_found() {
+    // `Self::N` names `N` of any trait in scope that `Self` implements, for a primitive `Self` as
+    // for a struct.
     let src = r#"
     trait Base {
         let N: u32;
@@ -662,13 +663,12 @@ fn self_associated_constant_does_not_cross_trait_boundaries() {
     impl Derived for u32 {
         fn get_base() -> u32 {
             Self::N
-                  ^ No method named 'N' found for type 'u32'
         }
     }
 
     fn main() {}
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -4257,4 +4257,40 @@ fn bool_associated_type_result_is_not_a_shift_operand() {
     }
     "#;
     check_errors(src);
+}
+
+/// `u32::N` finds the associated constant of a trait impl for `u32`.
+#[test]
+fn associated_constant_of_a_primitive_type_is_found() {
+    let src = r#"
+    pub trait HasN { let N: u32; }
+    impl HasN for u32 { let N: u32 = 9; }
+    fn main() -> pub u32 { u32::N }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        9
+    }
+    ");
+}
+
+/// Using `H::<A>::C` requires the impl's where clause `A: Foo`, which decides `T::K` in its value.
+#[test]
+fn associated_constant_shorthand_solves_the_impls_where_clause() {
+    let src = r#"
+    pub trait Foo { let K: u32; }
+    pub trait Tr { let C: u32; }
+    pub struct H<T> {}
+    impl<T> Tr for H<T> where T: Foo { let C: u32 = T::K * 10; }
+    pub struct A {}
+    impl Foo for A { let K: u32 = 1; }
+    fn main() -> pub u32 { H::<A>::C }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        10
+    }
+    ");
 }

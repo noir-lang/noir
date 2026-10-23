@@ -79,13 +79,26 @@ pub enum WildcardAllowed {
     No(WildcardDisallowedContext),
 }
 
-/// Context for positions where `impl Trait` is not allowed as a type.
-/// `impl Trait` is only meaningful in function signatures (parameters and return types).
+/// Where the type being resolved sits, as far as `impl Trait` is concerned. `impl Trait` is only
+/// meaningful as a whole function parameter or return type; parameters are desugared to generics
+/// before their types are resolved, so a whole return type is the one place it is resolved.
 ///
-/// This context is stored on the elaborator's `ItemContext` and checked in the `TraitAsType` arm of
-/// type resolution. The variant is used to produce a position-specific error message.
+/// This is stored on the elaborator's `ItemContext`, so that it propagates through recursive
+/// type resolution, and checked in the `TraitAsType` arm of type resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ImplTraitPosition {
+    /// A function's whole return type: `impl Trait` is allowed. The types within it are
+    /// [`ImplTraitDisallowedContext::NestedType`].
+    ReturnType,
+    /// `impl Trait` is not allowed here; the context gives the position-specific error message.
+    Disallowed(ImplTraitDisallowedContext),
+}
+
+/// Context for positions where `impl Trait` is not allowed as a type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImplTraitDisallowedContext {
+    /// Anywhere other than a whole function parameter or return type.
+    NestedType,
     StructField,
     EnumVariant,
     Global,
@@ -240,6 +253,27 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
+        // The types within a whole return type are nested in it.
+        let impl_trait_position = self.item.impl_trait_position;
+        if impl_trait_position == ImplTraitPosition::ReturnType {
+            self.item.impl_trait_position =
+                ImplTraitPosition::Disallowed(ImplTraitDisallowedContext::NestedType);
+        }
+        let typ =
+            self.resolve_type_at_position(typ, kind, mode, wildcard_allowed, impl_trait_position);
+        self.item.impl_trait_position = impl_trait_position;
+        typ
+    }
+
+    /// [`Self::resolve_type_with_kind_inner`] for a type at `impl_trait_position`.
+    fn resolve_type_at_position(
+        &mut self,
+        typ: UnresolvedType,
+        kind: &Kind,
+        mode: PathResolutionMode,
+        wildcard_allowed: WildcardAllowed,
+        impl_trait_position: ImplTraitPosition,
+    ) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
         let location = typ.location;
@@ -285,7 +319,7 @@ impl Elaborator<'_> {
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
-                if let Some(context) = self.item.impl_trait_is_disallowed {
+                if let ImplTraitPosition::Disallowed(context) = impl_trait_position {
                     self.push_err(ResolverError::ImplTraitTypeDisallowed {
                         location: path.location,
                         context,
@@ -435,17 +469,26 @@ impl Elaborator<'_> {
     ) -> Vec<(TraitId, Type)> {
         let mut found = Vec::new();
         let mut visited = BTreeSet::new();
-        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found, &mut visited);
+        let bindings = TypeBindings::default();
+        self.collect_associated_type_in_parent_traits(
+            trait_id,
+            name,
+            &bindings,
+            &mut found,
+            &mut visited,
+        );
         found
     }
 
     /// Recursively collect all (`trait_id`, type) pairs for a named associated type
     /// across a trait and its parent hierarchy. Skip traits already
-    /// visited in `visited`.
+    /// visited in `visited`. `bindings` maps the trait's `Self`, generics and associated types to
+    /// those of the trait being defined, which reaches it through its parent bounds.
     fn collect_associated_type_in_parent_traits(
         &self,
         trait_id: TraitId,
         name: &str,
+        bindings: &TypeBindings,
         found: &mut Vec<(TraitId, Type)>,
         visited: &mut BTreeSet<TraitId>,
     ) {
@@ -460,11 +503,49 @@ impl Elaborator<'_> {
             found.push((trait_id, typ));
         }
 
-        let parent_trait_ids: Vec<_> =
-            the_trait.parent_bounds().map(|bound| bound.trait_id()).collect();
-        for parent_id in parent_trait_ids {
-            self.collect_associated_type_in_parent_traits(parent_id, name, found, visited);
+        let self_type = the_trait.self_type().substitute(bindings);
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
+        for parent_bound in parent_bounds {
+            let parent_id = parent_bound.trait_id();
+            // A parent bound that names the associated type (`trait Foo: Bar<Out = Field>`)
+            // decides it for every implementor.
+            if let Some(typ) = parent_bound.associated_type(name, bindings) {
+                let earlier = found.iter().position(|(id, _)| *id == parent_id);
+                match earlier {
+                    // The parent was reached first through a bound that leaves the type open.
+                    Some(index)
+                        if self.is_own_associated_type(parent_id, name, &found[index].1) =>
+                    {
+                        found[index].1 = typ;
+                    }
+                    // Another bound fixes it to the same type.
+                    Some(index) if found[index].1 == typ => (),
+                    // No implementor can satisfy two bounds fixing it to different types, so both
+                    // are kept, to be reported as ambiguous.
+                    _ => found.push((parent_id, typ)),
+                }
+                visited.insert(parent_id);
+                continue;
+            }
+            let parent = self.interner.get_trait(parent_id);
+            let bound = parent_bound.instantiate_in_declaration(bindings, parent);
+            let parent_bindings = parent.bound_bindings(&self_type, &bound.trait_generics);
+            self.collect_associated_type_in_parent_traits(
+                parent_id,
+                name,
+                &parent_bindings,
+                found,
+                visited,
+            );
         }
+    }
+
+    /// Whether `typ` is the trait's own associated type `name`, as
+    /// [`Self::collect_associated_type_in_parent_traits`] finds it on the trait itself.
+    fn is_own_associated_type(&self, trait_id: TraitId, name: &str, typ: &Type) -> bool {
+        let own = self.interner.get_trait(trait_id).get_associated_type(name);
+        matches!((typ, own), (Type::NamedGeneric(generic), Some(own))
+            if generic.type_var.id() == own.type_var.id())
     }
 
     /// Search for an associated type in the impls of the parent traits of `trait_bound`, as
