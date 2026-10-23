@@ -839,3 +839,38 @@ pub fn source_code_overrides(input_files: &HashMap<String, String>) -> HashMap<P
     }
     overrides
 }
+
+#[cfg(test)]
+mod check_workspace_tests {
+    use async_lsp::lsp_types::Url;
+
+    use crate::{check_workspace, notifications::workspace_from_document_uri, test_utils};
+
+    #[test]
+    fn names_crates_relative_to_the_package_with_the_error() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("similarly_named_types");
+        let root_dir = noir_text_document.to_file_path().unwrap();
+        let root_dir = root_dir.parent().unwrap().parent().unwrap();
+        let a_lib = Url::from_file_path(root_dir.join("a/src/lib.nr")).unwrap();
+
+        let workspace = workspace_from_document_uri(&mut state, a_lib).unwrap().unwrap();
+        let checked = check_workspace(&mut state, &workspace);
+
+        let mut notes: Vec<&str> = checked
+            .diagnostics
+            .iter()
+            .flat_map(|diagnostic| &diagnostic.secondaries)
+            .map(|label| label.message.as_str())
+            .filter(|message| message.starts_with("Note: "))
+            .collect();
+        notes.sort();
+        assert_eq!(
+            notes,
+            vec![
+                "Note: `Foo` and `lib::Foo` have similar names, but are actually distinct types",
+                "Note: `Foo` is defined in the current crate",
+                "Note: `lib::Foo` is defined in crate `lib`",
+            ]
+        );
+    }
+}
