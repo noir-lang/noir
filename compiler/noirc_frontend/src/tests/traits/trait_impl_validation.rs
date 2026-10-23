@@ -937,6 +937,28 @@ fn type_decided_through_unified_unknowns_keeps_impls_apart_in_either_order() {
     }
 }
 
+/// A single-impl bound that makes an unknown fully known (`?u := Field` inside `S<W<?u>>`) after
+/// another gave it a known head is progress, so a third bound can be known to fail
+/// (`S<W<Field>>: Marker`) and keep the impls apart, as in rustc.
+#[test]
+fn unknown_made_fully_known_by_a_second_bound_keeps_impls_apart() {
+    let src = r#"
+    pub trait Marker {}
+    pub trait One {}
+    pub trait Two {}
+    pub trait Foo {}
+    pub struct S<A> { x: A }
+    pub struct W<A> { x: A }
+    impl<A> Foo for S<A> where S<A>: Marker {}
+    impl<T> Foo for S<T> where S<T>: One, S<T>: Two {}
+    impl<U> One for S<W<U>> {}
+    impl Two for S<W<Field>> {}
+    impl Marker for S<W<u8>> {}
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
 /// Impls serving bounds with fresh unknowns each time (`impl<U> Other for S<W<U>>`,
 /// `impl<U> Marker for W<U>`) decide each bound once, so the overlap check ends, in either order
 /// of the impls. `S<W<X>>` meets both where clauses, so the impls overlap.

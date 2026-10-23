@@ -5,7 +5,7 @@ use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 use crate::{
-    GenericTypeVars, Shared, Type, TypeBindings,
+    GenericTypeVars, Shared, Type, TypeBinding, TypeBindings, TypeVariable,
     graph::CrateId,
     hir::{
         def_collector::dc_crate::CompilationError,
@@ -380,7 +380,7 @@ impl NodeInterner {
                 unknowns
                     .iter()
                     .map(|unknown| {
-                        let typ = unknown.substitute_fully(bindings);
+                        let typ = Type::TypeVariable(unknown.clone()).substitute_fully(bindings);
                         usize::from(!typ.is_bindable()) + usize::from(!has_unknowns(&typ))
                     })
                     .sum()
@@ -392,14 +392,19 @@ impl NodeInterner {
                 let current = decided(&bindings);
                 let mut decides_more = None;
                 for obligation in &obligations {
-                    match self.serving(obligation, &bindings, IMPL_SEARCH_RECURSION_LIMIT) {
-                        Serving::Fails => return None,
-                        Serving::One(candidate)
+                    let Some(mut serving) =
+                        self.serving_impls(obligation, &bindings, IMPL_SEARCH_RECURSION_LIMIT)
+                    else {
+                        continue;
+                    };
+                    match (serving.next(), serving.next()) {
+                        (None, _) => return None,
+                        (Some(candidate), None)
                             if decides_more.is_none() && decided(&candidate) > current =>
                         {
                             decides_more = Some(candidate);
                         }
-                        Serving::CantTell | Serving::One(_) | Serving::Several => {}
+                        _ => {}
                     }
                 }
                 let Some(decides_more) = decides_more else { return Some(*existing) };
@@ -408,26 +413,23 @@ impl NodeInterner {
         })
     }
 
-    /// Which impls serve `obligation` under `bindings` (see [`Self::overlapping_impl`]), looking
-    /// `recursion_limit` where clauses deep.
-    fn serving(
-        &self,
-        obligation: &TraitConstraint,
-        bindings: &TypeBindings,
+    /// The bindings of each impl that serves `obligation` under `bindings` (see
+    /// [`Self::overlapping_impl`]), looking `recursion_limit` where clauses deep. `None` when the
+    /// obligation can't be ruled out whatever the impls here: its type is still unknown, or the
+    /// limit is reached.
+    fn serving_impls<'a>(
+        &'a self,
+        obligation: &'a TraitConstraint,
+        bindings: &'a TypeBindings,
         recursion_limit: u32,
-    ) -> Serving {
+    ) -> Option<impl Iterator<Item = TypeBindings> + 'a> {
         if recursion_limit == 0 || obligation.typ.substitute_fully(bindings).is_bindable() {
-            return Serving::CantTell;
+            return None;
         }
         let impls = self.trait_implementation_map.get(&obligation.trait_bound.trait_id);
-        let mut serving = impls.into_iter().flatten().filter_map(|(impl_type, kind)| {
+        Some(impls.into_iter().flatten().filter_map(move |(impl_type, kind)| {
             self.impl_may_serve(obligation, bindings, impl_type, kind, recursion_limit)
-        });
-        match (serving.next(), serving.next()) {
-            (None, _) => Serving::Fails,
-            (Some(candidate), None) => Serving::One(candidate),
-            (Some(_), Some(_)) => Serving::Several,
-        }
+        }))
     }
 
     /// The bindings under which the impl entry `impl_type`/`impl_kind` serves `obligation`: its
@@ -453,7 +455,8 @@ impl NodeInterner {
         )?;
         let where_clause = self.instantiated_where_clause(*impl_id, &instantiation_bindings);
         let may_hold = where_clause.iter().all(|bound| {
-            !matches!(self.serving(bound, &candidate, recursion_limit - 1), Serving::Fails)
+            self.serving_impls(bound, &candidate, recursion_limit - 1)
+                .is_none_or(|mut serving| serving.next().is_some())
         });
         may_hold.then_some(candidate)
     }
@@ -976,28 +979,17 @@ impl NodeInterner {
     }
 }
 
-/// Which impls serve a bound in the overlap check.
-enum Serving {
-    /// The bound can't be ruled out whatever the impls here: its type is still unknown, or the
-    /// search reached its depth limit.
-    CantTell,
-    /// No impl serves the bound: it is known to fail.
-    Fails,
-    /// Exactly one impl serves the bound, under these bindings.
-    One(TypeBindings),
-    /// More than one impl serves the bound.
-    Several,
-}
-
 /// The unknowns the types of `obligations` mention, their trait arguments included.
-fn unknowns_of(obligations: &[TraitConstraint]) -> Vec<Type> {
-    let mut unknowns = Vec::new();
+fn unknowns_of(obligations: &[TraitConstraint]) -> Vec<TypeVariable> {
+    let mut unknowns: Vec<TypeVariable> = Vec::new();
     for obligation in obligations {
         let generics = obligation.trait_bound.trait_generics.ordered.iter();
         for typ in std::iter::once(&obligation.typ).chain(generics) {
             typ.visit(&mut |typ| {
-                if matches!(typ, Type::TypeVariable(_)) && !unknowns.contains(typ) {
-                    unknowns.push(typ.clone());
+                if let Some(unknown) = as_unknown(typ)
+                    && !unknowns.iter().any(|known| known.id() == unknown.id())
+                {
+                    unknowns.push(unknown.clone());
                 }
                 true
             });
@@ -1010,10 +1002,20 @@ fn unknowns_of(obligations: &[TraitConstraint]) -> Vec<Type> {
 fn has_unknowns(typ: &Type) -> bool {
     let mut found = false;
     typ.visit(&mut |typ| {
-        found |= matches!(typ, Type::TypeVariable(_));
+        found |= as_unknown(typ).is_some();
         !found
     });
     found
+}
+
+/// The type variable `typ` is, when it is still unbound.
+fn as_unknown(typ: &Type) -> Option<&TypeVariable> {
+    match typ {
+        Type::TypeVariable(variable) if matches!(variable.binding(), TypeBinding::Unbound(..)) => {
+            Some(variable)
+        }
+        _ => None,
+    }
 }
 
 /// Whether `typ` mentions a generic parameter (`T`, not an associated item like
