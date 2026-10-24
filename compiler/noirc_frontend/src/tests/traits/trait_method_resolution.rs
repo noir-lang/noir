@@ -1623,3 +1623,142 @@ fn method_call_selects_a_blanket_impl_when_a_types_own_impl_has_a_failing_where_
     }
     ");
 }
+
+#[test]
+fn type_path_call_selects_a_blanket_impl_when_the_type_has_no_impl_of_its_own() {
+    let src = r#"
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    impl<T> Foo for T {
+        fn value(self) -> Field { 1 }
+    }
+    struct S {}
+    struct G<T> {}
+
+    fn main() -> pub Field {
+        S::value(S {}) + G::<u8>::value(G::<u8> {})
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        (value$f1({
+            ()
+        }) + value$f2({
+            ()
+        }))
+    }
+    fn value$f1(self$l0: ()) -> Field {
+        1
+    }
+    fn value$f2(self$l1: ()) -> Field {
+        1
+    }
+    ");
+}
+
+#[test]
+fn type_path_selects_an_associated_constant_over_a_blanket_impl_method_of_the_same_name() {
+    let src = r#"
+    trait Foo {
+        fn VALUE(self) -> Field;
+    }
+    impl<T> Foo for T {
+        fn VALUE(self) -> Field { 1 }
+    }
+    trait Bar {
+        let VALUE: u32;
+    }
+    struct S {}
+    impl Bar for S {
+        let VALUE: u32 = 5;
+    }
+
+    fn main() -> pub u32 {
+        S::VALUE
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        5
+    }
+    ");
+}
+
+#[test]
+fn type_path_call_of_a_blanket_impl_method_has_the_paths_type() {
+    let src = r#"
+    trait Bar {
+        fn check(x: Field) -> Self;
+    }
+    impl Bar for S {
+        fn check(x: Field) -> Self { S { x } }
+    }
+    impl Bar for u32 {
+        fn check(_x: Field) -> Self { 0 }
+    }
+    trait Guard {
+        fn guard(x: Field) -> Self;
+    }
+    impl<T: Bar> Guard for T {
+        fn guard(x: Field) -> Self { T::check(x) }
+    }
+    pub struct S { x: Field }
+
+    fn main(x: Field) {
+        let _: u32 = S::guard(x);
+                     ^^^^^^^^^^^ Expected type u32, found type S
+        let f = S::guard;
+        let _: u32 = f(x);
+                     ^^^^ Expected type u32, found type S
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_path_call_of_a_blanket_impl_method_runs_the_paths_types_impl() {
+    let src = r#"
+    trait Bar {
+        fn check(x: Field) -> Self;
+    }
+    impl Bar for S {
+        fn check(x: Field) -> Self {
+            assert(x == 0);
+            S { x }
+        }
+    }
+    impl Bar for u32 {
+        fn check(_x: Field) -> Self { 0 }
+    }
+    trait Guard {
+        fn guard(x: Field) -> Self;
+    }
+    impl<T: Bar> Guard for T {
+        fn guard(x: Field) -> Self { T::check(x) }
+    }
+    pub struct S { x: Field }
+
+    fn main(x: Field) -> pub Field {
+        S::guard(x).x
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: Field) -> pub Field {
+        guard$f1(x$l0).0
+    }
+    fn guard$f1(x$l1: Field) -> (Field,) {
+        check$f2(x$l1)
+    }
+    fn check$f2(x$l2: Field) -> (Field,) {
+        assert((x$l2 == 0));;
+        {
+            let x$l3 = x$l2;
+            (x$l3)
+        }
+    }
+    ");
+}
