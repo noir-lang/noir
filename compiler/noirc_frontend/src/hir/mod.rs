@@ -15,7 +15,7 @@ use crate::hir::def_collector::dc_crate::{CompilationError, CompilationErrors, U
 use crate::hir::def_map::DefMaps;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{ComptimeGlobalsSnapshot, FuncId, GlobalId, NodeInterner, TypeId};
+use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
@@ -57,15 +57,6 @@ pub struct Context {
 
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
-
-    /// The value of each crate's own `comptime mut global`s right after the crate was checked.
-    /// Only recorded by [`Context::check_crates`].
-    pub mutable_globals_after_crate: HashMap<CrateId, ComptimeGlobalsSnapshot>,
-    /// Crates whose own elaboration changed a `comptime mut global` of another crate, the
-    /// stdlib's registries excepted: typically a library that registers its types with a macro
-    /// library. Only recorded by [`Context::check_crates`].
-    pub stateful_crates: HashSet<CrateId>,
-    pub(crate) record_comptime_globals: bool,
 }
 
 /// What one run of definition collection and elaboration keeps track of across the crates it
@@ -115,9 +106,6 @@ impl Context {
             debug_crate_id: None,
             parsed_files: parsed_files.into(),
             required_unstable_features: BTreeMap::new(),
-            mutable_globals_after_crate: HashMap::new(),
-            stateful_crates: HashSet::new(),
-            record_comptime_globals: false,
         }
     }
 
@@ -152,9 +140,9 @@ impl Context {
 
     /// Checks crates one at a time, each as if it were the root of its own compilation, while
     /// sharing the elaboration of dependencies between them. `next_crate` returns the crate to
-    /// check next, or `None` when done; it may extend the crate graph first, and can consult
-    /// [`Context::stateful_crates`] to decide whether a dependency that is already elaborated
-    /// can be shared or needs a fresh instance (see [`CrateGraph::add_crate_instance`]).
+    /// check next, or `None` when done; it may extend the crate graph first, and can ask
+    /// [`NodeInterner::is_stateful_crate`] whether a dependency that is already elaborated can
+    /// be shared or needs an instance of its own (see [`CrateGraph::add_crate_instance`]).
     ///
     /// Comptime code mutates `comptime mut global`s, and macro libraries use them as registries
     /// that the crate being compiled fills in while it is elaborated. So that no registration
@@ -171,13 +159,9 @@ impl Context {
         mut next_crate: impl FnMut(&mut Context) -> Option<CrateId>,
     ) -> (CheckedContext, Vec<CompilationError>) {
         let mut errors = Vec::new();
-        self.record_comptime_globals = true;
+        self.def_interner.start_tracking_comptime_state();
         while let Some(crate_id) = next_crate(&mut self) {
-            for (owner, snapshot) in &self.mutable_globals_after_crate {
-                if !owner.is_stdlib() {
-                    self.def_interner.restore_mutable_comptime_globals(snapshot);
-                }
-            }
+            self.def_interner.restore_own_comptime_globals();
             // Each crate is a compilation of its own, so `mod` declarations are only checked
             // for duplicates within it.
             let mut state = CheckState::default();
@@ -189,7 +173,6 @@ impl Context {
                 &mut state,
             ));
         }
-        self.record_comptime_globals = false;
         (CheckedContext { context: self }, errors)
     }
 
@@ -446,4 +429,17 @@ fn fully_qualified_function_name(
     let parent = def_map.get_module_path_with_separator(module_id.local_id, module.parent, "::");
 
     if parent.is_empty() { name.into() } else { format!("{parent}::{name}") }
+}
+
+#[cfg(test)]
+mod check_tests {
+    use crate::test_utils::get_program;
+
+    /// Only `Context::check_crates` records comptime state; a plain check, which is what
+    /// `nargo` runs, leaves no trace of it.
+    #[test]
+    fn check_crate_does_not_track_comptime_state() {
+        let (_, context, _) = get_program("fn main() {}");
+        assert!(!context.def_interner.tracks_comptime_state());
+    }
 }

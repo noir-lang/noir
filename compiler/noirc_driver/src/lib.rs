@@ -457,21 +457,9 @@ pub fn check_crate_with_comptime_io(
     options: &CompileOptions,
     comptime_io: &mut ComptimeIo,
 ) -> (CheckedContext, CompilationResult<()>) {
-    check_crate_keeping_warnings_from(context, crate_id, &[crate_id], options, comptime_io)
-}
-
-/// Same as [`check_crate_with_comptime_io`], keeping the warnings raised in any of
-/// `warning_crates`. Errors are kept wherever they are raised.
-pub fn check_crate_keeping_warnings_from(
-    context: Context,
-    crate_id: CrateId,
-    warning_crates: &[CrateId],
-    options: &CompileOptions,
-    comptime_io: &mut ComptimeIo,
-) -> (CheckedContext, CompilationResult<()>) {
     let (context, diagnostics) =
         context.check_crate(crate_id, options.frontend_options(), comptime_io);
-    let warnings_and_errors = keep_warnings_from(&context, &diagnostics, warning_crates, options);
+    let warnings_and_errors = keep_warnings_from(&context, &diagnostics, &[crate_id], options);
 
     let result = if has_errors(&warnings_and_errors, options.deny_warnings) {
         Err(warnings_and_errors)

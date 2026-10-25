@@ -399,6 +399,10 @@ pub(crate) fn process_workspace_for_single_file_change(
     // This also removes methods that were defined in this file.
     node_interner.clear_in_file(file_id);
 
+    // Macros read the comptime state their crate's dependencies left behind, so the file is
+    // elaborated again from the state that preceded the crate's own items.
+    node_interner.restore_comptime_globals_before_items(crate_id);
+
     let mut def_maps = workspace_cache.def_maps;
     let crate_graph = workspace_cache.crate_graph;
 
@@ -450,9 +454,15 @@ pub(crate) fn process_workspace_for_single_file_change(
     // Put some things back before restoring the cached data
     let crate_graph = &context.crate_graph;
     let analysis_root = *crate_graph.root_crate_id();
+    // Other crates hold the file's items as they were: dependents of this crate, and the other
+    // instances of it that its dependents were checked with (see `check_workspace`), whose
+    // locations in the file were cleared above.
+    let root_file_id = crate_graph[crate_id].root_file_id;
     workspace_cache.dependents_stale |= crate_graph.iter_keys().any(|other| {
         other != analysis_root
-            && crate_graph[other].dependencies.iter().any(|dep| dep.crate_id == crate_id)
+            && other != crate_id
+            && (crate_graph[other].root_file_id == root_file_id
+                || crate_graph[other].dependencies.iter().any(|dep| dep.crate_id == crate_id))
     });
     workspace_cache.node_interner = context.def_interner;
     workspace_cache.def_maps = context.def_maps;
@@ -649,6 +659,7 @@ mod notification_tests {
         InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
         TextDocumentIdentifier, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
     };
+    use noirc_frontend::{hir::comptime::Value, node_interner::GlobalValue};
 
     /// `test_programs/comptime_state` has a macro library with a `comptime mut global` counter
     /// and packages that register into it and assert on what they see, the way `nargo check`
@@ -684,6 +695,60 @@ mod notification_tests {
 
         // Every member got a crate of its own.
         assert_eq!(checked.package_crate_ids.len(), 9);
+    }
+
+    /// `notelib` is checked once per dependent. A keystroke in it re-elaborates only its own
+    /// crate, so the dependents' instances are out of date, and cross-package lookups must check
+    /// the workspace again first.
+    #[test]
+    fn single_file_check_of_a_stateful_crate_marks_dependents_stale() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("comptime_state");
+        let root_dir = noir_text_document.to_file_path().unwrap();
+        let root_dir = root_dir.parent().unwrap().parent().unwrap();
+        let notelib_lib = root_dir.join("notelib/src/lib.nr");
+        let notelib_uri = Url::from_file_path(&notelib_lib).unwrap();
+        let source = std::fs::read_to_string(&notelib_lib).unwrap();
+
+        let workspace =
+            workspace_from_document_uri(&mut state, notelib_uri.clone()).unwrap().unwrap();
+        process_workspace(&mut state, &workspace).unwrap();
+        assert!(!state.workspace_cache[&workspace.root_dir].dependents_stale);
+
+        process_workspace_for_single_file_change(&mut state, &workspace, notelib_uri, &source)
+            .unwrap();
+        assert!(state.workspace_cache[&workspace.root_dir].dependents_stale);
+    }
+
+    /// A keystroke re-elaborates one file in place. The macros in it must see the registrations
+    /// of the crate's dependencies, and only those: `p1`'s own registration happens again as the
+    /// file is elaborated, on top of `notelib`'s, for a count of two.
+    #[test]
+    fn single_file_check_starts_from_the_state_the_crate_dependencies_left() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("comptime_state");
+        let root_dir = noir_text_document.to_file_path().unwrap();
+        let root_dir = root_dir.parent().unwrap().parent().unwrap();
+        let p1_lib = root_dir.join("p1/src/lib.nr");
+        let p1_uri = Url::from_file_path(&p1_lib).unwrap();
+        let source = std::fs::read_to_string(&p1_lib).unwrap();
+
+        let workspace = workspace_from_document_uri(&mut state, p1_uri.clone()).unwrap().unwrap();
+        process_workspace(&mut state, &workspace).unwrap();
+        process_workspace_for_single_file_change(&mut state, &workspace, p1_uri, &source).unwrap();
+
+        let interner = &state.workspace_cache[&workspace.root_dir].node_interner;
+        let registered = interner
+            .get_all_globals()
+            .iter()
+            .find(|global| global.ident.as_str() == "REGISTERED")
+            .expect("the macro library's counter");
+        // A mutable global holds a cell with its value.
+        let GlobalValue::Resolved(Value::Pointer(cell, _, _)) = &registered.value else {
+            panic!("the counter should be evaluated");
+        };
+        let Value::Integer(count) = &*cell.borrow() else {
+            panic!("the counter should be an integer");
+        };
+        assert_eq!(count.to_string(), "2");
     }
 
     #[test]

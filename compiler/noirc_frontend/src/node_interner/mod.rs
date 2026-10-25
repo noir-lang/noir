@@ -56,8 +56,9 @@ mod trait_impl;
 pub mod pusher;
 
 pub use dependency::DependencyId;
+pub(crate) use globals::ComptimeStateTracking;
 use globals::GlobalInfo;
-pub use globals::{ComptimeGlobalsSnapshot, GlobalId, GlobalValue};
+pub use globals::{GlobalId, GlobalValue};
 pub use ids::*;
 pub use methods::{ImplMethod, Methods};
 pub use reexports::Reexport;
@@ -296,6 +297,13 @@ pub struct NodeInterner {
 
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
+
+    /// Definitions that several crates share a span for: an item of a crate elaborated once per
+    /// dependent (see `Context::check_crates`). A reference to any of them is a reference to all.
+    pub(crate) definition_aliases: HashMap<Location, Vec<PetGraphIndex>>,
+
+    /// Set while checking several crates in one context (see `Context::check_crates`).
+    pub(crate) comptime_state: Option<ComptimeStateTracking>,
 
     // All names (and their definitions) that can be offered for auto_import.
     // The third value in the tuple is the module where the definition is (only for pub use).
@@ -539,6 +547,8 @@ impl Default for NodeInterner {
             interned_patterns: Default::default(),
             lsp_mode: None,
             location_indices: LocationIndices::default(),
+            definition_aliases: HashMap::default(),
+            comptime_state: None,
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
             auto_import_names: HashMap::default(),

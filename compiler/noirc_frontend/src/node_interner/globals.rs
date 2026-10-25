@@ -1,3 +1,5 @@
+use std::collections::{HashMap, HashSet};
+
 use fm::{FileId, FileMap};
 use noirc_errors::Location;
 
@@ -44,8 +46,20 @@ pub enum GlobalValue {
 }
 
 /// The value of every evaluated `comptime mut global` at one point of a compilation.
-/// See [`crate::hir::Context::check_crates`].
-pub type ComptimeGlobalsSnapshot = Vec<(GlobalId, comptime::Value)>;
+pub(crate) type ComptimeGlobalsSnapshot = Vec<(GlobalId, comptime::Value)>;
+
+/// What [`crate::hir::Context::check_crates`] records about `comptime mut global`s while
+/// checking several crates in one context, so that each crate sees the state a compilation of
+/// its own would.
+#[derive(Debug, Default)]
+pub(crate) struct ComptimeStateTracking {
+    /// Each crate's own mutable globals right after the crate was elaborated.
+    own_globals_after_crate: HashMap<CrateId, ComptimeGlobalsSnapshot>,
+    /// Every mutable global right before each crate's own items were elaborated.
+    globals_before_items: HashMap<CrateId, ComptimeGlobalsSnapshot>,
+    /// Crates whose own elaboration changed a mutable global of another crate.
+    stateful_crates: HashSet<CrateId>,
+}
 
 impl NodeInterner {
     pub fn next_global_id(&mut self) -> GlobalId {
@@ -154,10 +168,14 @@ impl NodeInterner {
         &self.globals
     }
 
-    /// Deep-copies the current value of every evaluated `comptime mut global`.
-    pub fn snapshot_mutable_comptime_globals(&self) -> ComptimeGlobalsSnapshot {
+    /// Deep-copies the current value of every evaluated `comptime mut global`, or only those of
+    /// `owner`. The stdlib's are left out: its registries only accumulate the derive handlers of
+    /// traits a crate can name, so no crate needs them reset or re-registered.
+    fn snapshot_mutable_comptime_globals(&self, owner: Option<CrateId>) -> ComptimeGlobalsSnapshot {
         self.globals
             .iter()
+            .filter(|global| !global.crate_id.is_stdlib())
+            .filter(|global| owner.is_none_or(|owner| global.crate_id == owner))
             .filter(|global| self.definition(global.definition_id).mutable)
             .filter_map(|global| match &global.value {
                 GlobalValue::Resolved(value) => Some((global.id, value.deep_clone())),
@@ -166,36 +184,96 @@ impl NodeInterner {
             .collect()
     }
 
-    /// Deep-copies the current value of every evaluated `comptime mut global` of `crate_id`.
-    pub fn snapshot_mutable_comptime_globals_of(
-        &self,
-        crate_id: CrateId,
-    ) -> ComptimeGlobalsSnapshot {
-        self.globals
-            .iter()
-            .filter(|global| global.crate_id == crate_id)
-            .filter(|global| self.definition(global.definition_id).mutable)
-            .filter_map(|global| match &global.value {
-                GlobalValue::Resolved(value) => Some((global.id, value.deep_clone())),
-                GlobalValue::Unresolved | GlobalValue::Resolving => None,
-            })
-            .collect()
-    }
-
-    /// Whether any global in `before`, other than the stdlib's, holds a different value now.
-    pub fn mutable_comptime_globals_changed(&self, before: &ComptimeGlobalsSnapshot) -> bool {
+    /// Whether any global in `before` holds a different value now.
+    fn mutable_comptime_globals_changed(&self, before: &ComptimeGlobalsSnapshot) -> bool {
         before.iter().any(|(id, old)| {
-            let global = &self.globals[id.0];
-            !global.crate_id.is_stdlib()
-                && !matches!(&global.value, GlobalValue::Resolved(current) if current == old)
+            !matches!(&self.globals[id.0].value, GlobalValue::Resolved(current) if current == old)
         })
     }
 
     /// Sets every global in `snapshot` back to the value it had when the snapshot was taken.
-    pub fn restore_mutable_comptime_globals(&mut self, snapshot: &ComptimeGlobalsSnapshot) {
+    fn restore_mutable_comptime_globals(&mut self, snapshot: &ComptimeGlobalsSnapshot) {
         for (id, value) in snapshot {
             self.globals[id.0].value = GlobalValue::Resolved(value.deep_clone());
         }
+    }
+
+    /// Starts recording what [`ComptimeStateTracking`] describes, if not recording already.
+    pub(crate) fn start_tracking_comptime_state(&mut self) {
+        self.comptime_state.get_or_insert_default();
+    }
+
+    /// Records the state of mutable comptime globals right before `crate_id`'s own items are
+    /// elaborated, that is, once its dependencies are. Does nothing unless tracking.
+    pub(crate) fn record_comptime_globals_before_items(&mut self, crate_id: CrateId) {
+        if self.comptime_state.is_some() {
+            let snapshot = self.snapshot_mutable_comptime_globals(None);
+            let tracking = self.comptime_state.as_mut().expect("tracking was checked above");
+            tracking.globals_before_items.insert(crate_id, snapshot);
+        }
+    }
+
+    /// Records `crate_id` as elaborated: its own mutable globals' values, and whether elaborating
+    /// it changed another crate's. Does nothing unless tracking.
+    pub(crate) fn record_comptime_globals_after_crate(&mut self, crate_id: CrateId) {
+        let Some(tracking) = &self.comptime_state else {
+            return;
+        };
+        let stateful = tracking
+            .globals_before_items
+            .get(&crate_id)
+            .is_some_and(|before| self.mutable_comptime_globals_changed(before));
+        let own = self.snapshot_mutable_comptime_globals(Some(crate_id));
+        let tracking = self.comptime_state.as_mut().expect("tracking was checked above");
+        if stateful {
+            tracking.stateful_crates.insert(crate_id);
+        }
+        tracking.own_globals_after_crate.insert(crate_id, own);
+    }
+
+    /// Sets every crate's own mutable comptime globals back to their values from right after
+    /// that crate was elaborated. Does nothing unless tracking.
+    pub(crate) fn restore_own_comptime_globals(&mut self) {
+        let Some(tracking) = self.comptime_state.take() else {
+            return;
+        };
+        for snapshot in tracking.own_globals_after_crate.values() {
+            self.restore_mutable_comptime_globals(snapshot);
+        }
+        self.comptime_state = Some(tracking);
+    }
+
+    /// Whether elaborating `crate_id` changed a `comptime mut global` of another crate, such as
+    /// a library registering its types with a macro library. Sharing the elaboration of such a
+    /// crate between the crates that depend on it would lose those writes for all but the first.
+    pub fn is_stateful_crate(&self, crate_id: CrateId) -> bool {
+        self.comptime_state
+            .as_ref()
+            .is_some_and(|tracking| tracking.stateful_crates.contains(&crate_id))
+    }
+
+    /// Sets every mutable comptime global back to its value from right before `crate_id`'s own
+    /// items were elaborated, so that elaborating one of its files again starts from the state
+    /// a fresh compilation of the crate would have reached. Returns `false` when the crate was
+    /// not checked with tracking.
+    pub fn restore_comptime_globals_before_items(&mut self, crate_id: CrateId) -> bool {
+        let Some(tracking) = self.comptime_state.take() else {
+            return false;
+        };
+        let restored = match tracking.globals_before_items.get(&crate_id) {
+            Some(snapshot) => {
+                self.restore_mutable_comptime_globals(snapshot);
+                true
+            }
+            None => false,
+        };
+        self.comptime_state = Some(tracking);
+        restored
+    }
+
+    /// Whether comptime state is being tracked (see [`ComptimeStateTracking`]).
+    pub fn tracks_comptime_state(&self) -> bool {
+        self.comptime_state.is_some()
     }
 
     /// Try to get the `HirLetStatement` which defines a given global value

@@ -147,6 +147,11 @@ impl Value {
             Value::Pointer(cell, auto_deref, mutable) => {
                 Value::Pointer(ValueCell::new(cell.borrow().deep_clone()), *auto_deref, *mutable)
             }
+            Value::Closure(closure) => {
+                let mut closure = closure.clone();
+                closure.env = vecmap(&closure.env, Value::deep_clone);
+                Value::Closure(closure)
+            }
             Value::Array(values, typ) => {
                 Value::Array(values.iter().map(Value::deep_clone).collect(), typ.clone())
             }

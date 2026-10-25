@@ -247,6 +247,16 @@ impl NodeInterner {
         }
 
         let referenced_index = self.get_or_insert_reference(referenced);
+        if let Some(existing) = self.location_indices.get_node_from_location(referenced_location)
+            && existing != referenced_index
+            && self.reference_location(self.reference_graph[existing]) == referenced_location
+        {
+            // Another crate elaborated from the same file defined an item at this very span.
+            self.definition_aliases
+                .entry(referenced_location)
+                .or_insert_with(|| vec![existing])
+                .push(referenced_index);
+        }
         self.location_indices.add_location(referenced_location, referenced_index);
     }
 
@@ -292,11 +302,23 @@ impl NodeInterner {
         let referenced_node = self.find_referenced(location)?;
         let referenced_node_index = self.reference_graph_indices[&referenced_node];
 
-        let found_locations = self.find_all_references_for_index(
-            referenced_node_index,
-            include_referenced,
-            include_self_type_name,
-        );
+        // A crate elaborated once per dependent defines the item once per instance, and each
+        // dependent refers to its own instance's definition.
+        let referenced_location = self.reference_location(referenced_node);
+        let aliases = self.definition_aliases.get(&referenced_location);
+        let referenced_indices: Vec<PetGraphIndex> = match aliases {
+            Some(aliases) => aliases.clone(),
+            None => vec![referenced_node_index],
+        };
+
+        let mut found_locations = Vec::new();
+        for (index, referenced_node_index) in referenced_indices.into_iter().enumerate() {
+            found_locations.extend(self.find_all_references_for_index(
+                referenced_node_index,
+                include_referenced && index == 0,
+                include_self_type_name,
+            ));
+        }
 
         Some(found_locations)
     }
@@ -446,5 +468,6 @@ impl NodeInterner {
     /// is type-checked again.
     pub(crate) fn clear_file_locations(&mut self, file: FileId) {
         self.location_indices.map_file_to_range.remove(&file);
+        self.definition_aliases.retain(|location, _| location.file != file);
     }
 }

@@ -11,3 +11,5 @@ pub struct CheckTwo {}
 pub struct DerivedTwo {
     x: Field,
 }
+
+pub fn take(_thing: notelib::LibThing) {}
