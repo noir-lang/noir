@@ -464,6 +464,12 @@ impl DefCollector {
             context.def_interner.add_module_attributes(module_id, attributes);
         }
 
+        // Mutable comptime globals as they are before this crate's own elaboration, to tell whether
+        // the crate writes into another crate's registries (see `Context::check_crates`).
+        let foreign_globals_before = context
+            .record_comptime_globals
+            .then(|| context.def_interner.snapshot_mutable_comptime_globals());
+
         // At this point, all dependencies are resolved and type checked.
         //
         // It is now possible to collect all of the definitions of this crate.
@@ -486,6 +492,14 @@ impl DefCollector {
         );
 
         Self::check_unused_items(context, crate_id, &mut errors);
+
+        if let Some(before) = foreign_globals_before {
+            if context.def_interner.mutable_comptime_globals_changed(&before) {
+                context.stateful_crates.insert(crate_id);
+            }
+            let own = context.def_interner.snapshot_mutable_comptime_globals_of(crate_id);
+            context.mutable_globals_after_crate.insert(crate_id, own);
+        }
 
         filter_expecting_other_errors(errors.into_errors())
     }

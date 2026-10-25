@@ -15,7 +15,7 @@ use crate::hir::def_collector::dc_crate::{CompilationError, CompilationErrors, U
 use crate::hir::def_map::DefMaps;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::function::FuncMeta;
-use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
+use crate::node_interner::{ComptimeGlobalsSnapshot, FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
@@ -57,6 +57,15 @@ pub struct Context {
 
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
+
+    /// The value of each crate's own `comptime mut global`s right after the crate was checked.
+    /// Only recorded by [`Context::check_crates`].
+    pub mutable_globals_after_crate: HashMap<CrateId, ComptimeGlobalsSnapshot>,
+    /// Crates whose own elaboration changed a `comptime mut global` of another crate, the
+    /// stdlib's registries excepted: typically a library that registers its types with a macro
+    /// library. Only recorded by [`Context::check_crates`].
+    pub stateful_crates: HashSet<CrateId>,
+    pub(crate) record_comptime_globals: bool,
 }
 
 /// What one run of definition collection and elaboration keeps track of across the crates it
@@ -106,6 +115,9 @@ impl Context {
             debug_crate_id: None,
             parsed_files: parsed_files.into(),
             required_unstable_features: BTreeMap::new(),
+            mutable_globals_after_crate: HashMap::new(),
+            stateful_crates: HashSet::new(),
+            record_comptime_globals: false,
         }
     }
 
@@ -135,6 +147,49 @@ impl Context {
         let mut state = CheckState::default();
         let errors =
             CrateDefMap::collect_defs(crate_id, &mut self, options, comptime_io, &mut state);
+        (CheckedContext { context: self }, errors)
+    }
+
+    /// Checks crates one at a time, each as if it were the root of its own compilation, while
+    /// sharing the elaboration of dependencies between them. `next_crate` returns the crate to
+    /// check next, or `None` when done; it may extend the crate graph first, and can consult
+    /// [`Context::stateful_crates`] to decide whether a dependency that is already elaborated
+    /// can be shared or needs a fresh instance (see [`CrateGraph::add_crate_instance`]).
+    ///
+    /// Comptime code mutates `comptime mut global`s, and macro libraries use them as registries
+    /// that the crate being compiled fills in while it is elaborated. So that no registration
+    /// leaks from one checked crate to the next, every crate's own mutable globals are restored
+    /// to their values from right after that crate was elaborated before each crate is checked.
+    /// A crate that writes into another crate's globals during its own elaboration is recorded
+    /// as stateful; sharing its elaboration would lose those writes, so callers give each
+    /// dependent crate an instance of its own. The stdlib's registries are left alone: they
+    /// only ever accumulate the derive handlers of the traits a crate can name.
+    pub fn check_crates(
+        mut self,
+        options: FrontendOptions,
+        comptime_io: &mut ComptimeIo,
+        mut next_crate: impl FnMut(&mut Context) -> Option<CrateId>,
+    ) -> (CheckedContext, Vec<CompilationError>) {
+        let mut errors = Vec::new();
+        self.record_comptime_globals = true;
+        while let Some(crate_id) = next_crate(&mut self) {
+            for (owner, snapshot) in &self.mutable_globals_after_crate {
+                if !owner.is_stdlib() {
+                    self.def_interner.restore_mutable_comptime_globals(snapshot);
+                }
+            }
+            // Each crate is a compilation of its own, so `mod` declarations are only checked
+            // for duplicates within it.
+            let mut state = CheckState::default();
+            errors.extend(CrateDefMap::collect_defs(
+                crate_id,
+                &mut self,
+                options,
+                comptime_io,
+                &mut state,
+            ));
+        }
+        self.record_comptime_globals = false;
         (CheckedContext { context: self }, errors)
     }
 

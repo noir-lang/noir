@@ -1,0 +1,9 @@
+[package]
+name = "p3"
+authors = []
+type = "lib"
+
+[dependencies]
+macros = { path = "../macros" }
+notelib = { path = "../notelib" }
+x = { path = "../x" }

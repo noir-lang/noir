@@ -57,7 +57,7 @@ pub mod pusher;
 
 pub use dependency::DependencyId;
 use globals::GlobalInfo;
-pub use globals::{GlobalId, GlobalValue};
+pub use globals::{ComptimeGlobalsSnapshot, GlobalId, GlobalValue};
 pub use ids::*;
 pub use methods::{ImplMethod, Methods};
 pub use reexports::Reexport;

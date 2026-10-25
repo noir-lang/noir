@@ -1,0 +1,9 @@
+[package]
+name = "p4"
+authors = []
+type = "lib"
+
+[dependencies]
+macros = { path = "../macros" }
+notelib = { path = "../notelib" }
+wrapper = { path = "../wrapper" }

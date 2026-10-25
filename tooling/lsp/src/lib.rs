@@ -31,7 +31,7 @@ use async_lsp::{
 use fm::{FileManager, codespan_files as files};
 use nargo::{
     constants::PKG_FILE,
-    package::{Package, PackageType},
+    package::{Dependency, Package, PackageType},
     parse_all,
     workspace::Workspace,
 };
@@ -39,8 +39,8 @@ use nargo_toml::{
     ManifestError, PackageSelection, find_file_manifest, resolve_workspace_from_toml,
 };
 use noirc_driver::{
-    CompileOptions, NOIR_ARTIFACT_VERSION_STRING, add_dep, check_crate_keeping_warnings_from,
-    prepare_crate, prepare_dependency,
+    CompileOptions, NOIR_ARTIFACT_VERSION_STRING, add_dep, check_crates, keep_warnings_from,
+    prepare_crate,
 };
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
@@ -723,14 +723,15 @@ pub(crate) fn add_workspace_root_file(workspace: &Workspace, file_manager: &mut 
 
 pub(crate) struct PreparedWorkspace {
     pub(crate) context: Context,
-    /// The crate to check: checking it elaborates every member package.
+    /// The synthetic root crate that depends on every member package once they are added.
     pub(crate) root_crate_id: CrateId,
-    /// The crate of each member package, keyed by the package's root directory.
+    /// The crate of each member package, keyed by the package's root directory. Filled in by
+    /// [`check_workspace`], except for an assumed workspace whose single package is the root.
     pub(crate) package_crate_ids: HashMap<PathBuf, CrateId>,
 }
 
-/// Builds the crate graph of a whole workspace in one context. Member packages that depend on
-/// each other share a single crate, as the crate graph identifies crates by their root file.
+/// Creates the context a workspace is checked in, with the stdlib and the synthetic root crate.
+/// Member packages are added by [`check_workspace`] as they are checked.
 pub(crate) fn prepare_workspace(
     file_manager: &Arc<FileManager>,
     parsed_files: &Arc<ParsedFiles>,
@@ -747,15 +748,6 @@ pub(crate) fn prepare_workspace(
     } else {
         let mut context = Context::new(Arc::clone(file_manager), Arc::clone(parsed_files));
         let root_crate_id = prepare_crate(&mut context, &workspace_root_file_path(workspace));
-        for package in &workspace.members {
-            let crate_id = prepare_dependency(&mut context, &package.entry_path);
-            context
-                .required_unstable_features
-                .insert(crate_id, package.compiler_required_unstable_features.clone());
-            add_dep(&mut context, root_crate_id, crate_id, package.name.clone());
-            nargo::prepare_dependencies(&mut context, crate_id, &package.dependencies);
-            package_crate_ids.insert(package.root_dir.clone(), crate_id);
-        }
         (context, root_crate_id)
     };
 
@@ -775,6 +767,13 @@ pub(crate) struct CheckedWorkspace {
 
 /// Type-checks every member package of `workspace` in one context, reading open documents
 /// from their editor contents.
+///
+/// Each member is checked as the root of its own compilation (see `Context::check_crates`),
+/// smallest dependency closure first, so a member is checked before any member that depends on
+/// it. A dependency is shared between members unless its own elaboration writes into another
+/// crate's comptime state, or it depends on such a crate: those get an instance per member, as
+/// in a standalone compilation, so that each member's macros see exactly the registrations of
+/// its own dependency closure and the types of its instances agree.
 pub(crate) fn check_workspace(state: &mut LspState, workspace: &Workspace) -> CheckedWorkspace {
     let mut file_manager = workspace.new_file_manager();
     if workspace.is_assumed {
@@ -788,26 +787,126 @@ pub(crate) fn check_workspace(state: &mut LspState, workspace: &Workspace) -> Ch
     let parsed_files = Arc::new(parse_diff(&file_manager, state));
     let file_manager = Arc::new(file_manager);
 
-    let prepared = prepare_workspace(&file_manager, &parsed_files, workspace);
-    let member_crates: Vec<CrateId> = prepared.package_crate_ids.values().copied().collect();
+    let PreparedWorkspace { context, root_crate_id, mut package_crate_ids } =
+        prepare_workspace(&file_manager, &parsed_files, workspace);
     let options = CompileOptions::default();
-    let (context, result) = check_crate_keeping_warnings_from(
-        prepared.context,
-        prepared.root_crate_id,
-        &member_crates,
-        &options,
-        &mut options.comptime_io(),
-    );
-    let diagnostics = match result {
-        Ok(((), diagnostics)) | Err(diagnostics) => diagnostics,
+    let mut comptime_io = options.comptime_io();
+
+    let (context, errors) = if workspace.is_assumed {
+        let mut pending = Some(root_crate_id);
+        check_crates(context, &options, &mut comptime_io, |_| pending.take())
+    } else {
+        let mut members: Vec<&Package> = workspace.members.iter().collect();
+        members.sort_by_key(|package| (package_closure_size(package), package.root_dir.clone()));
+        let mut members = members.into_iter();
+        let mut root_pending = true;
+        let mut shared: HashMap<PathBuf, CrateId> = HashMap::new();
+
+        check_crates(context, &options, &mut comptime_io, |context| {
+            if let Some(package) = members.next() {
+                let mut this_run = HashMap::new();
+                let crate_id = instantiate_package(context, package, &mut shared, &mut this_run);
+                add_dep(context, root_crate_id, crate_id, package.name.clone());
+                package_crate_ids.insert(package.root_dir.clone(), crate_id);
+                Some(crate_id)
+            } else if root_pending {
+                root_pending = false;
+                Some(root_crate_id)
+            } else {
+                None
+            }
+        })
     };
 
-    CheckedWorkspace {
-        context,
-        file_manager,
-        package_crate_ids: prepared.package_crate_ids,
-        diagnostics,
+    let member_crates: Vec<CrateId> = package_crate_ids.values().copied().collect();
+    // A crate elaborated once per dependent reports the same diagnostics once per instance.
+    let mut diagnostics: Vec<CustomDiagnostic> = Vec::new();
+    for diagnostic in keep_warnings_from(&context, &errors, &member_crates, &options) {
+        if !diagnostics.contains(&diagnostic) {
+            diagnostics.push(diagnostic);
+        }
     }
+
+    CheckedWorkspace { context, file_manager, package_crate_ids, diagnostics }
+}
+
+/// The number of distinct packages `package` depends on, directly or not.
+fn package_closure_size(package: &Package) -> usize {
+    fn walk(package: &Package, seen: &mut HashSet<PathBuf>) {
+        for dependency in package.dependencies.values() {
+            let dependency = dependency_package(dependency);
+            if seen.insert(dependency.entry_path.clone()) {
+                walk(dependency, seen);
+            }
+        }
+    }
+    let mut seen = HashSet::new();
+    walk(package, &mut seen);
+    seen.len()
+}
+
+fn dependency_package(dependency: &Dependency) -> &Package {
+    match dependency {
+        Dependency::Local { package } | Dependency::Remote { package } => package,
+    }
+}
+
+/// Adds `package` and its dependencies to the crate graph for the member being checked and
+/// returns the crate to use for it.
+///
+/// `shared` holds the crate each package was first elaborated as. It is reused unless it is
+/// stateful or depends on a crate that could not be reused; otherwise the member gets a fresh
+/// instance. `this_run` memoizes the crate chosen for each package within one member, so that a
+/// package reached along two paths is one crate.
+fn instantiate_package(
+    context: &mut Context,
+    package: &Package,
+    shared: &mut HashMap<PathBuf, CrateId>,
+    this_run: &mut HashMap<PathBuf, CrateId>,
+) -> CrateId {
+    if let Some(crate_id) = this_run.get(&package.entry_path) {
+        return *crate_id;
+    }
+
+    let mut dependencies = Vec::new();
+    let mut any_fresh = false;
+    for (name, dependency) in &package.dependencies {
+        let dependency = dependency_package(dependency);
+        let crate_id = instantiate_package(context, dependency, shared, this_run);
+        any_fresh |= shared.get(&dependency.entry_path) != Some(&crate_id);
+        dependencies.push((name.clone(), crate_id));
+    }
+
+    let existing = shared.get(&package.entry_path).copied();
+    let reusable =
+        existing.is_some_and(|existing| !any_fresh && !context.stateful_crates.contains(&existing));
+    let crate_id = match existing {
+        Some(existing) if reusable => existing,
+        _ => {
+            let file_id =
+                context.file_manager.name_to_id(package.entry_path.clone()).unwrap_or_else(|| {
+                    panic!("{} is not in the file manager", package.entry_path.display())
+                });
+            let crate_id = if existing.is_some() {
+                context.crate_graph.add_crate_instance(file_id)
+            } else {
+                let crate_id = context.crate_graph.add_crate(file_id);
+                shared.insert(package.entry_path.clone(), crate_id);
+                crate_id
+            };
+            let std_crate_id = *context.stdlib_crate_id();
+            add_dep(context, crate_id, std_crate_id, "std".parse().unwrap());
+            context
+                .required_unstable_features
+                .insert(crate_id, package.compiler_required_unstable_features.clone());
+            for (name, dependency) in dependencies {
+                add_dep(context, crate_id, dependency, name);
+            }
+            crate_id
+        }
+    };
+    this_run.insert(package.entry_path.clone(), crate_id);
+    crate_id
 }
 
 fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {

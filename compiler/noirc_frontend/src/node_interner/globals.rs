@@ -43,6 +43,10 @@ pub enum GlobalValue {
     Resolved(comptime::Value),
 }
 
+/// The value of every evaluated `comptime mut global` at one point of a compilation.
+/// See [`crate::hir::Context::check_crates`].
+pub type ComptimeGlobalsSnapshot = Vec<(GlobalId, comptime::Value)>;
+
 impl NodeInterner {
     pub fn next_global_id(&mut self) -> GlobalId {
         GlobalId(self.globals.len())
@@ -148,6 +152,50 @@ impl NodeInterner {
 
     pub fn get_all_globals(&self) -> &[GlobalInfo] {
         &self.globals
+    }
+
+    /// Deep-copies the current value of every evaluated `comptime mut global`.
+    pub fn snapshot_mutable_comptime_globals(&self) -> ComptimeGlobalsSnapshot {
+        self.globals
+            .iter()
+            .filter(|global| self.definition(global.definition_id).mutable)
+            .filter_map(|global| match &global.value {
+                GlobalValue::Resolved(value) => Some((global.id, value.deep_clone())),
+                GlobalValue::Unresolved | GlobalValue::Resolving => None,
+            })
+            .collect()
+    }
+
+    /// Deep-copies the current value of every evaluated `comptime mut global` of `crate_id`.
+    pub fn snapshot_mutable_comptime_globals_of(
+        &self,
+        crate_id: CrateId,
+    ) -> ComptimeGlobalsSnapshot {
+        self.globals
+            .iter()
+            .filter(|global| global.crate_id == crate_id)
+            .filter(|global| self.definition(global.definition_id).mutable)
+            .filter_map(|global| match &global.value {
+                GlobalValue::Resolved(value) => Some((global.id, value.deep_clone())),
+                GlobalValue::Unresolved | GlobalValue::Resolving => None,
+            })
+            .collect()
+    }
+
+    /// Whether any global in `before`, other than the stdlib's, holds a different value now.
+    pub fn mutable_comptime_globals_changed(&self, before: &ComptimeGlobalsSnapshot) -> bool {
+        before.iter().any(|(id, old)| {
+            let global = &self.globals[id.0];
+            !global.crate_id.is_stdlib()
+                && !matches!(&global.value, GlobalValue::Resolved(current) if current == old)
+        })
+    }
+
+    /// Sets every global in `snapshot` back to the value it had when the snapshot was taken.
+    pub fn restore_mutable_comptime_globals(&mut self, snapshot: &ComptimeGlobalsSnapshot) {
+        for (id, value) in snapshot {
+            self.globals[id.0].value = GlobalValue::Resolved(value.deep_clone());
+        }
     }
 
     /// Try to get the `HirLetStatement` which defines a given global value

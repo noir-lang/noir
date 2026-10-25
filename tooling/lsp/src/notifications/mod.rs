@@ -650,6 +650,42 @@ mod notification_tests {
         TextDocumentIdentifier, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
     };
 
+    /// `test_programs/comptime_state` has a macro library with a `comptime mut global` counter
+    /// and packages that register into it and assert on what they see, the way `nargo check`
+    /// shows it to each of them on its own: a library's registrations stay visible to its
+    /// dependents, while nothing leaks between unrelated packages, and a shared library over a
+    /// registering one agrees with its dependents on the registering library's types.
+    #[test]
+    fn comptime_mutable_globals_do_not_leak_between_workspace_packages() {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("comptime_state");
+        let root_dir = noir_text_document.to_file_path().unwrap();
+        let root_dir = root_dir.parent().unwrap().parent().unwrap();
+        let p1_lib = root_dir.join("p1/src/lib.nr");
+
+        let workspace = resolve_workspace_for_source_path(&mut state, &p1_lib).unwrap();
+        assert_eq!(workspace.members.len(), 9, "root analysis should find all nine packages");
+
+        let checked = check_workspace(&mut state, &workspace);
+        let errors: Vec<_> = checked
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| !diagnostic.is_warning())
+            .map(|diagnostic| diagnostic.message.clone())
+            .collect();
+        assert!(errors.is_empty(), "{errors:?}");
+
+        // `notelib` is elaborated once per dependent, but its unused import is reported once.
+        let unused_import_warnings = checked
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.message.contains("unused import"))
+            .count();
+        assert_eq!(unused_import_warnings, 1);
+
+        // Every member got a crate of its own.
+        assert_eq!(checked.package_crate_ids.len(), 9);
+    }
+
     #[test]
     fn test_did_change_with_empty_content_changes_is_ignored() {
         let src = "fn main() {}";

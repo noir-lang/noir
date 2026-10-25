@@ -126,6 +126,37 @@ macro_rules! int_constructor {
 }
 
 impl Value {
+    /// Copies the value together with every cell it holds, so that mutating a field or element
+    /// of the copy, or of the original, leaves the other unchanged. A plain `clone` shares the
+    /// cells of tuples, structs and references.
+    pub fn deep_clone(&self) -> Value {
+        match self {
+            Value::Tuple(cells) => {
+                Value::Tuple(vecmap(cells, |cell| ValueCell::new(cell.borrow().deep_clone())))
+            }
+            Value::Struct(fields, typ) => {
+                let fields = fields
+                    .iter()
+                    .map(|(name, cell)| (name.clone(), ValueCell::new(cell.borrow().deep_clone())))
+                    .collect();
+                Value::Struct(fields, typ.clone())
+            }
+            Value::Enum(tag, args, typ) => {
+                Value::Enum(*tag, vecmap(args, Value::deep_clone), typ.clone())
+            }
+            Value::Pointer(cell, auto_deref, mutable) => {
+                Value::Pointer(ValueCell::new(cell.borrow().deep_clone()), *auto_deref, *mutable)
+            }
+            Value::Array(values, typ) => {
+                Value::Array(values.iter().map(Value::deep_clone).collect(), typ.clone())
+            }
+            Value::Vector(values, typ) => {
+                Value::Vector(values.iter().map(Value::deep_clone).collect(), typ.clone())
+            }
+            other => other.clone(),
+        }
+    }
+
     pub fn field(x: FieldElement) -> Self {
         Value::Integer(Integer::Field(x))
     }
@@ -935,5 +966,25 @@ where
             let tokens = tokens_to_string(tokens, elaborator.interner, elaborator.files);
             Err(InterpreterError::FailedToParseMacro { error, tokens, rule, location })
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn deep_clone_does_not_share_struct_cells() {
+        let mut fields = StructFields::default();
+        fields.insert(Rc::new("x".to_string()), ValueCell::new(Value::Bool(false)));
+        let original = Value::Struct(fields, Type::Unit);
+
+        let copy = original.deep_clone();
+
+        let Value::Struct(fields, _) = &original else { unreachable!() };
+        *fields[&Rc::new("x".to_string())].borrow_mut() = Value::Bool(true);
+
+        let Value::Struct(copied_fields, _) = &copy else { unreachable!() };
+        assert_eq!(*copied_fields[&Rc::new("x".to_string())].borrow(), Value::Bool(false));
     }
 }

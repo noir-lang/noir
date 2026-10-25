@@ -1,0 +1,7 @@
+[package]
+name = "notelib"
+authors = []
+type = "lib"
+
+[dependencies]
+macros = { path = "../macros" }

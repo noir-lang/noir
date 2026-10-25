@@ -39,6 +39,7 @@ use noirc_evaluator::ssa::{
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::error_reporting::function_locations_in_parsed_module;
 use noirc_frontend::hir::comptime::ComptimeIo;
+use noirc_frontend::hir::def_collector::dc_crate::CompilationError;
 use noirc_frontend::hir::def_map::{ModuleDefId, ModuleId};
 use noirc_frontend::hir::{CheckedContext, Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
@@ -470,9 +471,38 @@ pub fn check_crate_keeping_warnings_from(
 ) -> (CheckedContext, CompilationResult<()>) {
     let (context, diagnostics) =
         context.check_crate(crate_id, options.frontend_options(), comptime_io);
+    let warnings_and_errors = keep_warnings_from(&context, &diagnostics, warning_crates, options);
+
+    let result = if has_errors(&warnings_and_errors, options.deny_warnings) {
+        Err(warnings_and_errors)
+    } else {
+        Ok(((), warnings_and_errors))
+    };
+    (context, result)
+}
+
+/// Checks the crates `next_crate` yields, one after the other, each as the root of its own
+/// compilation while sharing dependencies: see [`Context::check_crates`].
+pub fn check_crates(
+    context: Context,
+    options: &CompileOptions,
+    comptime_io: &mut ComptimeIo,
+    next_crate: impl FnMut(&mut Context) -> Option<CrateId>,
+) -> (CheckedContext, Vec<CompilationError>) {
+    context.check_crates(options.frontend_options(), comptime_io, next_crate)
+}
+
+/// Converts `diagnostics` for reporting, keeping errors wherever they are raised and warnings
+/// only when raised in a file of one of `warning_crates`.
+pub fn keep_warnings_from(
+    context: &CheckedContext,
+    diagnostics: &[CompilationError],
+    warning_crates: &[CrateId],
+    options: &CompileOptions,
+) -> Vec<CustomDiagnostic> {
     let crate_files: HashSet<FileId> =
         warning_crates.iter().flat_map(|crate_id| context.crate_files(crate_id)).collect();
-    let warnings_and_errors: Vec<CustomDiagnostic> = diagnostics
+    diagnostics
         .iter()
         .map(CustomDiagnostic::from)
         .filter(|diagnostic| {
@@ -483,14 +513,7 @@ pub fn check_crate_keeping_warnings_from(
             // Only keep warnings from the crates asked for
             if error.is_warning() { crate_files.contains(&error.file) } else { true }
         })
-        .collect();
-
-    let result = if has_errors(&warnings_and_errors, options.deny_warnings) {
-        Err(warnings_and_errors)
-    } else {
-        Ok(((), warnings_and_errors))
-    };
-    (context, result)
+        .collect()
 }
 
 pub fn compute_function_abi(

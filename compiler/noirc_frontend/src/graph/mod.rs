@@ -256,6 +256,17 @@ impl CrateGraph {
         }
     }
 
+    /// Adds a further crate rooted at `file_id`, which may already be the root of other crates.
+    /// Each instance is elaborated on its own, so this is how one source tree is compiled several
+    /// times in one context (see `Context::check_crates`).
+    pub fn add_crate_instance(&mut self, file_id: FileId) -> CrateId {
+        let data = CrateData { root_file_id: file_id, dependencies: Vec::new() };
+        let crate_id = CrateId::Crate(self.arena.len());
+        let prev = self.arena.insert(crate_id, data);
+        assert!(prev.is_none());
+        crate_id
+    }
+
     pub fn add_stdlib(&mut self, file_id: FileId) -> CrateId {
         for (crate_id, crate_data) in &self.arena {
             if crate_id.is_stdlib() {
@@ -425,6 +436,16 @@ mod tests {
         let crate3 = graph.add_crate(file_id_2);
         let crate3_2 = graph.add_crate(file_id_2);
         assert_eq!(crate3, crate3_2);
+    }
+
+    #[test]
+    fn add_crate_instance_allows_several_crates_with_the_same_root_file() {
+        let file_ids = dummy_file_ids(1);
+        let mut graph = CrateGraph::default();
+        let first = graph.add_crate(file_ids[0]);
+        let second = graph.add_crate_instance(file_ids[0]);
+        assert_ne!(first, second);
+        assert_eq!(graph[first].root_file_id, graph[second].root_file_id);
     }
 
     #[test]

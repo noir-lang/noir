@@ -1,0 +1,7 @@
+[package]
+name = "x"
+authors = []
+type = "lib"
+
+[dependencies]
+macros = { path = "../macros" }
