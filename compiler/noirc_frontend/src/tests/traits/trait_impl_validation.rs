@@ -998,3 +998,85 @@ fn bounds_served_by_generic_impls_are_decided_once_in_either_order() {
     "#;
     check_errors(src);
 }
+
+/// https://github.com/noir-lang/noir-claude/issues/2845: a where bound's associated type must
+/// match the serving impl's, so `u16: Foo<Out = Field>` fails when `u16`'s `Out` is `u32`, and the
+/// impls are disjoint, in either order.
+#[test]
+fn associated_type_bound_that_fails_for_a_type_keeps_impls_apart_in_either_order() {
+    let impls = [
+        "impl<T> Tr for S<T> where T: Foo<Out = Field> { fn get(self) -> Field { 5 } }",
+        "impl Tr for S<u16> { fn get(self) -> Field { 7 } }",
+    ];
+    for (first, second) in [(impls[0], impls[1]), (impls[1], impls[0])] {
+        let src = format!(
+            r#"
+    pub trait Foo {{ type Out; }}
+    impl Foo for u8 {{ type Out = Field; }}
+    impl Foo for u16 {{ type Out = u32; }}
+    pub trait Tr {{ fn get(self) -> Field; }}
+    pub struct S<A> {{ a: A }}
+    {first}
+    {second}
+    fn main() -> pub (Field, Field) {{ (S {{ a: 1 as u8 }}.get(), S {{ a: 1 as u16 }}.get()) }}
+    "#
+        );
+        assert_no_errors(&src);
+    }
+}
+
+/// An associated type bound on another generic of the impl (`T: Foo<Out = U>`) is known to fail
+/// once both are decided.
+#[test]
+fn associated_type_bound_naming_another_generic_keeps_impls_apart() {
+    let src = r#"
+    pub trait Foo { type Out; }
+    impl Foo for u8 { type Out = Field; }
+    impl Foo for u16 { type Out = u32; }
+    pub trait Tr { fn get(self) -> Field; }
+    pub struct S<A, B> { b: B }
+    impl<T, U> Tr for S<T, U> where T: Foo<Out = U> { fn get(self) -> Field { 5 } }
+    impl Tr for S<u16, Field> { fn get(self) -> Field { 7 } }
+    fn g<C>(c: C) -> Field where C: Tr { c.get() }
+    fn main() -> pub (Field, Field) { (g(S::<u8, Field> { b: 1 }), g(S::<u16, Field> { b: 1 })) }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A bound whose associated type matches the impl's (`u16`'s `Out` is `Field`) holds, so the impls
+/// overlap.
+#[test]
+fn associated_type_bound_that_holds_for_a_type_overlaps() {
+    let src = r#"
+    pub trait Foo { type Out; }
+    impl Foo for u16 { type Out = Field; }
+    pub trait Tr {}
+    pub struct S<A> { a: A }
+    impl<T> Tr for S<T> where T: Foo<Out = Field> {}
+            ~~ Previous impl defined here
+    impl Tr for S<u16> {}
+                ^^^^^^ Impl for type `S<u16>` overlaps with existing impl
+                ~~~~~~ Overlapping impl
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// A bound served only by an impl whose own where clause has a failing associated type bound is
+/// known to fail.
+#[test]
+fn bound_served_only_by_an_impl_with_a_failing_associated_type_bound_keeps_impls_apart() {
+    let src = r#"
+    pub trait Foo { type Out; }
+    impl Foo for u16 { type Out = u32; }
+    pub struct W<T> { t: T }
+    pub trait Mid {}
+    impl<T> Mid for W<T> where T: Foo<Out = Field> {}
+    pub trait Tr {}
+    pub struct S<A> { a: A }
+    impl<T> Tr for S<T> where W<T>: Mid {}
+    impl Tr for S<u16> {}
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
