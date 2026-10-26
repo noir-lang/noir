@@ -310,16 +310,20 @@ impl NodeInterner {
         Ok(())
     }
 
-    /// The location of an impl of `impl_id`'s trait, added before `impl_id`, that applies to some
-    /// type `impl_id` applies to as well (see [`Self::overlapping_impl`]). `None` if `impl_id` wasn't
-    /// added, as for an impl for an error type.
+    /// An impl of `impl_id`'s trait, added before `impl_id`, that applies to some type `impl_id`
+    /// applies to as well (see `overlapping_impl`). `None` if `impl_id` wasn't added, as for an
+    /// impl for an error type.
     ///
     /// Call it once the impls elaborated together with `impl_id` are all added, so that their
     /// associated types are resolved and every impl that can serve a where bound, `impl_id`
     /// included, is seen.
-    pub fn overlapping_earlier_impl(&self, impl_id: TraitImplId) -> Option<Location> {
+    pub fn overlapping_earlier_impl(&self, impl_id: TraitImplId) -> Option<TraitImplId> {
         let trait_impl = self.try_get_trait_implementation(impl_id)?;
         let trait_impl = trait_impl.borrow();
+        let impls = self.trait_implementation_map.get(&trait_impl.trait_id)?;
+        let position = impls
+            .iter()
+            .position(|(_, kind)| matches!(kind, TraitImplKind::Normal(id) if *id == impl_id))?;
         let (object_type, substitutions) =
             trait_impl.typ.substitute_type_vars_with_fresh_type_vars(&trait_impl.generics, self);
         // Associated types don't take part: `impl Foo<Bar = u32> for Baz` overlaps
@@ -328,29 +332,23 @@ impl NodeInterner {
             typ.substitute(&substitutions)
         });
         let where_clause = self.instantiated_where_clause(impl_id, &substitutions);
-        let existing = self.overlapping_impl(
-            impl_id,
-            &object_type,
-            trait_impl.trait_id,
-            &ordered_generics,
-            &where_clause,
-        )?;
-        Some(self.get_trait_implementation(existing).borrow().ident.location())
+        self.overlapping_impl(&impls[..position], &object_type, &ordered_generics, &where_clause)
     }
 
-    /// An impl of `trait_id` added before `impl_id` that applies to some type `impl_id`, with header
-    /// `object_type: trait_id<trait_generics>` and where clause `where_clause` (both instantiated
-    /// with unknowns for its generics), applies to as well. `None` if `impl_id` wasn't added.
+    /// An impl among `impls` that applies to some type the impl with header
+    /// `object_type: Trait<trait_generics>` and where clause `where_clause` (both instantiated with
+    /// unknowns for its generics) applies to as well.
     ///
     /// As in rustc, two impls overlap when their headers unify and no bound of either where clause
     /// is known to fail for the unified header.
     ///
     /// A bound is known to fail when its type has a known head (`u32`, `S<_>`) and no impl serves
-    /// it. An impl serves a bound when its header matches and no bound of its own where clause is
-    /// known to fail, looking as deep as the impl search does; past that, a bound may hold, so
-    /// the check errs toward reporting an overlap. By the orphan rule a dependent crate can't add
-    /// an impl of a trait for a type it doesn't own, so the impls seen here are all those that can
-    /// serve such a bound.
+    /// it. An impl serves a bound when its header matches, each associated type the bound gives
+    /// matches the impl's, and no bound of its own where clause is known to fail, looking as deep
+    /// as the impl search does; past that, a bound may hold, so the check errs toward reporting an
+    /// overlap. By the orphan rule a dependent crate can't add an impl of a trait for a type it
+    /// doesn't own, so the impls seen here are all those that can serve such a bound, apart from
+    /// impls comptime code generates later in the same crate.
     ///
     /// A bound on a type that is still unknown (`T: Marker`) may hold whatever impls exist here,
     /// since a dependent crate may implement it for its own type. An unknown counts as known once
@@ -361,17 +359,12 @@ impl NodeInterner {
     /// to fail (`Field: Marker`).
     fn overlapping_impl(
         &self,
-        impl_id: TraitImplId,
+        impls: &[(Type, TraitImplKind)],
         object_type: &Type,
-        trait_id: TraitId,
         trait_generics: &[Type],
         where_clause: &[TraitConstraint],
     ) -> Option<TraitImplId> {
-        let impls = self.trait_implementation_map.get(&trait_id)?;
-        let position = impls
-            .iter()
-            .position(|(_, kind)| matches!(kind, TraitImplKind::Normal(id) if *id == impl_id))?;
-        impls[..position].iter().find_map(|(existing_type, impl_kind)| {
+        impls.iter().find_map(|(existing_type, impl_kind)| {
             let TraitImplKind::Normal(existing) = impl_kind else {
                 return None;
             };
