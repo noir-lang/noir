@@ -420,6 +420,7 @@ impl<'context> Elaborator<'context> {
         for trait_impl in &mut items.trait_impls {
             self.collect_trait_impl(trait_impl);
         }
+        self.check_overlapping_trait_impls(&items.trait_impls);
 
         // The stdlib doesn't generate types at compile time so it's fine to eagerly resolve
         // function metas and globals now. Not doing this leads to some dependency issues regarding

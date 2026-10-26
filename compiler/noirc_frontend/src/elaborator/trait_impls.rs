@@ -222,24 +222,33 @@ impl Elaborator<'_> {
                 methods,
             });
 
-            match self.interner.add_trait_implementation(
+            if let Err(error) = self.interner.add_trait_implementation(
                 self.item.impl_context.expect_self_type().clone(),
                 trait_id,
                 impl_id,
                 resolved_trait_impl,
                 location,
             ) {
-                Ok(Ok(())) => (),
-                Err(error) => self.push_err(error),
-                Ok(Err(prev_location)) => {
-                    let typ = self.item.impl_context.expect_self_type().clone();
-                    self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                        typ,
-                        location: self_type_location,
-                        prev_location,
-                    });
-                }
+                self.push_err(error);
             }
+        }
+    }
+
+    /// Reports each of `trait_impls` that overlaps an impl of its trait added before it. This runs
+    /// once all of them are collected, so that the verdict doesn't depend on the order impls are
+    /// collected in.
+    pub(super) fn check_overlapping_trait_impls(&mut self, trait_impls: &[UnresolvedTraitImpl]) {
+        for trait_impl in trait_impls {
+            let Some(impl_id) = trait_impl.impl_id else { continue };
+            let Some(prev_location) = self.interner.overlapping_earlier_impl(impl_id) else {
+                continue;
+            };
+            let typ = self.interner.get_trait_implementation(impl_id).borrow().typ.clone();
+            self.push_err(DefCollectorErrorKind::OverlappingImpl {
+                typ,
+                location: trait_impl.object_type.location,
+                prev_location,
+            });
         }
     }
 

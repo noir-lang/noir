@@ -273,7 +273,7 @@ impl NodeInterner {
         impl_id: TraitImplId,
         trait_impl: Shared<TraitImpl>,
         location: Location,
-    ) -> Result<Result<(), Location>, CompilationError> {
+    ) -> Result<(), CompilationError> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
         self.trait_implementations_by_trait_id.entry(trait_id).or_default().push(impl_id);
 
@@ -289,29 +289,11 @@ impl NodeInterner {
         }
 
         let impl_generics = trait_impl.borrow().generics.clone();
-        let (instantiated_object_type, substitutions) =
+        let (_, substitutions) =
             object_type.substitute_type_vars_with_fresh_type_vars(&impl_generics, self);
-
-        // Associated types don't take part: `impl Foo<Bar = u32> for Baz` overlaps
-        // `impl Foo<Bar = i32> for Baz`.
-        let ordered_generics = vecmap(&self.get_trait_generics_for_impl(impl_id).ordered, |typ| {
-            typ.substitute(&substitutions)
-        });
 
         // Remove any prepared implementation for this impl.
         self.remove_prepared_trait_implementation(trait_id, impl_id);
-
-        let where_clause = self.instantiated_where_clause(impl_id, &substitutions);
-        if let Some(existing) = self.overlapping_impl(
-            &instantiated_object_type,
-            trait_id,
-            &ordered_generics,
-            &where_clause,
-        ) {
-            let existing_impl = self.get_trait_implementation(existing);
-            let existing_impl = existing_impl.borrow();
-            return Ok(Err(existing_impl.ident.location()));
-        }
 
         // The object type is generalized so that a generic impl will apply
         // to any type T, rather than just the generic type named T.
@@ -325,12 +307,40 @@ impl NodeInterner {
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));
 
-        Ok(Ok(()))
+        Ok(())
     }
 
-    /// An impl already added for `trait_id` that applies to some type the impl with header
+    /// The location of an impl of `impl_id`'s trait, added before `impl_id`, that applies to some
+    /// type `impl_id` applies to as well (see [`Self::overlapping_impl`]). `None` if `impl_id` wasn't
+    /// added, as for an impl for an error type.
+    ///
+    /// Call it once the impls elaborated together with `impl_id` are all added, so that their
+    /// associated types are resolved and every impl that can serve a where bound, `impl_id`
+    /// included, is seen.
+    pub fn overlapping_earlier_impl(&self, impl_id: TraitImplId) -> Option<Location> {
+        let trait_impl = self.try_get_trait_implementation(impl_id)?;
+        let trait_impl = trait_impl.borrow();
+        let (object_type, substitutions) =
+            trait_impl.typ.substitute_type_vars_with_fresh_type_vars(&trait_impl.generics, self);
+        // Associated types don't take part: `impl Foo<Bar = u32> for Baz` overlaps
+        // `impl Foo<Bar = i32> for Baz`.
+        let ordered_generics = vecmap(&self.get_trait_generics_for_impl(impl_id).ordered, |typ| {
+            typ.substitute(&substitutions)
+        });
+        let where_clause = self.instantiated_where_clause(impl_id, &substitutions);
+        let existing = self.overlapping_impl(
+            impl_id,
+            &object_type,
+            trait_impl.trait_id,
+            &ordered_generics,
+            &where_clause,
+        )?;
+        Some(self.get_trait_implementation(existing).borrow().ident.location())
+    }
+
+    /// An impl of `trait_id` added before `impl_id` that applies to some type `impl_id`, with header
     /// `object_type: trait_id<trait_generics>` and where clause `where_clause` (both instantiated
-    /// with unknowns for its generics) applies to as well.
+    /// with unknowns for its generics), applies to as well. `None` if `impl_id` wasn't added.
     ///
     /// As in rustc, two impls overlap when their headers unify and no bound of either where clause
     /// is known to fail for the unified header.
@@ -351,13 +361,17 @@ impl NodeInterner {
     /// to fail (`Field: Marker`).
     fn overlapping_impl(
         &self,
+        impl_id: TraitImplId,
         object_type: &Type,
         trait_id: TraitId,
         trait_generics: &[Type],
         where_clause: &[TraitConstraint],
     ) -> Option<TraitImplId> {
         let impls = self.trait_implementation_map.get(&trait_id)?;
-        impls.iter().find_map(|(existing_type, impl_kind)| {
+        let position = impls
+            .iter()
+            .position(|(_, kind)| matches!(kind, TraitImplKind::Normal(id) if *id == impl_id))?;
+        impls[..position].iter().find_map(|(existing_type, impl_kind)| {
             let TraitImplKind::Normal(existing) = impl_kind else {
                 return None;
             };
