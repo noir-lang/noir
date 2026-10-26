@@ -1,0 +1,22 @@
+diff --git a/compiler/noirc_evaluator/src/acir/acir_context/mod.rs b/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
+index 59b8ab35869..06e8fc948ba 100644
+--- a/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
++++ b/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
+@@ -886,7 +886,7 @@ impl<F: AcirField> AcirContext<F> {
+             // We subtract 1 from rhs_const to account for the case where rhs_const is a power of 2.
+             let max_remainder_bits = (*rhs_const - F::one()).num_bits();
+ 
+-            (bit_size - rhs_bits + 1, max_remainder_bits, rhs_bits)
++            (bit_size - rhs_bits + 1, rhs_bits, rhs_bits)
+         } else {
+             (bit_size, bit_size, bit_size)
+         };
+@@ -980,7 +980,7 @@ impl<F: AcirField> AcirContext<F> {
+                     remainder_var,
+                     max_r_var,
+                     one,
+-                    max_r_bits,
++                    rhs_const.num_bits(),
+                     predicate,
+                 )?;
+             } else if bit_size == 128 {
