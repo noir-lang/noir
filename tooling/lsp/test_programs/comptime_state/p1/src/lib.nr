@@ -1,5 +1,5 @@
 use macros::expect_registered;
-use notelib::notes::LibThing;
+pub use notelib::notes::LibThing;
 
 mod things;
 
@@ -13,3 +13,7 @@ pub struct DerivedOne {
 }
 
 pub fn take(_thing: LibThing) {}
+
+pub fn lib_kind(t: LibThing) {
+    t.kind()
+}

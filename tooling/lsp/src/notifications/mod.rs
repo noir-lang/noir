@@ -412,8 +412,8 @@ pub(crate) fn process_workspace_for_single_file_change(
     // Any other crate re-elaborates the edited file in place.
     let stateful = node_interner.is_stateful_crate(crate_id);
 
-    // Get a hold of the CrateDefMap for this crate, by removing it. The collector that runs
-    // below adds it back.
+    // Get a hold of the CrateDefMap for this crate, by removing it. The single-file collector
+    // below takes it and adds it back; a stateful crate is collected into a fresh one.
     let mut crate_def_map = def_maps.remove(&crate_id).unwrap();
 
     // Clear what the interner holds for the files elaborated again: locations, methods, and the
@@ -422,6 +422,9 @@ pub(crate) fn process_workspace_for_single_file_change(
         if stateful { crate_def_map.file_ids().into_iter().collect() } else { vec![file_id] };
     for file in cleared_files {
         node_interner.clear_in_file(file, crate_id);
+    }
+    if stateful {
+        node_interner.clear_definition_aliases_of_crate(crate_id);
     }
 
     // Here we enable all options because we won't show errors to users, so it's easier to
@@ -772,6 +775,29 @@ mod notification_tests {
 
         let reexports = cache.node_interner.get_reexports(ModuleDefId::TypeId(lib_thing));
         assert!(reexports.iter().any(|reexport| reexport.module_id.krate == notelib_in_p1));
+    }
+
+    /// `p1` re-exports `notelib`'s `LibThing`. Keystrokes in that file must leave one auto-import
+    /// entry for the re-export, not add one per keystroke.
+    #[test]
+    fn single_file_check_keeps_one_auto_import_entry_per_reexport() {
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        let workspace = fixture.check("p1/src/lib.nr");
+        let (uri, source) = (fixture.uri("p1/src/lib.nr"), fixture.source("p1/src/lib.nr"));
+        for _ in 0..3 {
+            let uri = uri.clone();
+            process_workspace_for_single_file_change(&mut fixture.state, &workspace, uri, &source)
+                .unwrap();
+        }
+
+        let cache = &fixture.state.workspace_cache[&workspace.root_dir];
+        let p1 = cache.package_crate_ids[&fixture.path("p1")];
+        let entries = &cache.node_interner.get_auto_import_names()["LibThing"];
+        let reexported_by_p1 = entries
+            .iter()
+            .filter(|entry| entry.defining_module.is_some_and(|module| module.krate == p1))
+            .count();
+        assert_eq!(reexported_by_p1, 1);
     }
 
     /// `wrapper` writes no other crate's state, so a keystroke in it re-elaborates only the

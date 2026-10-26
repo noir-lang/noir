@@ -5,6 +5,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     ast::{FunctionDefinition, ItemVisibility},
+    graph::CrateId,
     hir::def_map::{ModuleDefId, ModuleId},
     node_interner::{
         DefinitionId, FuncId, GlobalId, NodeInterner, ReferenceId, TraitAssociatedTypeId, TraitId,
@@ -33,13 +34,18 @@ impl LocationIndices {
         let range_map = self.map_file_to_range.get(&location.file)?;
         Some(*range_map.get(&location.span.start())?)
     }
+}
 
-    /// The node whose span is exactly `location`'s, if any.
-    fn get_node_at_exact_location(&self, location: Location) -> Option<PetGraphIndex> {
-        let range_map = self.map_file_to_range.get(&location.file)?;
-        let (range, node_index) = range_map.get_key_value(&location.span.start())?;
-        (*range == (location.span.start()..location.span.end())).then_some(*node_index)
-    }
+/// What tells the definitions one item has across the instances of a crate (see
+/// `Context::check_crates`) from any other definition at the same span: the instances share a
+/// root file, define the same kind of item there, and, when a macro expansion places several
+/// definitions of that kind at the span of one macro token, do so in the same order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(crate) struct DefinitionAliasKey {
+    location: Location,
+    root_file: FileId,
+    kind: std::mem::Discriminant<ReferenceId>,
+    ordinal: usize,
 }
 
 pub struct ReferencesTracker<'a> {
@@ -254,42 +260,24 @@ impl NodeInterner {
         }
 
         let referenced_index = self.get_or_insert_reference(referenced);
-        if let Some(existing) =
-            self.location_indices.get_node_at_exact_location(referenced_location)
-            && existing != referenced_index
-            && self.is_definition_of_another_instance(self.reference_graph[existing], referenced)
+        if !self.definition_alias_keys.contains_key(&referenced_index)
+            && let Some(krate) = self.reference_crate(referenced)
+            && let Some(root_file) = self.crate_root_files.get(&krate).copied()
         {
-            self.definition_aliases
-                .entry(referenced_location)
-                .or_insert_with(|| vec![existing])
-                .push(referenced_index);
-            self.definition_alias_location.insert(existing, referenced_location);
-            self.definition_alias_location.insert(referenced_index, referenced_location);
+            let kind = std::mem::discriminant(&referenced);
+            let ordinal =
+                self.definitions_at_span.entry((referenced_location, krate, kind)).or_default();
+            let key = DefinitionAliasKey {
+                location: referenced_location,
+                root_file,
+                kind,
+                ordinal: *ordinal,
+            };
+            *ordinal += 1;
+            self.definition_aliases.entry(key).or_default().push(referenced_index);
+            self.definition_alias_keys.insert(referenced_index, (krate, key));
         }
         self.location_indices.add_location(referenced_location, referenced_index);
-    }
-
-    /// Whether `existing` and `new`, two definitions at one span, are the same item of two
-    /// instances of one crate (see `Context::check_crates`). Two expansions of one macro also
-    /// define items at one span, the span of the macro's own token, but for different crates
-    /// or for one crate; those stay apart.
-    fn is_definition_of_another_instance(&self, existing: ReferenceId, new: ReferenceId) -> bool {
-        if std::mem::discriminant(&existing) != std::mem::discriminant(&new) {
-            return false;
-        }
-        let (Some(existing_crate), Some(new_crate)) =
-            (self.reference_crate(existing), self.reference_crate(new))
-        else {
-            return false;
-        };
-        let roots =
-            (self.crate_root_files.get(&existing_crate), self.crate_root_files.get(&new_crate));
-        match roots {
-            (Some(existing_root), Some(new_root)) => {
-                existing_crate != new_crate && existing_root == new_root
-            }
-            _ => false,
-        }
     }
 
     #[tracing::instrument(skip(self), ret)]
@@ -333,8 +321,8 @@ impl NodeInterner {
         // A crate elaborated once per dependent defines the item once per instance, and each
         // dependent refers to its own instance's definition.
         let mut referenced_indices = vec![referenced_node_index];
-        if let Some(location) = self.definition_alias_location.get(&referenced_node_index) {
-            let aliases = &self.definition_aliases[location];
+        if let Some((_, key)) = self.definition_alias_keys.get(&referenced_node_index) {
+            let aliases = &self.definition_aliases[key];
             referenced_indices
                 .extend(aliases.iter().filter(|alias| **alias != referenced_node_index));
         }
@@ -495,7 +483,30 @@ impl NodeInterner {
     /// is type-checked again.
     pub(crate) fn clear_file_locations(&mut self, file: FileId) {
         self.location_indices.map_file_to_range.remove(&file);
-        self.definition_aliases.retain(|location, _| location.file != file);
-        self.definition_alias_location.retain(|_, location| location.file != file);
+        self.definition_aliases.retain(|key, _| key.location.file != file);
+        self.definition_alias_keys.retain(|_, (_, key)| key.location.file != file);
+        self.definitions_at_span.retain(|(location, _, _), _| location.file != file);
+    }
+
+    /// Forgets the definitions of `crate_id` for alias purposes, before the crate is elaborated
+    /// again as a whole: its new definitions then number from zero at every span, like those of
+    /// its other instances, wherever that span is.
+    pub fn clear_definition_aliases_of_crate(&mut self, crate_id: CrateId) {
+        let cleared: Vec<(PetGraphIndex, DefinitionAliasKey)> = self
+            .definition_alias_keys
+            .iter()
+            .filter(|(_, (krate, _))| *krate == crate_id)
+            .map(|(node, (_, key))| (*node, *key))
+            .collect();
+        for (node, key) in cleared {
+            self.definition_alias_keys.remove(&node);
+            if let Some(aliases) = self.definition_aliases.get_mut(&key) {
+                aliases.retain(|alias| *alias != node);
+                if aliases.is_empty() {
+                    self.definition_aliases.remove(&key);
+                }
+            }
+        }
+        self.definitions_at_span.retain(|(_, krate, _), _| *krate != crate_id);
     }
 }

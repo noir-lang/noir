@@ -19,3 +19,7 @@ pub struct DerivedTwo {
 }
 
 pub fn take(_thing: LibThing) {}
+
+pub fn lib_kind(t: LibThing) {
+    t.kind()
+}

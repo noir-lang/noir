@@ -233,13 +233,16 @@ fn main() {
         assert_eq!(uris, vec![a_lib, b_lib.clone(), b_lib]);
     }
 
+    /// The files holding references to whatever the `occurrence`-th `name` in `relative`
+    /// refers to, one entry per reference, sorted.
     fn references_from(
         fixture: &mut test_utils::Fixture,
         relative: &str,
         name: &str,
+        occurrence: usize,
     ) -> Vec<String> {
         let source = fixture.source(relative);
-        let position = search_in_text(&source, name)[0].start;
+        let position = search_in_text(&source, name)[occurrence].start;
         let params = ReferenceParams {
             text_document_position: TextDocumentPositionParams {
                 text_document: TextDocumentIdentifier { uri: fixture.uri(relative) },
@@ -267,13 +270,16 @@ fn main() {
         fixture.check("p1/src/lib.nr");
 
         assert_eq!(
-            references_from(&mut fixture, "p1/src/lib.nr", "LibThing"),
+            references_from(&mut fixture, "p1/src/lib.nr", "LibThing", 0),
             vec![
                 "notelib/src/lib.nr",
                 "notelib/src/notes.nr",
                 "notelib/src/notes.nr",
+                "notelib/src/notes.nr",
                 "p1/src/lib.nr",
                 "p1/src/lib.nr",
+                "p1/src/lib.nr",
+                "p2/src/lib.nr",
                 "p2/src/lib.nr",
                 "p2/src/lib.nr",
                 "p4/src/lib.nr",
@@ -291,7 +297,7 @@ fn main() {
         fixture.check("p1/src/lib.nr");
 
         assert_eq!(
-            references_from(&mut fixture, "p1/src/lib.nr", "notes"),
+            references_from(&mut fixture, "p1/src/lib.nr", "notes", 0),
             vec!["notelib/src/lib.nr", "notelib/src/lib.nr", "p1/src/lib.nr", "p2/src/lib.nr"]
         );
     }
@@ -305,8 +311,26 @@ fn main() {
         fixture.check("p1/src/lib.nr");
 
         assert_eq!(
-            references_from(&mut fixture, "p1/src/things.nr", "kind()"),
+            references_from(&mut fixture, "p1/src/things.nr", "kind()", 0),
             vec!["macros/src/lib.nr", "p1/src/things.nr"]
+        );
+    }
+
+    /// `with_kind` gives `notelib`'s `LibThing` and `LibOther` a `kind` method each, both
+    /// defined at the span of the macro's one `kind` token, in every instance of `notelib`.
+    /// References to `LibThing::kind` cover every instance's, and leave `LibOther::kind` out.
+    #[test]
+    fn test_on_references_request_tells_macro_generated_methods_of_one_crate_apart() {
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        fixture.check("p1/src/lib.nr");
+
+        assert_eq!(
+            references_from(&mut fixture, "p1/src/lib.nr", "kind()", 0),
+            vec!["macros/src/lib.nr", "notelib/src/notes.nr", "p1/src/lib.nr", "p2/src/lib.nr",]
+        );
+        assert_eq!(
+            references_from(&mut fixture, "notelib/src/notes.nr", "kind()", 1),
+            vec!["macros/src/lib.nr", "notelib/src/notes.nr"]
         );
     }
 

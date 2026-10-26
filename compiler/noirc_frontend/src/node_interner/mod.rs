@@ -26,7 +26,7 @@ use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
-use crate::locations::AutoImportEntry;
+use crate::locations::{AutoImportEntry, DefinitionAliasKey};
 use crate::node_interner::pusher::PushedExpr;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
@@ -298,13 +298,15 @@ pub struct NodeInterner {
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
 
-    /// Definitions of the instances of a crate elaborated once per dependent (see
-    /// `Context::check_crates`): each instance defines the item at the same span, and a
-    /// reference to any instance's definition is a reference to all of them. Keyed by that span;
-    /// `definition_alias_location` finds a node's span, which can differ from its
-    /// `reference_location` (a module declared with `mod foo;` is one).
-    pub(crate) definition_aliases: HashMap<Location, Vec<PetGraphIndex>>,
-    pub(crate) definition_alias_location: HashMap<PetGraphIndex, Location>,
+    /// The definitions of one item across the instances of a crate elaborated once per
+    /// dependent (see `Context::check_crates`), grouped by [`DefinitionAliasKey`]: a reference
+    /// to any instance's definition is a reference to all of them. `definition_alias_keys`
+    /// finds a node's key and crate, and `definitions_at_span` counts, per crate, the
+    /// definitions of a kind placed at a span so far, which numbers the key.
+    pub(crate) definition_aliases: HashMap<DefinitionAliasKey, Vec<PetGraphIndex>>,
+    pub(crate) definition_alias_keys: HashMap<PetGraphIndex, (CrateId, DefinitionAliasKey)>,
+    pub(crate) definitions_at_span:
+        HashMap<(Location, CrateId, std::mem::Discriminant<ReferenceId>), usize>,
 
     /// The root file of every crate collected so far, which tells the instances of one crate
     /// apart from unrelated crates.
@@ -556,7 +558,8 @@ impl Default for NodeInterner {
             lsp_mode: None,
             location_indices: LocationIndices::default(),
             definition_aliases: HashMap::default(),
-            definition_alias_location: HashMap::default(),
+            definition_alias_keys: HashMap::default(),
+            definitions_at_span: HashMap::default(),
             crate_root_files: HashMap::default(),
             comptime_state: None,
             reference_graph: DiGraph::new(),
@@ -1865,15 +1868,16 @@ impl NodeInterner {
         }
 
         // Clear in auto import names
-        let item_crates: HashMap<ModuleDefId, CrateId> = self
+        let cleared_imports: HashSet<ModuleDefId> = self
             .auto_import_names
             .values()
             .flatten()
-            .map(|entry| (entry.module_def_id, self.module_def_id_crate(entry.module_def_id)))
+            .filter(|entry| entry.file == file && self.auto_import_entry_crate(entry) == crate_id)
+            .map(|entry| entry.module_def_id)
             .collect();
         for entries in self.auto_import_names.values_mut() {
             entries.retain(|entry| {
-                entry.file != file || item_crates[&entry.module_def_id] != crate_id
+                entry.file != file || !cleared_imports.contains(&entry.module_def_id)
             });
         }
 
@@ -1905,24 +1909,29 @@ impl NodeInterner {
         }
     }
 
+    /// The crate an auto-import entry belongs to: the one that re-exports the item, if the
+    /// entry comes from a re-export, and the item's own otherwise.
+    fn auto_import_entry_crate(&self, entry: &AutoImportEntry) -> CrateId {
+        entry
+            .defining_module
+            .map_or_else(|| self.module_def_id_crate(entry.module_def_id), |module| module.krate)
+    }
+
     /// The crate that defines `id`, for the kinds of definitions a crate's instances share.
     pub(crate) fn reference_crate(&self, id: ReferenceId) -> Option<CrateId> {
-        match id {
-            ReferenceId::Module(module_id) => Some(module_id.krate),
-            ReferenceId::Type(type_id)
-            | ReferenceId::StructMember(type_id, _)
-            | ReferenceId::EnumVariant(type_id, _) => Some(type_id.module_id().krate),
-            ReferenceId::Trait(trait_id) => Some(trait_id.0.krate),
-            ReferenceId::TraitAssociatedType(id) => {
-                Some(self.get_trait_associated_type(id).trait_id.0.krate)
-            }
-            ReferenceId::Global(global_id) => Some(self.get_global(global_id).crate_id),
-            ReferenceId::Function(func_id) => Some(self.function_module(func_id).krate),
-            ReferenceId::Alias(alias_id) => {
-                Some(self.get_type_alias(alias_id).borrow().module_id.krate)
-            }
-            ReferenceId::Local(_) | ReferenceId::Reference(..) => None,
-        }
+        let module_def_id = match id {
+            ReferenceId::Module(id) => ModuleDefId::ModuleId(id),
+            ReferenceId::Type(id)
+            | ReferenceId::StructMember(id, _)
+            | ReferenceId::EnumVariant(id, _) => ModuleDefId::TypeId(id),
+            ReferenceId::Trait(id) => ModuleDefId::TraitId(id),
+            ReferenceId::TraitAssociatedType(id) => ModuleDefId::TraitAssociatedTypeId(id),
+            ReferenceId::Global(id) => ModuleDefId::GlobalId(id),
+            ReferenceId::Function(id) => ModuleDefId::FunctionId(id),
+            ReferenceId::Alias(id) => ModuleDefId::TypeAliasId(id),
+            ReferenceId::Local(_) | ReferenceId::Reference(..) => return None,
+        };
+        Some(self.module_def_id_crate(module_def_id))
     }
 }
 
