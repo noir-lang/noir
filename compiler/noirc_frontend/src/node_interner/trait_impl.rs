@@ -457,6 +457,14 @@ impl NodeInterner {
             kind,
             &mut candidate,
         )?;
+        if !self.associated_types_unify(
+            &obligation.trait_bound.trait_generics.named,
+            kind,
+            &instantiation_bindings,
+            &mut candidate,
+        ) {
+            return None;
+        }
         let where_clause = self.instantiated_where_clause(*impl_id, &instantiation_bindings);
         let may_hold = where_clause.iter().all(|bound| {
             self.serving_impls(bound, &candidate, recursion_limit - 1)
@@ -470,9 +478,9 @@ impl NodeInterner {
     /// recording the bindings in `bindings`. Returns the impl's instantiated object type and its
     /// instantiation bindings, or `None` if its header doesn't match.
     ///
-    /// The trait's associated types are left to the caller: the impl search requires every one it
-    /// is given to match the impl's, and the overlap check ignores them (impls that differ only in
-    /// an associated type overlap).
+    /// The trait's associated types are left to the caller. A bound requires every one it gives to
+    /// match the impl's ([`Self::associated_types_unify`]); comparing two impl headers ignores
+    /// them, since impls that differ only in an associated type overlap.
     fn unify_with_impl_header(
         &self,
         object_type: &Type,
@@ -491,6 +499,29 @@ impl NodeInterner {
                     .is_ok()
             });
         generics_unify.then_some((impl_type, instantiation_bindings))
+    }
+
+    /// Whether each of `associated_types` unifies with the associated type of the same name of the
+    /// impl entry `impl_kind`, instantiated with `instantiation_bindings`, recording the bindings
+    /// in `bindings`. An associated type the impl doesn't give doesn't match.
+    fn associated_types_unify(
+        &self,
+        associated_types: &[NamedType],
+        impl_kind: &TraitImplKind,
+        instantiation_bindings: &TypeBindings,
+        bindings: &mut TypeBindings,
+    ) -> bool {
+        let impl_associated_types = &self.impl_trait_generics(impl_kind).named;
+        associated_types.iter().all(|associated_type| {
+            let name = associated_type.name.as_str();
+            let Some(impl_associated_type) =
+                impl_associated_types.iter().find(|typ| typ.name.as_str() == name)
+            else {
+                return false;
+            };
+            let impl_type = impl_associated_type.typ.substitute(instantiation_bindings);
+            associated_type.typ.try_unify(&impl_type, bindings).is_ok()
+        })
     }
 
     /// The where clause of `impl_id`, in terms of the unknowns `instantiation_bindings` gives its
@@ -732,24 +763,12 @@ impl NodeInterner {
                 continue;
             }
 
-            // Match associated types by name, not position
-            let associated_types_unify = trait_associated_types.iter().all(|trait_generic| {
-                // Find the matching impl generic by name
-                let Some(named_impl_generic) = impl_trait_generics
-                    .named
-                    .iter()
-                    .find(|impl_g| impl_g.name.as_str() == trait_generic.name.as_str())
-                else {
-                    // If the impl doesn't have this associated type, it doesn't match
-                    return false;
-                };
-
-                let impl_generic = named_impl_generic.typ.substitute(&instantiation_bindings);
-
-                trait_generic.typ.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
-            });
-
-            if !associated_types_unify {
+            if !self.associated_types_unify(
+                trait_associated_types,
+                impl_kind,
+                &instantiation_bindings,
+                &mut fresh_bindings,
+            ) {
                 continue;
             }
 
