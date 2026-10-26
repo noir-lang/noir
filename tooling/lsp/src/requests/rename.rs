@@ -195,6 +195,44 @@ impl Foo {
         );
     }
 
+    /// Renaming a type of a crate that is checked once per dependent edits the definition and
+    /// the uses in every dependent.
+    #[test]
+    fn test_rename_across_instances_of_a_stateful_crate() {
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        fixture.check("p1/src/lib.nr");
+
+        let source = fixture.source("p1/src/lib.nr");
+        let position = search_in_text(&source, "LibThing")[0].start;
+        let params = RenameParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: fixture.uri("p1/src/lib.nr") },
+                position,
+            },
+            new_name: "Renamed".to_string(),
+            work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+        };
+        let changes = on_rename_request(&mut fixture.state, params)
+            .expect("Could not execute on_rename_request")
+            .unwrap()
+            .changes
+            .expect("expected rename edits");
+
+        let mut files: Vec<String> = changes.keys().map(|uri| fixture.relative(uri)).collect();
+        files.sort();
+        assert_eq!(
+            files,
+            vec![
+                "notelib/src/lib.nr",
+                "notelib/src/notes.nr",
+                "p1/src/lib.nr",
+                "p2/src/lib.nr",
+                "p4/src/lib.nr",
+                "wrapper/src/lib.nr",
+            ]
+        );
+    }
+
     #[test]
     fn test_rename_function() {
         check_rename_succeeds(

@@ -1,4 +1,5 @@
 use macros::{expect_registered, register};
+use notelib::notes::LibThing;
 
 #[register]
 pub struct ThingTwo {}
@@ -12,4 +13,4 @@ pub struct DerivedTwo {
     x: Field,
 }
 
-pub fn take(_thing: notelib::LibThing) {}
+pub fn take(_thing: LibThing) {}

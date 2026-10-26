@@ -730,17 +730,10 @@ pub(crate) fn find_all_references_in_workspace(
     let referenced = interner.find_referenced(location)?;
     let name = get_reference_name(referenced, interner)?;
 
-    // If we found the referenced node, find its location
-    let referenced_location = interner.reference_location(referenced);
-
-    // Now we find all references that point to this location. The interner covers every package
-    // of the workspace, so this includes references from packages that depend on the edited one.
-    let mut locations = find_all_references(
-        referenced_location,
-        interner,
-        include_declaration,
-        include_self_type_name,
-    );
+    // Now we find all references to it. The interner covers every package of the workspace, so
+    // this includes references from packages that depend on the edited one.
+    let mut locations =
+        interner.find_all_references_to(referenced, include_declaration, include_self_type_name);
 
     // Only keep locations whose span, when read from the file, matches "name"
     // (it might not match because of macro expansions)
@@ -776,17 +769,6 @@ pub(crate) fn find_all_references_in_workspace(
     locations.dedup();
 
     if locations.is_empty() { None } else { Some(locations) }
-}
-
-pub(crate) fn find_all_references(
-    referenced_location: noirc_errors::Location,
-    interner: &NodeInterner,
-    include_declaration: bool,
-    include_self_type_name: bool,
-) -> Vec<noirc_errors::Location> {
-    interner
-        .find_all_references(referenced_location, include_declaration, include_self_type_name)
-        .unwrap_or_default()
 }
 
 fn get_reference_name(reference: ReferenceId, interner: &NodeInterner) -> Option<String> {

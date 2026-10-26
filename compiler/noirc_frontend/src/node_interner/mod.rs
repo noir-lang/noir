@@ -300,7 +300,10 @@ pub struct NodeInterner {
 
     /// Definitions that several crates share a span for: an item of a crate elaborated once per
     /// dependent (see `Context::check_crates`). A reference to any of them is a reference to all.
-    pub(crate) definition_aliases: HashMap<Location, Vec<PetGraphIndex>>,
+    /// Each group lists the nodes and the span they share; `definition_alias_groups` finds a
+    /// node's group.
+    pub(crate) definition_aliases: Vec<(Location, Vec<PetGraphIndex>)>,
+    pub(crate) definition_alias_groups: HashMap<PetGraphIndex, usize>,
 
     /// Set while checking several crates in one context (see `Context::check_crates`).
     pub(crate) comptime_state: Option<ComptimeStateTracking>,
@@ -547,7 +550,8 @@ impl Default for NodeInterner {
             interned_patterns: Default::default(),
             lsp_mode: None,
             location_indices: LocationIndices::default(),
-            definition_aliases: HashMap::default(),
+            definition_aliases: Vec::new(),
+            definition_alias_groups: HashMap::default(),
             comptime_state: None,
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -1839,19 +1843,30 @@ impl NodeInterner {
     /// Clears data that is stored in this `NodeInterner` that is declared at the given file.
     /// This isn't used by the compiler. It's only used by the LSP server when a file
     /// changes, to clear the definitions of the previous version of the file.
-    pub fn clear_in_file(&mut self, file: FileId) {
+    ///
+    /// Methods are only cleared for functions of `crate_id`: other crates elaborated from the
+    /// same file (see `Context::check_crates`) keep theirs, as nothing elaborates them again.
+    pub fn clear_in_file(&mut self, file: FileId, crate_id: CrateId) {
         // Clear in methods
+        let is_cleared = |func_id: FuncId, interner: &NodeInterner| {
+            interner.func_meta.get(&func_id).unwrap().location.file == file
+                && interner.function_module(func_id).krate == crate_id
+        };
+        let mut cleared_methods: HashSet<FuncId> = HashSet::default();
+        for methods in self.methods.values() {
+            for methods in methods.values() {
+                let direct = methods.direct.iter().map(|method| method.method);
+                let from_traits = methods.trait_impl_methods.iter().map(|method| method.method);
+                cleared_methods
+                    .extend(direct.chain(from_traits).filter(|func_id| is_cleared(*func_id, self)));
+            }
+        }
         for methods in self.methods.values_mut() {
             for methods in methods.values_mut() {
-                methods.direct.retain(|method| {
-                    let func_id = method.method;
-                    self.func_meta.get(&func_id).unwrap().location.file != file
-                });
-
-                methods.trait_impl_methods.retain(|method| {
-                    let func_id = method.method;
-                    self.func_meta.get(&func_id).unwrap().location.file != file
-                });
+                methods.direct.retain(|method| !cleared_methods.contains(&method.method));
+                methods
+                    .trait_impl_methods
+                    .retain(|method| !cleared_methods.contains(&method.method));
             }
         }
 

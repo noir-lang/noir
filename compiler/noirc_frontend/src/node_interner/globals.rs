@@ -191,13 +191,6 @@ impl NodeInterner {
         })
     }
 
-    /// Sets every global in `snapshot` back to the value it had when the snapshot was taken.
-    fn restore_mutable_comptime_globals(&mut self, snapshot: &ComptimeGlobalsSnapshot) {
-        for (id, value) in snapshot {
-            self.globals[id.0].value = GlobalValue::Resolved(value.deep_clone());
-        }
-    }
-
     /// Starts recording what [`ComptimeStateTracking`] describes, if not recording already.
     pub(crate) fn start_tracking_comptime_state(&mut self) {
         self.comptime_state.get_or_insert_default();
@@ -234,13 +227,11 @@ impl NodeInterner {
     /// Sets every crate's own mutable comptime globals back to their values from right after
     /// that crate was elaborated. Does nothing unless tracking.
     pub(crate) fn restore_own_comptime_globals(&mut self) {
-        let Some(tracking) = self.comptime_state.take() else {
-            return;
-        };
-        for snapshot in tracking.own_globals_after_crate.values() {
-            self.restore_mutable_comptime_globals(snapshot);
+        if let Some(tracking) = &self.comptime_state {
+            for snapshot in tracking.own_globals_after_crate.values() {
+                restore_mutable_comptime_globals(&mut self.globals, snapshot);
+            }
         }
-        self.comptime_state = Some(tracking);
     }
 
     /// Whether elaborating `crate_id` changed a `comptime mut global` of another crate, such as
@@ -253,27 +244,34 @@ impl NodeInterner {
     }
 
     /// Sets every mutable comptime global back to its value from right before `crate_id`'s own
-    /// items were elaborated, so that elaborating one of its files again starts from the state
-    /// a fresh compilation of the crate would have reached. Returns `false` when the crate was
-    /// not checked with tracking.
-    pub fn restore_comptime_globals_before_items(&mut self, crate_id: CrateId) -> bool {
-        let Some(tracking) = self.comptime_state.take() else {
-            return false;
-        };
-        let restored = match tracking.globals_before_items.get(&crate_id) {
-            Some(snapshot) => {
-                self.restore_mutable_comptime_globals(snapshot);
-                true
-            }
-            None => false,
-        };
-        self.comptime_state = Some(tracking);
-        restored
+    /// items were elaborated, so that elaborating the crate again starts from the state a fresh
+    /// compilation of it would have reached. Does nothing unless the crate was checked with
+    /// tracking.
+    pub fn restore_comptime_globals_before_items(&mut self, crate_id: CrateId) {
+        let tracking = self.comptime_state.as_ref();
+        if let Some(snapshot) =
+            tracking.and_then(|tracking| tracking.globals_before_items.get(&crate_id))
+        {
+            restore_mutable_comptime_globals(&mut self.globals, snapshot);
+        }
     }
 
     /// Whether comptime state is being tracked (see [`ComptimeStateTracking`]).
-    pub fn tracks_comptime_state(&self) -> bool {
+    #[cfg(test)]
+    pub(crate) fn tracks_comptime_state(&self) -> bool {
         self.comptime_state.is_some()
+    }
+
+    /// The current value of an evaluated `comptime mut global`, read through the cell a mutable
+    /// global's value lives in.
+    pub fn mutable_comptime_global_value(&self, global_id: GlobalId) -> Option<comptime::Value> {
+        match &self.globals[global_id.0].value {
+            GlobalValue::Resolved(comptime::Value::Pointer(cell, _, _)) => {
+                Some(cell.borrow().clone())
+            }
+            GlobalValue::Resolved(value) => Some(value.clone()),
+            GlobalValue::Unresolved | GlobalValue::Resolving => None,
+        }
     }
 
     /// Try to get the `HirLetStatement` which defines a given global value
@@ -289,5 +287,15 @@ impl NodeInterner {
             },
             _ => panic!("ice: all globals should correspond to a statement in the interner"),
         }
+    }
+}
+
+/// Sets every global in `snapshot` back to the value it had when the snapshot was taken.
+fn restore_mutable_comptime_globals(
+    globals: &mut [GlobalInfo],
+    snapshot: &ComptimeGlobalsSnapshot,
+) {
+    for (id, value) in snapshot {
+        globals[id.0].value = GlobalValue::Resolved(value.deep_clone());
     }
 }

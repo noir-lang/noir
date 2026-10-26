@@ -254,19 +254,9 @@ fn instantiate_package(
 mod check_workspace_tests {
     use async_lsp::lsp_types::Url;
 
-    use noirc_frontend::graph::{CrateGraph, CrateId};
-
     use super::check_workspace;
-    use crate::{notifications::workspace_from_document_uri, test_utils};
-
-    fn dependency(graph: &CrateGraph, crate_id: CrateId, name: &str) -> CrateId {
-        graph[crate_id]
-            .dependencies
-            .iter()
-            .find(|dependency| dependency.name.to_string() == name)
-            .unwrap_or_else(|| panic!("{crate_id:?} has no dependency named {name}"))
-            .crate_id
-    }
+    use crate::notifications::workspace_from_document_uri;
+    use crate::test_utils::{self, crate_dependency as dependency};
 
     /// In `test_programs/comptime_state`, `notelib` registers into `macros`' state, `wrapper` is
     /// a plain library over `notelib`, `x` is a plain library, and `p1`, `p2`, `p4` and `q`
@@ -274,15 +264,11 @@ mod check_workspace_tests {
     /// while `macros` and `x` are shared, and a member's instances agree with each other.
     #[test]
     fn shares_plain_crates_and_instantiates_stateful_ones_per_dependent() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("comptime_state");
-        let root_dir = noir_text_document.to_file_path().unwrap();
-        let root_dir = root_dir.parent().unwrap().parent().unwrap();
-        let p1_lib = Url::from_file_path(root_dir.join("p1/src/lib.nr")).unwrap();
-
-        let workspace = workspace_from_document_uri(&mut state, p1_lib).unwrap().unwrap();
-        let checked = check_workspace(&mut state, &workspace);
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        let workspace = fixture.workspace_for("p1/src/lib.nr");
+        let checked = check_workspace(&mut fixture.state, &workspace);
         let graph = &checked.context.crate_graph;
-        let member = |name: &str| checked.package_crate_ids[&root_dir.join(name)];
+        let member = |name: &str| checked.package_crate_ids[&fixture.path(name)];
 
         // `macros` and `x` write no other crate's state, so everyone shares them.
         assert_eq!(dependency(graph, member("p1"), "macros"), member("macros"));

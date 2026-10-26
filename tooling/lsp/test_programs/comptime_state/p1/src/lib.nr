@@ -1,9 +1,9 @@
-use macros::{expect_registered, register};
+use macros::expect_registered;
+use notelib::notes::LibThing;
 
-#[register]
-pub struct ThingOne {}
+mod things;
 
-// One registration from notelib, one from this package.
+// One registration from notelib, one from `things`.
 #[expect_registered(2)]
 pub struct CheckOne {}
 
@@ -12,4 +12,4 @@ pub struct DerivedOne {
     x: Field,
 }
 
-pub fn take(_thing: notelib::LibThing) {}
+pub fn take(_thing: LibThing) {}

@@ -1,11 +1,18 @@
+use std::path::PathBuf;
+use std::sync::Arc;
+
 use crate::LspState;
-use crate::notifications::on_did_open_text_document;
+use crate::notifications::{
+    on_did_open_text_document, process_workspace, workspace_from_document_uri,
+};
 use acvm::blackbox_solver::StubbedBlackBoxSolver;
 use async_lsp::ClientSocket;
 use async_lsp::lsp_types::{
     DidOpenTextDocumentParams, InitializeParams, Position, Range, TextDocumentItem, Url,
     WorkDoneProgressParams,
 };
+use nargo::workspace::Workspace;
+use noirc_frontend::graph::{CrateGraph, CrateId};
 
 pub(crate) fn init_lsp_server(directory: &str) -> (LspState, Url) {
     let client = ClientSocket::new_closed();
@@ -208,4 +215,61 @@ pub(crate) fn search_in_text(text: &str, search_string: &str) -> Vec<Range> {
             })
         })
         .collect()
+}
+
+/// A directory under `test_programs` opened as the editor's root, for tests that span several
+/// packages. Paths are relative to that directory.
+pub(crate) struct Fixture {
+    pub(crate) state: LspState,
+    pub(crate) root_dir: PathBuf,
+}
+
+impl Fixture {
+    pub(crate) fn new(directory: &str) -> Self {
+        let (state, root_marker) = init_lsp_server(directory);
+        let root_dir =
+            root_marker.to_file_path().unwrap().parent().unwrap().parent().unwrap().to_path_buf();
+        Self { state, root_dir }
+    }
+
+    pub(crate) fn path(&self, relative: &str) -> PathBuf {
+        self.root_dir.join(relative)
+    }
+
+    pub(crate) fn uri(&self, relative: &str) -> Url {
+        Url::from_file_path(self.path(relative)).unwrap()
+    }
+
+    pub(crate) fn source(&self, relative: &str) -> String {
+        std::fs::read_to_string(self.path(relative)).unwrap()
+    }
+
+    /// The path of `uri` relative to the root, for comparing locations.
+    pub(crate) fn relative(&self, uri: &Url) -> String {
+        let path = uri.to_file_path().unwrap();
+        path.strip_prefix(&self.root_dir).unwrap().display().to_string()
+    }
+
+    /// The set of packages the file at `relative` is analyzed with.
+    pub(crate) fn workspace_for(&mut self, relative: &str) -> Arc<Workspace> {
+        let uri = self.uri(relative);
+        workspace_from_document_uri(&mut self.state, uri).unwrap().unwrap()
+    }
+
+    /// Type-checks the packages the file at `relative` is analyzed with, as opening it would.
+    pub(crate) fn check(&mut self, relative: &str) -> Arc<Workspace> {
+        let workspace = self.workspace_for(relative);
+        process_workspace(&mut self.state, &workspace).unwrap();
+        workspace
+    }
+}
+
+/// The crate that `crate_id` depends on under the name `name`.
+pub(crate) fn crate_dependency(graph: &CrateGraph, crate_id: CrateId, name: &str) -> CrateId {
+    graph[crate_id]
+        .dependencies
+        .iter()
+        .find(|dependency| dependency.name.to_string() == name)
+        .unwrap_or_else(|| panic!("{crate_id:?} has no dependency named {name}"))
+        .crate_id
 }

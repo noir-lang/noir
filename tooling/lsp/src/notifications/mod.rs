@@ -21,6 +21,7 @@ use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
+use noirc_frontend::graph::{CrateGraph, CrateId};
 use noirc_frontend::hir::comptime::ComptimeIo;
 use noirc_frontend::hir::def_collector::dc_crate::{CompilationErrors, DefCollector};
 use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
@@ -393,38 +394,17 @@ pub(crate) fn process_workspace_for_single_file_change(
     Arc::make_mut(&mut file_manager).replace_file(file_id, file_source.to_string());
 
     let mut node_interner = workspace_cache.node_interner;
-
-    // Clear some locations associated with this file. For example, locations associated
-    // with `ExprId` will be cleared. These lookups are used everywhere by LSP.
-    // This also removes methods that were defined in this file.
-    node_interner.clear_in_file(file_id);
-
-    // Macros read the comptime state their crate's dependencies left behind, so the file is
-    // elaborated again from the state that preceded the crate's own items.
-    node_interner.restore_comptime_globals_before_items(crate_id);
-
     let mut def_maps = workspace_cache.def_maps;
     let crate_graph = workspace_cache.crate_graph;
-
-    // Get a hold of the CrateDefMap for this crate, by removing it.
-    // There's no need to explicitly add it back: DefCollector::collect_defs_and_elaborate will do it.
-    let mut crate_def_map = def_maps.remove(&crate_id).unwrap();
-
-    // Clear all the definitions in the existing module (and its children, as long as they happen in
-    // the same file), as they shouldn't be offered in autocompletion, references, etc., anymore.
-    clear_all_in_file(file_id, module_id, &mut crate_def_map);
 
     // Parse the program and add it to the parsed files
     let (parsed_program, errors) = parse_program(file_source, file_id);
     let mut parsed_files = parse_diff(&file_manager, state);
     parsed_files.insert(file_id, (parsed_program.clone(), errors));
 
-    // Prepare some things to create a Context
-    let sorted_module = parsed_program.into_sorted();
-    let def_collector = DefCollector::new(crate_def_map);
-    let mut context =
-        Context::from_existing(file_manager, parsed_files, node_interner, def_maps, crate_graph);
-    context.activate_lsp_mode(LspMode::SingleFile);
+    // Macros read the comptime state their crate's dependencies left behind, so elaboration
+    // starts again from the state that preceded the crate's own items.
+    node_interner.restore_comptime_globals_before_items(crate_id);
 
     // Here we enable all options because we won't show errors to users, so it's easier to
     // assume all unstable features are enabled.
@@ -434,36 +414,78 @@ pub(crate) fn process_workspace_for_single_file_change(
         disable_required_unstable_features: false,
     };
 
-    // This is when the type-checking of this single file happens
-    let reuse_existing_module_declarations = true;
-    let mut errors = CompilationErrors::default();
-    DefCollector::collect_defs_and_elaborate(
-        sorted_module,
-        file_id,
-        module_id,
-        crate_id,
-        &mut context,
-        def_collector,
-        options,
-        &mut ComptimeIo::stdout(),
-        &mut CheckState::default(),
-        reuse_existing_module_declarations,
-        &mut errors,
-    );
+    let context = if node_interner.is_stateful_crate(crate_id) {
+        // The crate's files register into other crates' state as they are elaborated, and the
+        // state restored above holds none of it. Elaborating only the edited file would lose what
+        // the other files register, so the whole crate is elaborated again.
+        for file in def_maps[&crate_id].file_ids() {
+            node_interner.clear_in_file(file, crate_id);
+        }
+        def_maps.remove(&crate_id);
+
+        let mut context = Context::from_existing(
+            file_manager,
+            parsed_files,
+            node_interner,
+            def_maps,
+            crate_graph,
+        );
+        context.activate_lsp_mode(LspMode::SingleFile);
+        CrateDefMap::collect_defs(
+            crate_id,
+            &mut context,
+            options,
+            &mut ComptimeIo::stdout(),
+            &mut CheckState::default(),
+        );
+        context
+    } else {
+        // Clear some locations associated with this file. For example, locations associated
+        // with `ExprId` will be cleared. These lookups are used everywhere by LSP.
+        // This also removes methods that were defined in this file.
+        node_interner.clear_in_file(file_id, crate_id);
+
+        // Get a hold of the CrateDefMap for this crate, by removing it.
+        // There's no need to explicitly add it back: DefCollector::collect_defs_and_elaborate will do it.
+        let mut crate_def_map = def_maps.remove(&crate_id).unwrap();
+
+        // Clear all the definitions in the existing module (and its children, as long as they happen in
+        // the same file), as they shouldn't be offered in autocompletion, references, etc., anymore.
+        clear_all_in_file(file_id, module_id, &mut crate_def_map);
+
+        // Prepare some things to create a Context
+        let sorted_module = parsed_program.into_sorted();
+        let def_collector = DefCollector::new(crate_def_map);
+        let mut context = Context::from_existing(
+            file_manager,
+            parsed_files,
+            node_interner,
+            def_maps,
+            crate_graph,
+        );
+        context.activate_lsp_mode(LspMode::SingleFile);
+
+        // This is when the type-checking of this single file happens
+        let reuse_existing_module_declarations = true;
+        let mut errors = CompilationErrors::default();
+        DefCollector::collect_defs_and_elaborate(
+            sorted_module,
+            file_id,
+            module_id,
+            crate_id,
+            &mut context,
+            def_collector,
+            options,
+            &mut ComptimeIo::stdout(),
+            &mut CheckState::default(),
+            reuse_existing_module_declarations,
+            &mut errors,
+        );
+        context
+    };
 
     // Put some things back before restoring the cached data
-    let crate_graph = &context.crate_graph;
-    let analysis_root = *crate_graph.root_crate_id();
-    // Other crates hold the file's items as they were: dependents of this crate, and the other
-    // instances of it that its dependents were checked with (see `check_workspace`), whose
-    // locations in the file were cleared above.
-    let root_file_id = crate_graph[crate_id].root_file_id;
-    workspace_cache.dependents_stale |= crate_graph.iter_keys().any(|other| {
-        other != analysis_root
-            && other != crate_id
-            && (crate_graph[other].root_file_id == root_file_id
-                || crate_graph[other].dependencies.iter().any(|dep| dep.crate_id == crate_id))
-    });
+    workspace_cache.dependents_stale |= has_out_of_date_crates(&context.crate_graph, crate_id);
     workspace_cache.node_interner = context.def_interner;
     workspace_cache.def_maps = context.def_maps;
     workspace_cache.crate_graph = context.crate_graph;
@@ -472,6 +494,20 @@ pub(crate) fn process_workspace_for_single_file_change(
     state.workspace_cache.insert(root_dir.clone(), workspace_cache);
 
     Ok(())
+}
+
+/// Whether elaborating `crate_id` again on its own left other crates holding its items as they
+/// were: the crates that depend on it, and the other instances of it that its dependents were
+/// checked with (see `check_workspace`), whose locations in the edited file were cleared.
+fn has_out_of_date_crates(crate_graph: &CrateGraph, crate_id: CrateId) -> bool {
+    let analysis_root = *crate_graph.root_crate_id();
+    let root_file_id = crate_graph[crate_id].root_file_id;
+    crate_graph.iter_keys().any(|other| {
+        other != analysis_root
+            && other != crate_id
+            && (crate_graph[other].root_file_id == root_file_id
+                || crate_graph[other].dependencies.iter().any(|dep| dep.crate_id == crate_id))
+    })
 }
 
 fn clear_all_in_file(file: FileId, module_id: LocalModuleId, crate_def_map: &mut CrateDefMap) {
@@ -659,7 +695,12 @@ mod notification_tests {
         InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
         TextDocumentIdentifier, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
     };
-    use noirc_frontend::{hir::comptime::Value, node_interner::GlobalValue};
+    use noirc_errors::Location;
+    use noirc_frontend::{
+        Type,
+        ast::Ident,
+        hir::{comptime::Value, def_map::ModuleDefId},
+    };
 
     /// `test_programs/comptime_state` has a macro library with a `comptime mut global` counter
     /// and packages that register into it and assert on what they see, the way `nargo check`
@@ -668,15 +709,11 @@ mod notification_tests {
     /// registering one agrees with its dependents on the registering library's types.
     #[test]
     fn comptime_mutable_globals_do_not_leak_between_workspace_packages() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("comptime_state");
-        let root_dir = noir_text_document.to_file_path().unwrap();
-        let root_dir = root_dir.parent().unwrap().parent().unwrap();
-        let p1_lib = root_dir.join("p1/src/lib.nr");
-
-        let workspace = resolve_workspace_for_source_path(&mut state, &p1_lib).unwrap();
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        let workspace = fixture.workspace_for("p1/src/lib.nr");
         assert_eq!(workspace.members.len(), 9, "root analysis should find all nine packages");
 
-        let checked = check_workspace(&mut state, &workspace);
+        let checked = check_workspace(&mut fixture.state, &workspace);
         let errors: Vec<_> = checked
             .diagnostics
             .iter()
@@ -702,51 +739,105 @@ mod notification_tests {
     /// the workspace again first.
     #[test]
     fn single_file_check_of_a_stateful_crate_marks_dependents_stale() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("comptime_state");
-        let root_dir = noir_text_document.to_file_path().unwrap();
-        let root_dir = root_dir.parent().unwrap().parent().unwrap();
-        let notelib_lib = root_dir.join("notelib/src/lib.nr");
-        let notelib_uri = Url::from_file_path(&notelib_lib).unwrap();
-        let source = std::fs::read_to_string(&notelib_lib).unwrap();
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        let workspace = fixture.check("notelib/src/lib.nr");
+        assert!(!fixture.state.workspace_cache[&workspace.root_dir].dependents_stale);
 
-        let workspace =
-            workspace_from_document_uri(&mut state, notelib_uri.clone()).unwrap().unwrap();
-        process_workspace(&mut state, &workspace).unwrap();
-        assert!(!state.workspace_cache[&workspace.root_dir].dependents_stale);
-
-        process_workspace_for_single_file_change(&mut state, &workspace, notelib_uri, &source)
+        let uri = fixture.uri("notelib/src/lib.nr");
+        let source = fixture.source("notelib/src/lib.nr");
+        process_workspace_for_single_file_change(&mut fixture.state, &workspace, uri, &source)
             .unwrap();
-        assert!(state.workspace_cache[&workspace.root_dir].dependents_stale);
+        assert!(fixture.state.workspace_cache[&workspace.root_dir].dependents_stale);
     }
 
-    /// A keystroke re-elaborates one file in place. The macros in it must see the registrations
-    /// of the crate's dependencies, and only those: `p1`'s own registration happens again as the
-    /// file is elaborated, on top of `notelib`'s, for a count of two.
+    /// After a keystroke in a file of `notelib`, the methods its other instances got from that
+    /// file must still be there: nothing elaborates those instances again until the next save.
+    #[test]
+    fn single_file_check_keeps_the_methods_of_other_instances() {
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        let workspace = fixture.check("notelib/src/notes.nr");
+
+        let uri = fixture.uri("notelib/src/notes.nr");
+        let source = fixture.source("notelib/src/notes.nr");
+        process_workspace_for_single_file_change(&mut fixture.state, &workspace, uri, &source)
+            .unwrap();
+
+        let cache = &fixture.state.workspace_cache[&workspace.root_dir];
+        let p1 = cache.package_crate_ids[&fixture.path("p1")];
+        let notelib_in_p1 = test_utils::crate_dependency(&cache.crate_graph, p1, "notelib");
+        for crate_id in [cache.package_crate_ids[&fixture.path("notelib")], notelib_in_p1] {
+            let type_id = cache.def_maps[&crate_id]
+                .modules()
+                .iter()
+                .find_map(|(_, module)| {
+                    let name = Ident::new("LibThing".to_string(), Location::dummy());
+                    match module.find_name(&name).types.map(|item| item.id) {
+                        Some(ModuleDefId::TypeId(type_id)) => Some(type_id),
+                        _ => None,
+                    }
+                })
+                .expect("LibThing is defined in every instance of notelib");
+            let typ = Type::DataType(cache.node_interner.get_type(type_id), Vec::new());
+            let methods = cache.node_interner.get_type_methods(&typ);
+            let describe = methods.and_then(|methods| methods.get("describe"));
+            assert!(describe.is_some_and(|describe| !describe.direct.is_empty()), "{crate_id:?}");
+        }
+    }
+
+    /// Crates are out of date after a keystroke in a crate when they depend on it, or when they
+    /// are another instance of it; the synthetic root and unrelated crates are not.
+    #[test]
+    fn has_out_of_date_crates_counts_dependents_and_other_instances() {
+        let mut file_manager = FileManager::new(Path::new("/"));
+        let file = |file_manager: &mut FileManager, name: &str| {
+            file_manager.add_file_with_source(Path::new(name), String::new()).unwrap()
+        };
+        let root_file = file(&mut file_manager, "root.nr");
+        let lib_file = file(&mut file_manager, "lib.nr");
+        let other_file = file(&mut file_manager, "other.nr");
+
+        let mut graph = CrateGraph::default();
+        let root = graph.add_crate_root(root_file);
+        let lib = graph.add_crate(lib_file);
+        let other = graph.add_crate(other_file);
+        graph.add_dep(root, "lib".parse().unwrap(), lib).unwrap();
+        graph.add_dep(root, "other".parse().unwrap(), other).unwrap();
+        assert!(!has_out_of_date_crates(&graph, lib));
+
+        let dependent_file = file(&mut file_manager, "dependent.nr");
+        let dependent = graph.add_crate(dependent_file);
+        graph.add_dep(dependent, "lib".parse().unwrap(), lib).unwrap();
+        assert!(has_out_of_date_crates(&graph, lib));
+        assert!(!has_out_of_date_crates(&graph, other));
+
+        let other_instance = graph.add_crate_instance(other_file);
+        assert!(has_out_of_date_crates(&graph, other));
+        assert!(has_out_of_date_crates(&graph, other_instance));
+    }
+
+    /// A keystroke elaborates the edited crate again in place. Its macros must see the
+    /// registrations of the crate's dependencies and of the crate's own files, and only those:
+    /// `p1` registers from `things.nr`, so after a keystroke in `lib.nr` the count is still
+    /// `notelib`'s one plus `things`' one.
     #[test]
     fn single_file_check_starts_from_the_state_the_crate_dependencies_left() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("comptime_state");
-        let root_dir = noir_text_document.to_file_path().unwrap();
-        let root_dir = root_dir.parent().unwrap().parent().unwrap();
-        let p1_lib = root_dir.join("p1/src/lib.nr");
-        let p1_uri = Url::from_file_path(&p1_lib).unwrap();
-        let source = std::fs::read_to_string(&p1_lib).unwrap();
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        let workspace = fixture.check("p1/src/lib.nr");
 
-        let workspace = workspace_from_document_uri(&mut state, p1_uri.clone()).unwrap().unwrap();
-        process_workspace(&mut state, &workspace).unwrap();
-        process_workspace_for_single_file_change(&mut state, &workspace, p1_uri, &source).unwrap();
+        let uri = fixture.uri("p1/src/lib.nr");
+        let source = fixture.source("p1/src/lib.nr");
+        process_workspace_for_single_file_change(&mut fixture.state, &workspace, uri, &source)
+            .unwrap();
 
-        let interner = &state.workspace_cache[&workspace.root_dir].node_interner;
+        let interner = &fixture.state.workspace_cache[&workspace.root_dir].node_interner;
         let registered = interner
             .get_all_globals()
             .iter()
             .find(|global| global.ident.as_str() == "REGISTERED")
             .expect("the macro library's counter");
-        // A mutable global holds a cell with its value.
-        let GlobalValue::Resolved(Value::Pointer(cell, _, _)) = &registered.value else {
-            panic!("the counter should be evaluated");
-        };
-        let Value::Integer(count) = &*cell.borrow() else {
-            panic!("the counter should be an integer");
+        let Some(Value::Integer(count)) = interner.mutable_comptime_global_value(registered.id)
+        else {
+            panic!("the counter should be an evaluated integer");
         };
         assert_eq!(count.to_string(), "2");
     }

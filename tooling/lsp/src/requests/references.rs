@@ -233,53 +233,66 @@ fn main() {
         assert_eq!(uris, vec![a_lib, b_lib.clone(), b_lib]);
     }
 
-    /// `notelib` in `test_programs/comptime_state` registers into a macro library's state, so
-    /// every package that depends on it is checked with an instance of its own. References to
-    /// its `LibThing`, asked from one dependent, must still cover every dependent.
-    #[test]
-    fn test_on_references_request_covers_every_instance_of_a_stateful_crate() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("comptime_state");
-        let root_dir = noir_text_document.to_file_path().unwrap();
-        let root_dir = root_dir.parent().unwrap().parent().unwrap();
-        let p1_lib = root_dir.join("p1/src/lib.nr");
-        let p1_uri = Url::from_file_path(&p1_lib).unwrap();
-
-        let workspace = workspace_from_document_uri(&mut state, p1_uri.clone()).unwrap().unwrap();
-        notifications::process_workspace(&mut state, &workspace).unwrap();
-
-        let source = std::fs::read_to_string(&p1_lib).unwrap();
-        let position = search_in_text(&source, "LibThing")[0].start;
+    fn references_from(
+        fixture: &mut test_utils::Fixture,
+        relative: &str,
+        name: &str,
+    ) -> Vec<String> {
+        let source = fixture.source(relative);
+        let position = search_in_text(&source, name)[0].start;
         let params = ReferenceParams {
             text_document_position: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier { uri: p1_uri },
+                text_document: TextDocumentIdentifier { uri: fixture.uri(relative) },
                 position,
             },
             work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
             partial_result_params: PartialResultParams { partial_result_token: None },
             context: ReferenceContext { include_declaration: true },
         };
-
-        let locations = on_references_request(&mut state, params)
+        let locations = on_references_request(&mut fixture.state, params)
             .expect("Could not execute on_references_request")
             .unwrap();
-        let mut files: Vec<String> = locations
-            .iter()
-            .map(|location| {
-                let path = location.uri.to_file_path().unwrap();
-                path.strip_prefix(root_dir).unwrap().display().to_string()
-            })
-            .collect();
+        let mut files: Vec<String> =
+            locations.iter().map(|location| fixture.relative(&location.uri)).collect();
         files.sort();
+        files
+    }
+
+    /// `notelib` in `test_programs/comptime_state` registers into a macro library's state, so
+    /// every package that depends on it is checked with an instance of its own. References to
+    /// its `LibThing`, asked from one dependent, must still cover every dependent.
+    #[test]
+    fn test_on_references_request_covers_every_instance_of_a_stateful_crate() {
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        fixture.check("p1/src/lib.nr");
+
         assert_eq!(
-            files,
+            references_from(&mut fixture, "p1/src/lib.nr", "LibThing"),
             vec![
                 "notelib/src/lib.nr",
+                "notelib/src/notes.nr",
+                "notelib/src/notes.nr",
                 "p1/src/lib.nr",
+                "p1/src/lib.nr",
+                "p2/src/lib.nr",
                 "p2/src/lib.nr",
                 "p4/src/lib.nr",
                 "wrapper/src/lib.nr",
                 "wrapper/src/lib.nr",
             ]
+        );
+    }
+
+    /// Same for a module declared with `mod notes;`, whose definition the crate's instances
+    /// register with the module name's span.
+    #[test]
+    fn test_on_references_request_covers_every_instance_of_a_file_module() {
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        fixture.check("p1/src/lib.nr");
+
+        assert_eq!(
+            references_from(&mut fixture, "p1/src/lib.nr", "notes"),
+            vec!["notelib/src/lib.nr", "notelib/src/lib.nr", "p1/src/lib.nr", "p2/src/lib.nr"]
         );
     }
 

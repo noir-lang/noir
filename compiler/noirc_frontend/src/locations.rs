@@ -33,6 +33,13 @@ impl LocationIndices {
         let range_map = self.map_file_to_range.get(&location.file)?;
         Some(*range_map.get(&location.span.start())?)
     }
+
+    /// The node whose span is exactly `location`'s, if any.
+    fn get_node_at_exact_location(&self, location: Location) -> Option<PetGraphIndex> {
+        let range_map = self.map_file_to_range.get(&location.file)?;
+        let (range, node_index) = range_map.get_key_value(&location.span.start())?;
+        (*range == (location.span.start()..location.span.end())).then_some(*node_index)
+    }
 }
 
 pub struct ReferencesTracker<'a> {
@@ -247,15 +254,25 @@ impl NodeInterner {
         }
 
         let referenced_index = self.get_or_insert_reference(referenced);
-        if let Some(existing) = self.location_indices.get_node_from_location(referenced_location)
+        if let Some(existing) =
+            self.location_indices.get_node_at_exact_location(referenced_location)
             && existing != referenced_index
-            && self.reference_location(self.reference_graph[existing]) == referenced_location
+            && std::mem::discriminant(&self.reference_graph[existing])
+                == std::mem::discriminant(&referenced)
         {
-            // Another crate elaborated from the same file defined an item at this very span.
-            self.definition_aliases
-                .entry(referenced_location)
-                .or_insert_with(|| vec![existing])
-                .push(referenced_index);
+            // Another crate elaborated from the same file defined the same kind of item at this
+            // very span.
+            let group = match self.definition_alias_groups.get(&existing) {
+                Some(group) => *group,
+                None => {
+                    self.definition_aliases.push((referenced_location, vec![existing]));
+                    let group = self.definition_aliases.len() - 1;
+                    self.definition_alias_groups.insert(existing, group);
+                    group
+                }
+            };
+            self.definition_aliases[group].1.push(referenced_index);
+            self.definition_alias_groups.insert(referenced_index, group);
         }
         self.location_indices.add_location(referenced_location, referenced_index);
     }
@@ -300,16 +317,32 @@ impl NodeInterner {
         include_self_type_name: bool,
     ) -> Option<Vec<Location>> {
         let referenced_node = self.find_referenced(location)?;
-        let referenced_node_index = self.reference_graph_indices[&referenced_node];
+        Some(self.find_all_references_to(
+            referenced_node,
+            include_referenced,
+            include_self_type_name,
+        ))
+    }
+
+    /// Returns the locations of every reference to `referenced`, optionally together with its own
+    /// location if `include_referenced` is true. See [`Self::find_all_references`] for
+    /// `include_self_type_name`.
+    pub fn find_all_references_to(
+        &self,
+        referenced: ReferenceId,
+        include_referenced: bool,
+        include_self_type_name: bool,
+    ) -> Vec<Location> {
+        let referenced_node_index = self.reference_graph_indices[&referenced];
 
         // A crate elaborated once per dependent defines the item once per instance, and each
         // dependent refers to its own instance's definition.
-        let referenced_location = self.reference_location(referenced_node);
-        let aliases = self.definition_aliases.get(&referenced_location);
-        let referenced_indices: Vec<PetGraphIndex> = match aliases {
-            Some(aliases) => aliases.clone(),
-            None => vec![referenced_node_index],
-        };
+        let mut referenced_indices = vec![referenced_node_index];
+        if let Some(group) = self.definition_alias_groups.get(&referenced_node_index) {
+            let (_, aliases) = &self.definition_aliases[*group];
+            referenced_indices
+                .extend(aliases.iter().filter(|alias| **alias != referenced_node_index));
+        }
 
         let mut found_locations = Vec::new();
         for (index, referenced_node_index) in referenced_indices.into_iter().enumerate() {
@@ -319,8 +352,7 @@ impl NodeInterner {
                 include_self_type_name,
             ));
         }
-
-        Some(found_locations)
+        found_locations
     }
 
     // Returns the `ReferenceId` that is referenced by the given location, if any.
@@ -468,6 +500,13 @@ impl NodeInterner {
     /// is type-checked again.
     pub(crate) fn clear_file_locations(&mut self, file: FileId) {
         self.location_indices.map_file_to_range.remove(&file);
-        self.definition_aliases.retain(|location, _| location.file != file);
+        // Groups are listed in insertion order, so removing those of the file renumbers the rest.
+        self.definition_aliases.retain(|(location, _)| location.file != file);
+        self.definition_alias_groups.clear();
+        for (group, (_, aliases)) in self.definition_aliases.iter().enumerate() {
+            for alias in aliases {
+                self.definition_alias_groups.insert(*alias, group);
+            }
+        }
     }
 }
