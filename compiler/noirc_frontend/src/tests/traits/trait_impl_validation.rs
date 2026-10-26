@@ -1108,8 +1108,8 @@ fn bound_served_only_by_an_impl_with_a_failing_associated_type_bound_keeps_impls
     assert_no_errors(src);
 }
 
-/// An impl collected after the impls being compared doesn't know its associated types yet, so it
-/// may serve a bound that names them, and the impls overlap.
+/// An impl collected after the impls being compared still serves the bound (`u16`'s `Out` is
+/// `Field`), so the impls overlap.
 #[test]
 fn associated_type_bound_served_by_a_later_impl_overlaps() {
     let src = r#"
@@ -1145,8 +1145,8 @@ fn bound_leaving_out_an_associated_type_overlaps() {
     check_errors(src);
 }
 
-/// A bound on an associated type of an impl collected later (`<u16 as Foo>::Out: Bar`) may hold,
-/// so the impls overlap.
+/// A bound on an associated type of an impl collected later (`<u16 as Foo>::Out: Bar`) holds, so
+/// the impls overlap.
 #[test]
 fn bound_on_an_associated_type_of_a_later_impl_overlaps() {
     let src = r#"
@@ -1166,9 +1166,9 @@ fn bound_on_an_associated_type_of_a_later_impl_overlaps() {
     check_errors(src);
 }
 
-/// An associated type resolved early to another associated type of the same impl
-/// (`type Out = Self::Other`), which isn't resolved yet, may still be anything, so the impls
-/// overlap.
+/// An associated type given as another associated type of the same impl
+/// (`type Out = Self::Other`), and read by an impl header before that impl is collected, is that
+/// type (`Field`), so the impls overlap.
 #[test]
 fn associated_type_resolved_to_a_later_associated_type_overlaps() {
     let src = r#"
@@ -1189,8 +1189,7 @@ fn associated_type_resolved_to_a_later_associated_type_overlaps() {
     check_errors(src);
 }
 
-/// The same with the unresolved associated type nested in the resolved one
-/// (`type Out = W<Self::Other>`).
+/// The same with the other associated type nested in it (`type Out = W<Self::Other>`).
 #[test]
 fn associated_type_containing_a_later_associated_type_overlaps() {
     let src = r#"
@@ -1227,9 +1226,8 @@ fn associated_type_bound_that_fails_for_a_later_impl_keeps_impls_apart() {
     assert_no_errors(src);
 }
 
-/// An associated type in a where bound that resolves to an associated type of an impl collected
-/// later (`<u8 as Bar>::B` with `type B = Self::C`) is decided once every impl is collected, so
-/// the impls overlap.
+/// An associated type in a where bound that is an associated type of an impl collected later
+/// (`<u8 as Bar>::B`, with `type B = Self::C`) is that type (`Field`), so the impls overlap.
 #[test]
 fn bound_whose_associated_type_names_a_later_impls_associated_type_overlaps() {
     let src = r#"
@@ -1276,29 +1274,35 @@ fn bound_on_a_later_impls_associated_type_overlaps() {
 /// in either order.
 #[test]
 fn bound_served_only_by_the_impl_being_checked_overlaps_in_either_order() {
-    let impls = [
-        "impl<T> Validate for Wrap<T> where Opt<T>: Validate { fn validate(self) -> u32 { 1 } }",
-        "impl<T> Validate for T where T: Small { fn validate(self) -> u32 { 0 } }",
-    ];
-    for (first, second) in [(impls[0], impls[1]), (impls[1], impls[0])] {
-        let src = format!(
-            r#"
-    pub trait Small {{}}
-    pub trait Validate {{ fn validate(self) -> u32; }}
-    pub struct Wrap<T> {{ v: T }}
-    pub struct Opt<T> {{ v: T }}
-    impl Small for Wrap<u32> {{}}
-    impl Small for Opt<u32> {{}}
-    {first}
-    {second}
-    fn main() {{}}
-    "#
-        );
-        let errors = crate::tests::get_program_errors(&src);
-        let messages = vecmap(&errors, |error| CustomDiagnostic::from(error).message);
-        assert!(
-            messages.iter().any(|message| message.contains("overlaps with existing impl")),
-            "expected an overlap error, got {messages:?}"
-        );
-    }
+    let src = r#"
+    pub trait Small {}
+    pub trait Validate { fn validate(self) -> u32; }
+    pub struct Wrap<T> { v: T }
+    pub struct Opt<T> { v: T }
+    impl Small for Wrap<u32> {}
+    impl Small for Opt<u32> {}
+    impl<T> Validate for Wrap<T> where Opt<T>: Validate { fn validate(self) -> u32 { 1 } }
+            ~~~~~~~~ Previous impl defined here
+    impl<T> Validate for T where T: Small { fn validate(self) -> u32 { 0 } }
+                         ^ Impl for type `T` overlaps with existing impl
+                         ~ Overlapping impl
+    fn main() {}
+    "#;
+    check_errors(src);
+
+    let src = r#"
+    pub trait Small {}
+    pub trait Validate { fn validate(self) -> u32; }
+    pub struct Wrap<T> { v: T }
+    pub struct Opt<T> { v: T }
+    impl Small for Wrap<u32> {}
+    impl Small for Opt<u32> {}
+    impl<T> Validate for T where T: Small { fn validate(self) -> u32 { 0 } }
+            ~~~~~~~~ Previous impl defined here
+    impl<T> Validate for Wrap<T> where Opt<T>: Validate { fn validate(self) -> u32 { 1 } }
+                         ^^^^^^^ Impl for type `Wrap<T>` overlaps with existing impl
+                         ~~~~~~~ Overlapping impl
+    fn main() {}
+    "#;
+    check_errors(src);
 }
