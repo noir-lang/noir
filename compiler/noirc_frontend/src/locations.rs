@@ -257,24 +257,39 @@ impl NodeInterner {
         if let Some(existing) =
             self.location_indices.get_node_at_exact_location(referenced_location)
             && existing != referenced_index
-            && std::mem::discriminant(&self.reference_graph[existing])
-                == std::mem::discriminant(&referenced)
+            && self.is_definition_of_another_instance(self.reference_graph[existing], referenced)
         {
-            // Another crate elaborated from the same file defined the same kind of item at this
-            // very span.
-            let group = match self.definition_alias_groups.get(&existing) {
-                Some(group) => *group,
-                None => {
-                    self.definition_aliases.push((referenced_location, vec![existing]));
-                    let group = self.definition_aliases.len() - 1;
-                    self.definition_alias_groups.insert(existing, group);
-                    group
-                }
-            };
-            self.definition_aliases[group].1.push(referenced_index);
-            self.definition_alias_groups.insert(referenced_index, group);
+            self.definition_aliases
+                .entry(referenced_location)
+                .or_insert_with(|| vec![existing])
+                .push(referenced_index);
+            self.definition_alias_location.insert(existing, referenced_location);
+            self.definition_alias_location.insert(referenced_index, referenced_location);
         }
         self.location_indices.add_location(referenced_location, referenced_index);
+    }
+
+    /// Whether `existing` and `new`, two definitions at one span, are the same item of two
+    /// instances of one crate (see `Context::check_crates`). Two expansions of one macro also
+    /// define items at one span, the span of the macro's own token, but for different crates
+    /// or for one crate; those stay apart.
+    fn is_definition_of_another_instance(&self, existing: ReferenceId, new: ReferenceId) -> bool {
+        if std::mem::discriminant(&existing) != std::mem::discriminant(&new) {
+            return false;
+        }
+        let (Some(existing_crate), Some(new_crate)) =
+            (self.reference_crate(existing), self.reference_crate(new))
+        else {
+            return false;
+        };
+        let roots =
+            (self.crate_root_files.get(&existing_crate), self.crate_root_files.get(&new_crate));
+        match roots {
+            (Some(existing_root), Some(new_root)) => {
+                existing_crate != new_crate && existing_root == new_root
+            }
+            _ => false,
+        }
     }
 
     #[tracing::instrument(skip(self), ret)]
@@ -304,29 +319,9 @@ impl NodeInterner {
         Some(self.reference_graph[node_index])
     }
 
-    // Starting at the given location, find the node referenced by it. Then, gather
-    // all locations that reference that node, and return all of them
-    // (the references and optionally the referenced node if `include_referenced` is true).
-    // If `include_self_type_name` is true, references where "Self" is written are returned,
-    // otherwise they are not.
-    // Returns `None` if the location is not known to this interner.
-    pub fn find_all_references(
-        &self,
-        location: Location,
-        include_referenced: bool,
-        include_self_type_name: bool,
-    ) -> Option<Vec<Location>> {
-        let referenced_node = self.find_referenced(location)?;
-        Some(self.find_all_references_to(
-            referenced_node,
-            include_referenced,
-            include_self_type_name,
-        ))
-    }
-
     /// Returns the locations of every reference to `referenced`, optionally together with its own
-    /// location if `include_referenced` is true. See [`Self::find_all_references`] for
-    /// `include_self_type_name`.
+    /// location if `include_referenced` is true. If `include_self_type_name` is true, references
+    /// where "Self" is written are returned, otherwise they are not.
     pub fn find_all_references_to(
         &self,
         referenced: ReferenceId,
@@ -338,8 +333,8 @@ impl NodeInterner {
         // A crate elaborated once per dependent defines the item once per instance, and each
         // dependent refers to its own instance's definition.
         let mut referenced_indices = vec![referenced_node_index];
-        if let Some(group) = self.definition_alias_groups.get(&referenced_node_index) {
-            let (_, aliases) = &self.definition_aliases[*group];
+        if let Some(location) = self.definition_alias_location.get(&referenced_node_index) {
+            let aliases = &self.definition_aliases[location];
             referenced_indices
                 .extend(aliases.iter().filter(|alias| **alias != referenced_node_index));
         }
@@ -500,13 +495,7 @@ impl NodeInterner {
     /// is type-checked again.
     pub(crate) fn clear_file_locations(&mut self, file: FileId) {
         self.location_indices.map_file_to_range.remove(&file);
-        // Groups are listed in insertion order, so removing those of the file renumbers the rest.
-        self.definition_aliases.retain(|(location, _)| location.file != file);
-        self.definition_alias_groups.clear();
-        for (group, (_, aliases)) in self.definition_aliases.iter().enumerate() {
-            for alias in aliases {
-                self.definition_alias_groups.insert(*alias, group);
-            }
-        }
+        self.definition_aliases.retain(|location, _| location.file != file);
+        self.definition_alias_location.retain(|_, location| location.file != file);
     }
 }

@@ -464,6 +464,7 @@ impl DefCollector {
             context.def_interner.add_module_attributes(module_id, attributes);
         }
 
+        context.def_interner.crate_root_files.insert(crate_id, root_file_id);
         context.def_interner.record_comptime_globals_before_items(crate_id);
 
         // At this point, all dependencies are resolved and type checked.

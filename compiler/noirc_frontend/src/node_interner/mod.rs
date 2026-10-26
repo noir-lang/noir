@@ -298,12 +298,17 @@ pub struct NodeInterner {
     /// Store the location of the references in the graph
     pub(crate) location_indices: LocationIndices,
 
-    /// Definitions that several crates share a span for: an item of a crate elaborated once per
-    /// dependent (see `Context::check_crates`). A reference to any of them is a reference to all.
-    /// Each group lists the nodes and the span they share; `definition_alias_groups` finds a
-    /// node's group.
-    pub(crate) definition_aliases: Vec<(Location, Vec<PetGraphIndex>)>,
-    pub(crate) definition_alias_groups: HashMap<PetGraphIndex, usize>,
+    /// Definitions of the instances of a crate elaborated once per dependent (see
+    /// `Context::check_crates`): each instance defines the item at the same span, and a
+    /// reference to any instance's definition is a reference to all of them. Keyed by that span;
+    /// `definition_alias_location` finds a node's span, which can differ from its
+    /// `reference_location` (a module declared with `mod foo;` is one).
+    pub(crate) definition_aliases: HashMap<Location, Vec<PetGraphIndex>>,
+    pub(crate) definition_alias_location: HashMap<PetGraphIndex, Location>,
+
+    /// The root file of every crate collected so far, which tells the instances of one crate
+    /// apart from unrelated crates.
+    pub(crate) crate_root_files: HashMap<CrateId, FileId>,
 
     /// Set while checking several crates in one context (see `Context::check_crates`).
     pub(crate) comptime_state: Option<ComptimeStateTracking>,
@@ -550,8 +555,9 @@ impl Default for NodeInterner {
             interned_patterns: Default::default(),
             lsp_mode: None,
             location_indices: LocationIndices::default(),
-            definition_aliases: Vec::new(),
-            definition_alias_groups: HashMap::default(),
+            definition_aliases: HashMap::default(),
+            definition_alias_location: HashMap::default(),
+            crate_root_files: HashMap::default(),
             comptime_state: None,
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
@@ -1844,44 +1850,79 @@ impl NodeInterner {
     /// This isn't used by the compiler. It's only used by the LSP server when a file
     /// changes, to clear the definitions of the previous version of the file.
     ///
-    /// Methods are only cleared for functions of `crate_id`: other crates elaborated from the
-    /// same file (see `Context::check_crates`) keep theirs, as nothing elaborates them again.
+    /// Methods, auto-import entries and re-exports are only cleared for items of `crate_id`:
+    /// other crates elaborated from the same file (see `Context::check_crates`) keep theirs, as
+    /// nothing elaborates them again.
     pub fn clear_in_file(&mut self, file: FileId, crate_id: CrateId) {
         // Clear in methods
-        let is_cleared = |func_id: FuncId, interner: &NodeInterner| {
-            interner.func_meta.get(&func_id).unwrap().location.file == file
-                && interner.function_module(func_id).krate == crate_id
+        let (func_meta, function_modules) = (&self.func_meta, &self.function_modules);
+        let keep = |func_id: &FuncId| {
+            func_meta[func_id].location.file != file || function_modules[func_id].krate != crate_id
         };
-        let mut cleared_methods: HashSet<FuncId> = HashSet::default();
-        for methods in self.methods.values() {
-            for methods in methods.values() {
-                let direct = methods.direct.iter().map(|method| method.method);
-                let from_traits = methods.trait_impl_methods.iter().map(|method| method.method);
-                cleared_methods
-                    .extend(direct.chain(from_traits).filter(|func_id| is_cleared(*func_id, self)));
-            }
-        }
-        for methods in self.methods.values_mut() {
-            for methods in methods.values_mut() {
-                methods.direct.retain(|method| !cleared_methods.contains(&method.method));
-                methods
-                    .trait_impl_methods
-                    .retain(|method| !cleared_methods.contains(&method.method));
-            }
+        for methods in self.methods.values_mut().flat_map(|methods| methods.values_mut()) {
+            methods.direct.retain(|method| keep(&method.method));
+            methods.trait_impl_methods.retain(|method| keep(&method.method));
         }
 
         // Clear in auto import names
+        let item_crates: HashMap<ModuleDefId, CrateId> = self
+            .auto_import_names
+            .values()
+            .flatten()
+            .map(|entry| (entry.module_def_id, self.module_def_id_crate(entry.module_def_id)))
+            .collect();
         for entries in self.auto_import_names.values_mut() {
-            entries.retain(|entry| entry.file != file);
+            entries.retain(|entry| {
+                entry.file != file || item_crates[&entry.module_def_id] != crate_id
+            });
         }
 
         // Clear in reexports
         for reexports in self.reexports.values_mut() {
-            reexports.retain(|reexport| reexport.name.location().file != file);
+            reexports.retain(|reexport| {
+                reexport.name.location().file != file || reexport.module_id.krate != crate_id
+            });
         }
 
         // Clear in LocationIndices
         self.clear_file_locations(file);
+    }
+
+    /// The crate that defines `id`.
+    pub(crate) fn module_def_id_crate(&self, id: ModuleDefId) -> CrateId {
+        match id {
+            ModuleDefId::ModuleId(module_id) => module_id.krate,
+            ModuleDefId::FunctionId(func_id) => self.function_module(func_id).krate,
+            ModuleDefId::TypeId(type_id) => type_id.module_id().krate,
+            ModuleDefId::TypeAliasId(alias_id) => {
+                self.get_type_alias(alias_id).borrow().module_id.krate
+            }
+            ModuleDefId::TraitId(trait_id) => trait_id.0.krate,
+            ModuleDefId::TraitAssociatedTypeId(id) => {
+                self.get_trait_associated_type(id).trait_id.0.krate
+            }
+            ModuleDefId::GlobalId(global_id) => self.get_global(global_id).crate_id,
+        }
+    }
+
+    /// The crate that defines `id`, for the kinds of definitions a crate's instances share.
+    pub(crate) fn reference_crate(&self, id: ReferenceId) -> Option<CrateId> {
+        match id {
+            ReferenceId::Module(module_id) => Some(module_id.krate),
+            ReferenceId::Type(type_id)
+            | ReferenceId::StructMember(type_id, _)
+            | ReferenceId::EnumVariant(type_id, _) => Some(type_id.module_id().krate),
+            ReferenceId::Trait(trait_id) => Some(trait_id.0.krate),
+            ReferenceId::TraitAssociatedType(id) => {
+                Some(self.get_trait_associated_type(id).trait_id.0.krate)
+            }
+            ReferenceId::Global(global_id) => Some(self.get_global(global_id).crate_id),
+            ReferenceId::Function(func_id) => Some(self.function_module(func_id).krate),
+            ReferenceId::Alias(alias_id) => {
+                Some(self.get_type_alias(alias_id).borrow().module_id.krate)
+            }
+            ReferenceId::Local(_) | ReferenceId::Reference(..) => None,
+        }
     }
 }
 

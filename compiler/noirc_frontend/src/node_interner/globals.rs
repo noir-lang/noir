@@ -263,14 +263,17 @@ impl NodeInterner {
     }
 
     /// The current value of an evaluated `comptime mut global`, read through the cell a mutable
-    /// global's value lives in.
+    /// global's value lives in. `None` for any other global.
     pub fn mutable_comptime_global_value(&self, global_id: GlobalId) -> Option<comptime::Value> {
-        match &self.globals[global_id.0].value {
+        let global = &self.globals[global_id.0];
+        if !self.definition(global.definition_id).mutable {
+            return None;
+        }
+        match &global.value {
             GlobalValue::Resolved(comptime::Value::Pointer(cell, _, _)) => {
                 Some(cell.borrow().clone())
             }
-            GlobalValue::Resolved(value) => Some(value.clone()),
-            GlobalValue::Unresolved | GlobalValue::Resolving => None,
+            _ => None,
         }
     }
 

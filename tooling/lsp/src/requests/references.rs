@@ -296,6 +296,20 @@ fn main() {
         );
     }
 
+    /// A macro-generated method is defined at the span of the macro's own token, once per
+    /// expansion. References to one type's method are not references to another type's, even
+    /// when the two types live in different packages.
+    #[test]
+    fn test_on_references_request_keeps_macro_generated_methods_apart() {
+        let mut fixture = test_utils::Fixture::new("comptime_state");
+        fixture.check("p1/src/lib.nr");
+
+        assert_eq!(
+            references_from(&mut fixture, "p1/src/things.nr", "kind()"),
+            vec!["macros/src/lib.nr", "p1/src/things.nr"]
+        );
+    }
+
     #[test]
     fn ignores_macro_expansions() {
         let src = "

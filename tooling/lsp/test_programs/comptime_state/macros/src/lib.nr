@@ -12,3 +12,9 @@ pub comptime fn expect_registered(_s: TypeDefinition, expected: u32) -> Quoted {
     assert_eq(registered, expected, f"expected {expected} registered types but found {registered}");
     quote {}
 }
+
+/// Gives a type a method whose name is a token of this file, as every expansion is.
+pub comptime fn with_kind(s: TypeDefinition) -> Quoted {
+    let t = s.as_type();
+    quote { impl $t { pub fn kind(self) {} } }
+}
