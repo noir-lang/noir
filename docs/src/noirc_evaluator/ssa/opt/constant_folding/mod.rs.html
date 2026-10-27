@@ -4259,4 +4259,97 @@
 <a href=#4259 id=4259 data-nosnippet>4259</a>            <span class="string">"the mutator observes its own copy"
 <a href=#4260 id=4260 data-nosnippet>4260</a>        </span>);
 <a href=#4261 id=4261 data-nosnippet>4261</a>    }
-<a href=#4262 id=4262 data-nosnippet>4262</a>}</code></pre></div></section></main></body></html>
+<a href=#4262 id=4262 data-nosnippet>4262</a>
+<a href=#4263 id=4263 data-nosnippet>4263</a>    <span class="comment">// A `cast` relabels the type of a field element without changing it, so a constant that
+<a href=#4264 id=4264 data-nosnippet>4264</a>    // does not fit the destination width cannot be represented as a constant of that type.
+<a href=#4265 id=4265 data-nosnippet>4265</a>    // Folding must keep the cast so that the program computes the same value as before folding.
+<a href=#4266 id=4266 data-nosnippet>4266</a>    </span><span class="attr">#[test_case(<span class="string">"i16 256"</span>; <span class="string">"i16_256"</span>)]
+<a href=#4267 id=4267 data-nosnippet>4267</a>    #[test_case(<span class="string">"i32 384"</span>; <span class="string">"i32_384"</span>)]
+<a href=#4268 id=4268 data-nosnippet>4268</a>    #[test_case(<span class="string">"i16 -1"</span>; <span class="string">"i16_minus_1"</span>)]
+<a href=#4269 id=4269 data-nosnippet>4269</a>    #[test_case(<span class="string">"i64 -129"</span>; <span class="string">"i64_minus_129"</span>)]
+<a href=#4270 id=4270 data-nosnippet>4270</a>    #[test_case(<span class="string">"u16 300"</span>; <span class="string">"u16_300"</span>)]
+<a href=#4271 id=4271 data-nosnippet>4271</a>    #[test_case(<span class="string">"Field 256"</span>; <span class="string">"field_256"</span>)]
+<a href=#4272 id=4272 data-nosnippet>4272</a>    </span><span class="kw">fn </span>does_not_fold_signed_narrowing_cast_of_out_of_range_constant(constant: <span class="kw-2">&amp;</span>str) {
+<a href=#4273 id=4273 data-nosnippet>4273</a>        <span class="kw">for </span>runtime <span class="kw">in </span>[<span class="string">"acir(inline)"</span>, <span class="string">"brillig(inline)"</span>] {
+<a href=#4274 id=4274 data-nosnippet>4274</a>            <span class="kw">let </span>src = <span class="macro">format!</span>(
+<a href=#4275 id=4275 data-nosnippet>4275</a>                <span class="string">"
+<a href=#4276 id=4276 data-nosnippet>4276</a>            {runtime} fn main f0 {{
+<a href=#4277 id=4277 data-nosnippet>4277</a>              b0():
+<a href=#4278 id=4278 data-nosnippet>4278</a>                v1 = cast {constant} as i8
+<a href=#4279 id=4279 data-nosnippet>4279</a>                return v1
+<a href=#4280 id=4280 data-nosnippet>4280</a>            }}
+<a href=#4281 id=4281 data-nosnippet>4281</a>            "
+<a href=#4282 id=4282 data-nosnippet>4282</a>            </span>);
+<a href=#4283 id=4283 data-nosnippet>4283</a>            <span class="kw">let </span>ssa = Ssa::from_str_no_validation(<span class="kw-2">&amp;</span>src).unwrap();
+<a href=#4284 id=4284 data-nosnippet>4284</a>            <span class="kw">let </span>(ssa, result) = assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], |ssa| {
+<a href=#4285 id=4285 data-nosnippet>4285</a>                ssa.fold_constants(DEFAULT_MAX_ITER)
+<a href=#4286 id=4286 data-nosnippet>4286</a>            });
+<a href=#4287 id=4287 data-nosnippet>4287</a>            <span class="macro">assert!</span>(result.is_ok(), <span class="string">"{runtime} `cast {constant} as i8` failed: {result:?}"</span>);
+<a href=#4288 id=4288 data-nosnippet>4288</a>
+<a href=#4289 id=4289 data-nosnippet>4289</a>            <span class="comment">// `src` fails full validation, so it is compared without `assert_normalized_ssa_equals`.
+<a href=#4290 id=4290 data-nosnippet>4290</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>ssa = ssa;
+<a href=#4291 id=4291 data-nosnippet>4291</a>            <span class="kw">let </span><span class="kw-2">mut </span>expected = Ssa::from_str_no_validation(<span class="kw-2">&amp;</span>src).unwrap();
+<a href=#4292 id=4292 data-nosnippet>4292</a>            ssa.normalize_ids();
+<a href=#4293 id=4293 data-nosnippet>4293</a>            expected.normalize_ids();
+<a href=#4294 id=4294 data-nosnippet>4294</a>            <span class="macro">assert_eq!</span>(
+<a href=#4295 id=4295 data-nosnippet>4295</a>                ssa.print_without_locations().to_string(),
+<a href=#4296 id=4296 data-nosnippet>4296</a>                expected.print_without_locations().to_string()
+<a href=#4297 id=4297 data-nosnippet>4297</a>            );
+<a href=#4298 id=4298 data-nosnippet>4298</a>        }
+<a href=#4299 id=4299 data-nosnippet>4299</a>    }
+<a href=#4300 id=4300 data-nosnippet>4300</a>
+<a href=#4301 id=4301 data-nosnippet>4301</a>    <span class="comment">// Casts into a signed type whose constant fits the destination width are folded, and the
+<a href=#4302 id=4302 data-nosnippet>4302</a>    // folded constant keeps the same field element: a widening cast does not sign-extend.
+<a href=#4303 id=4303 data-nosnippet>4303</a>    </span><span class="attr">#[test_case(<span class="string">"i16 127"</span>, Value::i8(<span class="number">127</span>); <span class="string">"i16_127_to_i8"</span>)]
+<a href=#4304 id=4304 data-nosnippet>4304</a>    #[test_case(<span class="string">"i16 200"</span>, Value::i8(-<span class="number">56</span>); <span class="string">"i16_200_to_i8"</span>)]
+<a href=#4305 id=4305 data-nosnippet>4305</a>    #[test_case(<span class="string">"i32 255"</span>, Value::i8(-<span class="number">1</span>); <span class="string">"i32_255_to_i8"</span>)]
+<a href=#4306 id=4306 data-nosnippet>4306</a>    #[test_case(<span class="string">"u8 255"</span>, Value::i8(-<span class="number">1</span>); <span class="string">"u8_255_to_i8"</span>)]
+<a href=#4307 id=4307 data-nosnippet>4307</a>    #[test_case(<span class="string">"Field 255"</span>, Value::i8(-<span class="number">1</span>); <span class="string">"field_255_to_i8"</span>)]
+<a href=#4308 id=4308 data-nosnippet>4308</a>    #[test_case(<span class="string">"u16 0"</span>, Value::i8(<span class="number">0</span>); <span class="string">"u16_0_to_i8"</span>)]
+<a href=#4309 id=4309 data-nosnippet>4309</a>    </span><span class="kw">fn </span>folds_cast_to_i8_of_constant_that_fits(constant: <span class="kw-2">&amp;</span>str, expected: Value) {
+<a href=#4310 id=4310 data-nosnippet>4310</a>        <span class="kw">let </span>src = <span class="macro">format!</span>(
+<a href=#4311 id=4311 data-nosnippet>4311</a>            <span class="string">"
+<a href=#4312 id=4312 data-nosnippet>4312</a>        acir(inline) fn main f0 {{
+<a href=#4313 id=4313 data-nosnippet>4313</a>          b0():
+<a href=#4314 id=4314 data-nosnippet>4314</a>            v1 = cast {constant} as i8
+<a href=#4315 id=4315 data-nosnippet>4315</a>            return v1
+<a href=#4316 id=4316 data-nosnippet>4316</a>        }}
+<a href=#4317 id=4317 data-nosnippet>4317</a>        "
+<a href=#4318 id=4318 data-nosnippet>4318</a>        </span>);
+<a href=#4319 id=4319 data-nosnippet>4319</a>        <span class="kw">let </span>ssa = Ssa::from_str(<span class="kw-2">&amp;</span>src).unwrap();
+<a href=#4320 id=4320 data-nosnippet>4320</a>        <span class="kw">let </span>(ssa, result) = assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], |ssa| {
+<a href=#4321 id=4321 data-nosnippet>4321</a>            ssa.fold_constants(DEFAULT_MAX_ITER)
+<a href=#4322 id=4322 data-nosnippet>4322</a>        });
+<a href=#4323 id=4323 data-nosnippet>4323</a>        <span class="macro">assert_eq!</span>(result, <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[expected.clone()]));
+<a href=#4324 id=4324 data-nosnippet>4324</a>        <span class="kw">let </span>expected_src = <span class="macro">format!</span>(
+<a href=#4325 id=4325 data-nosnippet>4325</a>            <span class="string">"
+<a href=#4326 id=4326 data-nosnippet>4326</a>        acir(inline) fn main f0 {{
+<a href=#4327 id=4327 data-nosnippet>4327</a>          b0():
+<a href=#4328 id=4328 data-nosnippet>4328</a>            return {expected}
+<a href=#4329 id=4329 data-nosnippet>4329</a>        }}
+<a href=#4330 id=4330 data-nosnippet>4330</a>        "
+<a href=#4331 id=4331 data-nosnippet>4331</a>        </span>);
+<a href=#4332 id=4332 data-nosnippet>4332</a>        assert_normalized_ssa_equals(ssa, <span class="kw-2">&amp;</span>expected_src);
+<a href=#4333 id=4333 data-nosnippet>4333</a>    }
+<a href=#4334 id=4334 data-nosnippet>4334</a>
+<a href=#4335 id=4335 data-nosnippet>4335</a>    <span class="attr">#[test_case(<span class="string">"cast i8 -1 as i16"</span>, Value::i16(<span class="number">255</span>); <span class="string">"i8_minus_1_to_i16"</span>)]
+<a href=#4336 id=4336 data-nosnippet>4336</a>    #[test_case(<span class="string">"cast i8 -128 as i32"</span>, Value::i32(<span class="number">128</span>); <span class="string">"i8_minus_128_to_i32"</span>)]
+<a href=#4337 id=4337 data-nosnippet>4337</a>    #[test_case(<span class="string">"cast i16 -1 as i64"</span>, Value::i64(<span class="number">65535</span>); <span class="string">"i16_minus_1_to_i64"</span>)]
+<a href=#4338 id=4338 data-nosnippet>4338</a>    </span><span class="kw">fn </span>folds_widening_signed_cast_without_sign_extension(instruction: <span class="kw-2">&amp;</span>str, expected: Value) {
+<a href=#4339 id=4339 data-nosnippet>4339</a>        <span class="kw">let </span>src = <span class="macro">format!</span>(
+<a href=#4340 id=4340 data-nosnippet>4340</a>            <span class="string">"
+<a href=#4341 id=4341 data-nosnippet>4341</a>        acir(inline) fn main f0 {{
+<a href=#4342 id=4342 data-nosnippet>4342</a>          b0():
+<a href=#4343 id=4343 data-nosnippet>4343</a>            v1 = {instruction}
+<a href=#4344 id=4344 data-nosnippet>4344</a>            return v1
+<a href=#4345 id=4345 data-nosnippet>4345</a>        }}
+<a href=#4346 id=4346 data-nosnippet>4346</a>        "
+<a href=#4347 id=4347 data-nosnippet>4347</a>        </span>);
+<a href=#4348 id=4348 data-nosnippet>4348</a>        <span class="kw">let </span>ssa = Ssa::from_str(<span class="kw-2">&amp;</span>src).unwrap();
+<a href=#4349 id=4349 data-nosnippet>4349</a>        <span class="kw">let </span>(ssa, result) = assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], |ssa| {
+<a href=#4350 id=4350 data-nosnippet>4350</a>            ssa.fold_constants(DEFAULT_MAX_ITER)
+<a href=#4351 id=4351 data-nosnippet>4351</a>        });
+<a href=#4352 id=4352 data-nosnippet>4352</a>        <span class="macro">assert_eq!</span>(result, <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[expected]));
+<a href=#4353 id=4353 data-nosnippet>4353</a>        <span class="macro">assert!</span>(!ssa.to_string().contains(<span class="string">"cast"</span>), <span class="string">"widening cast was not folded:\n{ssa}"</span>);
+<a href=#4354 id=4354 data-nosnippet>4354</a>    }
+<a href=#4355 id=4355 data-nosnippet>4355</a>}</code></pre></div></section></main></body></html>
