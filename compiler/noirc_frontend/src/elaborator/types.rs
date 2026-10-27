@@ -386,10 +386,16 @@ impl Elaborator<'_> {
                     1 => return Some(found.remove(0).1),
                     _ => {
                         let location = path.location;
-                        let trait_names: Vec<_> = found
-                            .iter()
-                            .map(|(id, _)| self.interner.get_trait(*id).name.to_string())
-                            .collect();
+                        // A trait that a parent bound fixes the type for is shown with it
+                        // (`Grand<Item = u8>`), so that two such parents can be told apart.
+                        let trait_names = vecmap(&found, |(id, typ)| {
+                            let trait_name = self.interner.get_trait(*id).name.to_string();
+                            if self.is_own_associated_type(*id, name, typ) {
+                                trait_name
+                            } else {
+                                format!("{trait_name}<{name} = {typ}>")
+                            }
+                        });
                         let ident = Ident::new(name.to_string(), location);
                         self.push_err(PathResolutionError::MultipleTraitsInScope {
                             ident,
@@ -435,17 +441,26 @@ impl Elaborator<'_> {
     ) -> Vec<(TraitId, Type)> {
         let mut found = Vec::new();
         let mut visited = BTreeSet::new();
-        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found, &mut visited);
+        let bindings = TypeBindings::default();
+        self.collect_associated_type_in_parent_traits(
+            trait_id,
+            name,
+            &bindings,
+            &mut found,
+            &mut visited,
+        );
         found
     }
 
     /// Recursively collect all (`trait_id`, type) pairs for a named associated type
     /// across a trait and its parent hierarchy. Skip traits already
-    /// visited in `visited`.
+    /// visited in `visited`. `bindings` maps the trait's `Self`, generics and associated types to
+    /// those of the trait being defined, which reaches it through its parent bounds.
     fn collect_associated_type_in_parent_traits(
         &self,
         trait_id: TraitId,
         name: &str,
+        bindings: &TypeBindings,
         found: &mut Vec<(TraitId, Type)>,
         visited: &mut BTreeSet<TraitId>,
     ) {
@@ -460,11 +475,49 @@ impl Elaborator<'_> {
             found.push((trait_id, typ));
         }
 
-        let parent_trait_ids: Vec<_> =
-            the_trait.parent_bounds().map(|bound| bound.trait_id()).collect();
-        for parent_id in parent_trait_ids {
-            self.collect_associated_type_in_parent_traits(parent_id, name, found, visited);
+        let self_type = the_trait.self_type().substitute(bindings);
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
+        for parent_bound in parent_bounds {
+            let parent_id = parent_bound.trait_id();
+            // A parent bound that names the associated type (`trait Foo: Bar<Out = Field>`)
+            // decides it for every implementor.
+            if let Some(typ) = parent_bound.associated_type(name, bindings) {
+                let earlier = found.iter().position(|(id, _)| *id == parent_id);
+                match earlier {
+                    // The parent was reached first through a bound that leaves the type open.
+                    Some(index)
+                        if self.is_own_associated_type(parent_id, name, &found[index].1) =>
+                    {
+                        found[index].1 = typ;
+                    }
+                    // Another bound fixes it to the same type.
+                    Some(index) if found[index].1 == typ => (),
+                    // No implementor can satisfy two bounds fixing it to different types, so both
+                    // are kept, to be reported as ambiguous.
+                    _ => found.push((parent_id, typ)),
+                }
+                visited.insert(parent_id);
+                continue;
+            }
+            let parent = self.interner.get_trait(parent_id);
+            let bound = parent_bound.instantiate_in_declaration(bindings, parent);
+            let parent_bindings = parent.bound_bindings(&self_type, &bound.trait_generics);
+            self.collect_associated_type_in_parent_traits(
+                parent_id,
+                name,
+                &parent_bindings,
+                found,
+                visited,
+            );
         }
+    }
+
+    /// Whether `typ` is the trait's own associated type `name`, as
+    /// [`Self::collect_associated_type_in_parent_traits`] finds it on the trait itself.
+    fn is_own_associated_type(&self, trait_id: TraitId, name: &str, typ: &Type) -> bool {
+        let own = self.interner.get_trait(trait_id).get_associated_type(name);
+        matches!((typ, own), (Type::NamedGeneric(generic), Some(own))
+            if generic.type_var.id() == own.type_var.id())
     }
 
     /// Search for an associated type in the impls of the parent traits of `trait_bound`, as

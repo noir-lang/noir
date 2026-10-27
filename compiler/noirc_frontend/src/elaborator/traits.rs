@@ -174,8 +174,8 @@ use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
-    IMPL_TRAIT_PARAMETER_NAME_PREFIX, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBindings,
-    TypeVariable,
+    IMPL_TRAIT_PARAMETER_NAME_PREFIX, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding,
+    TypeBindings, TypeVariable,
     ast::{
         FunctionDefinition, FunctionKind, GenericTypeArgs, Ident, NoirFunction, Path, TraitBound,
         TraitItem, UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType,
@@ -207,6 +207,16 @@ use super::{
     function::UnresolvedFunctionMeta,
     item_context::{GenericsContext, ImplContext, ItemContext, ModuleContext},
 };
+
+/// An associated type a parent bound reachable from a bound fixes.
+struct FixedAssociatedType {
+    /// The parent trait.
+    trait_id: TraitId,
+    /// The parent trait's arguments in the bound.
+    ordered: Vec<Type>,
+    /// The item and the type the bound gives it.
+    item: NamedType,
+}
 
 impl Elaborator<'_> {
     /// Runs `f` in a context of its own for the trait: the trait's module, the trait as the
@@ -945,14 +955,58 @@ impl Elaborator<'_> {
     ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
         let mut new_generics = Vec::new();
         let mut new_constraints = Vec::new();
+        let mut fixed = Vec::new();
+        self.collect_fixed_parent_associated_types(
+            &constraint.typ,
+            &constraint.trait_bound,
+            &mut fixed,
+            &mut rustc_hash::FxHashSet::default(),
+        );
         self.collect_parent_associated_types(
             &constraint.typ,
             &constraint.trait_bound,
+            &fixed,
             &mut new_generics,
             &mut new_constraints,
             &mut rustc_hash::FxHashSet::default(),
         );
         (new_generics, new_constraints)
+    }
+
+    /// The associated types that the parent bounds reachable from `trait_bound` fix
+    /// (`trait P1: Grand<Item = Field>`), with the parent trait and its arguments. An item one
+    /// path to a trait fixes is fixed on every path to it, whatever the order of the parents.
+    fn collect_fixed_parent_associated_types(
+        &self,
+        object_type: &Type,
+        trait_bound: &ResolvedTraitBound,
+        fixed: &mut Vec<FixedAssociatedType>,
+        visited: &mut rustc_hash::FxHashSet<TraitId>,
+    ) {
+        if !visited.insert(trait_bound.trait_id) {
+            return;
+        }
+        let parent_bounds: Vec<_> = self
+            .interner
+            .try_get_trait(trait_bound.trait_id)
+            .map(|t| t.parent_bounds().collect())
+            .unwrap_or_default();
+        for parent_bound in &parent_bounds {
+            let instantiated =
+                self.instantiate_parent_trait_bound(object_type, trait_bound, parent_bound);
+            // An item fixed through another one this walk left out (`Grand<Item = [Self::Out; 2]>`)
+            // mentions that one's placeholder, which only the walk that names it can resolve.
+            for named_type in &instantiated.trait_generics.named {
+                if named_type.is_given() && !mentions_type_variable(&named_type.typ) {
+                    fixed.push(FixedAssociatedType {
+                        trait_id: instantiated.trait_id,
+                        ordered: instantiated.trait_generics.ordered.clone(),
+                        item: named_type.clone(),
+                    });
+                }
+            }
+            self.collect_fixed_parent_associated_types(object_type, &instantiated, fixed, visited);
+        }
     }
 
     /// Recursively walk parent trait hierarchies and create fresh type variables
@@ -963,6 +1017,7 @@ impl Elaborator<'_> {
         &mut self,
         object_type: &Type,
         trait_bound: &ResolvedTraitBound,
+        fixed: &[FixedAssociatedType],
         new_generics: &mut Vec<TypeVariable>,
         new_constraints: &mut Vec<TraitConstraint>,
         visited: &mut rustc_hash::FxHashSet<TraitId>,
@@ -993,6 +1048,9 @@ impl Elaborator<'_> {
                 .find_bound(object_type, instantiated.trait_id, ordered)
                 .is_some();
 
+            // The grandparents are reached through the bound in scope, so that an item the parent
+            // fixes through one of its own (`P1: Grand<Item = Self::Out>`) is the one named here.
+            let mut through = instantiated.clone();
             if has_named && !already_has {
                 // Replace the named (associated) type variables with fresh per-function
                 // ones so they can be included in Type::Forall and freshened at call sites.
@@ -1006,10 +1064,19 @@ impl Elaborator<'_> {
                     && self.declaration_implies(instantiated.trait_id, ordered);
 
                 let named = vecmap(&instantiated.trait_generics.named, |named_type| {
-                    // An item the parent bound fixes (`Foo<Assoc = u8>`) keeps its value; only
-                    // the ones it leaves out, which instantiation makes fresh unknowns, are named.
-                    if !matches!(named_type.typ, Type::TypeVariable(_)) {
+                    // An item the parent bound fixes (`Foo<Assoc = u8>`) keeps its value, and so
+                    // does one another path to this parent fixes; only the ones no path fixes,
+                    // which instantiation makes fresh unknowns, are named.
+                    if named_type.is_given() {
                         return named_type.clone();
+                    }
+                    let fixed_elsewhere = fixed.iter().find(|fixed| {
+                        fixed.trait_id == instantiated.trait_id
+                            && fixed.ordered == *ordered
+                            && fixed.item.name.as_str() == named_type.name.as_str()
+                    });
+                    if let Some(fixed) = fixed_elsewhere {
+                        return fixed.item.clone();
                     }
 
                     // See `add_missing_named_generics`.
@@ -1068,13 +1135,15 @@ impl Elaborator<'_> {
                     object_type,
                     &parent_constraint.trait_bound,
                 );
+                through = parent_constraint.trait_bound.clone();
                 new_constraints.push(parent_constraint);
             }
 
             // Recurse for grandparent traits
             self.collect_parent_associated_types(
                 object_type,
-                &instantiated,
+                &through,
+                fixed,
                 new_generics,
                 new_constraints,
                 visited,
@@ -1924,4 +1993,14 @@ pub(super) fn impl_trait_parameter_bindings(
         }
     }
     bindings
+}
+
+/// Whether `typ` mentions an unbound type variable.
+fn mentions_type_variable(typ: &Type) -> bool {
+    let mut found = false;
+    typ.visit(&mut |typ| {
+        found |= matches!(typ, Type::TypeVariable(var) if matches!(var.binding(), TypeBinding::Unbound(..)));
+        !found
+    });
+    found
 }
