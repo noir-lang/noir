@@ -1,5 +1,6 @@
 [package]
 name = "noir_lsp"
+publish = false
 description = "Language server for Noir"
 version.workspace = true
 authors.workspace = true

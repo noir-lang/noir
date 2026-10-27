@@ -1,5 +1,6 @@
 [package]
 name = "nargo_toml"
+publish = false
 description = "Utilities for working with Nargo.toml files"
 version.workspace = true
 authors.workspace = true

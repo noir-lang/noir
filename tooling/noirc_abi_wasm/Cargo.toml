@@ -1,5 +1,6 @@
 [package]
 name = "noirc_abi_wasm"
+publish = false
 description = "An ABI encoder for the Noir language"
 version.workspace = true
 authors.workspace = true

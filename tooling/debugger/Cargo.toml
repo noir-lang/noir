@@ -1,5 +1,6 @@
 [package]
 name = "noir_debugger"
+publish = false
 description = "Debugger for Noir"
 version.workspace = true
 authors.workspace = true

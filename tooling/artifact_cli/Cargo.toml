@@ -1,5 +1,6 @@
 [package]
 name = "noir_artifact_cli"
+publish = false
 description = "Commands working on noir build artifacts"
 version.workspace = true
 authors.workspace = true

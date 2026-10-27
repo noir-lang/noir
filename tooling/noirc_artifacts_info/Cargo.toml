@@ -1,5 +1,6 @@
 [package]
 name = "noirc_artifacts_info"
+publish = false
 description = "The logic for `nargo info` and `nargo-inspector`"
 version.workspace = true
 authors.workspace = true

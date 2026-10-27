@@ -1,5 +1,6 @@
 [package]
 name = "noirc_evaluator"
+publish = false
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

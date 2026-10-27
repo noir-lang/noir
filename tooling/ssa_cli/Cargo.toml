@@ -1,5 +1,6 @@
 [package]
 name = "noir_ssa_cli"
+publish = false
 description = "CLI tool to work with SSA independently of any Noir program"
 version.workspace = true
 authors.workspace = true

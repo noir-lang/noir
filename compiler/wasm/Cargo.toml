@@ -1,5 +1,6 @@
 [package]
 name = "noir_wasm"
+publish = false
 description = "A JS interface to the Noir compiler"
 version.workspace = true
 authors.workspace = true
