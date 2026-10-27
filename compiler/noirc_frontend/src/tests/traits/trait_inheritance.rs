@@ -2050,3 +2050,28 @@ fn item_fixed_through_a_parents_own_associated_type_for_a_generic_caller_in_eith
         assert_no_errors(&src);
     }
 }
+
+/// Two paths to a parent with several associated types agree item by item, whatever order each
+/// bound writes them in (`Grand<B = u8>` next to `Grand`).
+#[test]
+fn item_fixed_by_one_of_two_parents_is_matched_by_name_for_a_generic_caller() {
+    for parents in ["P1 + P3", "P3 + P1"] {
+        let src = format!(
+            r#"
+    pub trait Grand {{ type A; type B; }}
+    pub trait P3: Grand {{}}
+    pub trait P1: Grand<B = u8> {{}}
+    pub trait Child: {parents} {{}}
+    fn k<T: Child>() {{}}
+    fn g<T: Child>(x: <T as Grand>::B) -> u8 {{ x }}
+    pub struct S {{}}
+    impl Grand for S {{ type A = Field; type B = u8; }}
+    impl P3 for S {{}}
+    impl P1 for S {{}}
+    impl Child for S {{}}
+    fn main() {{ k::<S>(); let _ = g::<S>(1); }}
+    "#
+        );
+        assert_no_errors(&src);
+    }
+}

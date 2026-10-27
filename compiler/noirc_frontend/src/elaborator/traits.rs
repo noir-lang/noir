@@ -174,8 +174,8 @@ use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
-    IMPL_TRAIT_PARAMETER_NAME_PREFIX, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding,
-    TypeBindings, TypeVariable,
+    IMPL_TRAIT_PARAMETER_NAME_PREFIX, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBindings,
+    TypeVariable,
     ast::{
         FunctionDefinition, FunctionKind, GenericTypeArgs, Ident, NoirFunction, Path, TraitBound,
         TraitItem, UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType,
@@ -957,9 +957,9 @@ impl Elaborator<'_> {
             for named_type in &trait_bound.trait_generics.named {
                 if let Type::TypeVariable(placeholder) =
                     named_type.typ.follow_bindings_shallow().as_ref()
-                    && let TypeBinding::Unbound(..) = placeholder.binding()
+                    && placeholder.binding().is_unbound()
                 {
-                    let typ = self.parent_associated_type_variable(
+                    let typ = self.left_out_parent_item(
                         &parent_constraint.typ,
                         trait_bound,
                         named_type.name.as_str(),
@@ -1009,24 +1009,32 @@ impl Elaborator<'_> {
             let instantiated = parent_bound
                 .instantiate(&bindings, |kind| self.interner.next_type_variable_with_kind(kind));
             let ordered = &instantiated.trait_generics.ordered;
-            let is_same_bound = |bound: &&TraitConstraint| {
-                bound.trait_bound.trait_id == instantiated.trait_id
-                    && bound.typ == *object_type
-                    && bound.trait_bound.trait_generics.ordered == *ordered
-            };
-            let bound = if let Some(earlier) = new_constraints.iter().find(is_same_bound) {
-                // Another path reached the same parent, so a placeholder on either path is the
-                // other's item. Two different fixed types are left as they are: no implementor
-                // has both.
+            // Every constraint the walk adds is on `object_type`.
+            let earlier = new_constraints.iter().find(|earlier| {
+                earlier.trait_bound.trait_id == instantiated.trait_id
+                    && earlier.trait_bound.trait_generics.ordered == *ordered
+            });
+            if let Some(earlier) = earlier {
+                // Another path reached the same parent, and walked its parents, so a placeholder
+                // on either path is the other's item. Two different fixed types are left as they
+                // are: no implementor has both.
                 let earlier_named = &earlier.trait_bound.trait_generics.named;
-                for (named, other) in instantiated.trait_generics.named.iter().zip(earlier_named) {
+                for named in &instantiated.trait_generics.named {
+                    let Some(other) = earlier_named
+                        .iter()
+                        .find(|other| other.name.as_str() == named.name.as_str())
+                    else {
+                        continue;
+                    };
                     let mut bindings = TypeBindings::default();
                     if named.typ.try_unify(&other.typ, &mut bindings).is_ok() {
                         Type::apply_type_bindings(bindings);
                     }
                 }
-                earlier.trait_bound.clone()
-            } else if let Some(in_scope) =
+                continue;
+            }
+
+            let bound = if let Some(in_scope) =
                 self.item.generics.find_bound(object_type, instantiated.trait_id, ordered)
             {
                 in_scope.trait_bound.clone()
@@ -1044,8 +1052,10 @@ impl Elaborator<'_> {
     }
 
     /// The type of the associated type `name` of `object_type: trait_bound` that no parent bound
-    /// fixes: a fresh per-function type variable, added to `new_generics`.
-    fn parent_associated_type_variable(
+    /// fixes: the trait's own `<Self as Parent>::Item` when `object_type` is the `Self` of a trait
+    /// that implies the bound, and a fresh per-function type variable, added to `new_generics`,
+    /// otherwise.
+    fn left_out_parent_item(
         &self,
         object_type: &Type,
         trait_bound: &ResolvedTraitBound,
