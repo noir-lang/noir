@@ -64,7 +64,6 @@ impl Elaborator<'_> {
     /// - `TraitMissingMethod`: Required trait method not implemented
     /// - `MethodNotInTrait`: Impl contains method not in trait
     /// - `ImplIsStricterThanTrait`: Method where clause is more restrictive than trait
-    /// - `OverlappingImpl`: Another impl already exists for this type/trait combination
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn collect_trait_impl(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
         let self_type = trait_impl.methods.self_type.clone();
@@ -222,24 +221,38 @@ impl Elaborator<'_> {
                 methods,
             });
 
-            match self.interner.add_trait_implementation(
+            if let Err(error) = self.interner.add_trait_implementation(
                 self.item.impl_context.expect_self_type().clone(),
                 trait_id,
                 impl_id,
                 resolved_trait_impl,
                 location,
             ) {
-                Ok(Ok(())) => (),
-                Err(error) => self.push_err(error),
-                Ok(Err(prev_location)) => {
-                    let typ = self.item.impl_context.expect_self_type().clone();
-                    self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                        typ,
-                        location: self_type_location,
-                        prev_location,
-                    });
-                }
+                self.push_err(error);
             }
+        }
+    }
+
+    /// Reports `OverlappingImpl` for each of `impl_ids` that overlaps an impl of its trait added
+    /// before it. This runs once all the impls elaborated together are collected, so that the
+    /// verdict doesn't depend on the order they are collected in.
+    pub(super) fn check_overlapping_trait_impls(
+        &mut self,
+        impl_ids: impl IntoIterator<Item = TraitImplId>,
+    ) {
+        for impl_id in impl_ids {
+            let Some(existing) = self.interner.overlapping_earlier_impl(impl_id) else {
+                continue;
+            };
+            let prev_location =
+                self.interner.get_trait_implementation(existing).borrow().ident.location();
+            let trait_impl = self.interner.get_trait_implementation(impl_id);
+            let trait_impl = trait_impl.borrow();
+            self.push_err(DefCollectorErrorKind::OverlappingImpl {
+                typ: trait_impl.typ.clone(),
+                location: trait_impl.location,
+                prev_location,
+            });
         }
     }
 
