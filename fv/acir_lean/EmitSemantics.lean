@@ -1,0 +1,109 @@
+/-
+REVIEWED: trusted entry point. Writes `ssa_semantics.golden`: what
+`Instruction.run` (`AcirLean/Spec/SsaSemantics.lean`) computes for every
+instruction kind, on every type, over a fixed grid of edge-case values. The
+Rust test `fv_semantics.rs` runs each line through Noir's SSA interpreter and
+fails unless the interpreter gives the same result, so the reviewed meaning of
+the SSA is checked against the compiler's own reference semantics.
+
+The grid leaves out what never reaches ACIR generation: checked signed
+arithmetic and signed `div`, `mod` and `lt` (rewritten by `expand_signed_math`;
+the spec leaves them undefined), and what Noir's SSA validator rejects: `lt`
+and `not` on `Field`, and a narrowing `cast` that is not preceded by a
+`truncate` to the destination's width.
+-/
+
+import AcirLean.Spec.SsaSemantics
+
+namespace AcirLean.SemanticsTable
+
+def types : List ValueType :=
+  [.field, .uint 1, .uint 8, .uint 16, .uint 32, .uint 64, .uint 128,
+   .sint 8, .sint 16, .sint 32, .sint 64]
+
+/-- Edge cases for a value of type `ty`, including values that do not fit it
+(unchecked arithmetic and `cast` produce those). -/
+def values : ValueType → List ℕ
+  | .field => [0, 1, 2, 2 ^ 64, 2 ^ 128, 2 ^ 253, (p - 1) / 2, (p + 1) / 2, p - 2, p - 1]
+  | .uint 1 => [0, 1, 2]
+  | .uint n | .sint n =>
+    [0, 1, 2, 2 ^ (n - 1) - 1, 2 ^ (n - 1), 2 ^ n - 2, 2 ^ n - 1, 2 ^ n, 2 ^ n + 1, p - 1]
+
+def width : ValueType → ℕ
+  | .field => 254
+  | .uint n | .sint n => n
+
+/-- A one-block function and the argument lists it is called with. -/
+structure Case where
+  params : List (ℕ × ValueType)
+  body : List Instruction
+  rets : List Operand
+  calls : List (List ℕ)
+
+def Case.ssa (c : Case) : String :=
+  let params := ", ".intercalate (c.params.map fun (id, ty) => s!"v{id}: {ty.render}")
+  let ret := if c.rets.isEmpty then "return"
+    else "return " ++ ", ".intercalate (c.rets.map Operand.render)
+  let body := c.body.map fun i => i.render.trimAsciiStart.toString
+  s!"b0({params}): {"; ".intercalate (body ++ [ret])}"
+
+/-- `fail`, `ok` for no return values, or each return value as `<type> <value>`. -/
+def Case.result (c : Case) (args : List ℕ) : String :=
+  let env0 : Env := (c.params.zip args).map fun ((id, ty), x) => (id, ((x : F), ty))
+  match c.body.foldlM Instruction.run env0 >>= fun env => c.rets.mapM (Operand.value env) with
+  | none => "fail"
+  | some [] => "ok"
+  | some vs => ", ".intercalate (vs.map fun (x, ty) => s!"{ty.render} {x.val}")
+
+/-- The function on one line, then one indented line per call:
+`  <args> => <result>`. -/
+def Case.lines (c : Case) : String :=
+  String.join (c.ssa :: c.calls.map fun args =>
+    s!"\n  {", ".intercalate (args.map toString)} => {c.result args}") ++ "\n"
+
+def binaryOps : ValueType → List (BinaryOp × Bool)
+  | .sint _ => [(.add, true), (.sub, true), (.mul, true), (.eq, false)]
+  | .field =>
+    [(.add, false), (.add, true), (.sub, false), (.sub, true), (.mul, false), (.mul, true),
+     (.div, false), (.mod, false), (.eq, false)]
+  | .uint _ =>
+    [(.add, false), (.add, true), (.sub, false), (.sub, true), (.mul, false), (.mul, true),
+     (.div, false), (.mod, false), (.lt, false), (.eq, false)]
+
+def pairs (ty : ValueType) : List (List ℕ) := do
+  let x ← values ty
+  let y ← values ty
+  pure [x, y]
+
+def binaryCases : List Case := do
+  let ty ← types
+  let (op, u) ← binaryOps ty
+  pure ⟨[(0, ty), (1, ty)], [.bin 2 op u (.var 0) (.var 1)], [.var 2], pairs ty⟩
+
+def unaryCases : List Case := do
+  let ty ← types
+  let xs := (values ty).map fun x => [x]
+  let one (i : Instruction) : Case := ⟨[(0, ty)], [i], [.var 1], xs⟩
+  let check (i : Instruction) : Case := ⟨[(0, ty)], [i], [], xs⟩
+  let cast (dst : ValueType) : Case :=
+    if dst ≠ .field ∧ width dst < width ty then
+      ⟨[(0, ty)], [.truncate 1 (.var 0) (width dst) 254, .cast 2 (.var 1) dst], [.var 2], xs⟩
+    else one (.cast 1 (.var 0) dst)
+  (if ty = .field then [] else [one (.not 1 (.var 0))]) ++
+    types.map cast ++
+    [0, 1, 7, 8, 64, 128].map (fun k => one (.truncate 1 (.var 0) k 254)) ++
+    [0, 1, 8, 64, 128, 254].map (fun k => check (.rangeCheck (.var 0) k none))
+
+def constrainCases : List Case := do
+  let ty ← types
+  pure ⟨[(0, ty), (1, ty)], [.constrain (.var 0) (.var 1) none], [], pairs ty⟩
+
+def render : String :=
+  String.join ((binaryCases ++ unaryCases ++ constrainCases).map Case.lines)
+
+end AcirLean.SemanticsTable
+
+def main (args : List String) : IO Unit := do
+  match args with
+  | [path] => IO.FS.writeFile path AcirLean.SemanticsTable.render
+  | _ => IO.print AcirLean.SemanticsTable.render
