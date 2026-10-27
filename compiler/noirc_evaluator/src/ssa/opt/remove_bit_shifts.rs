@@ -495,7 +495,16 @@ fn remove_bit_shifts_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use acvm::{AcirField, FieldElement};
+    use test_case::test_case;
+
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            interpreter::value::Value, ir::types::NumericType,
+            opt::assert_pass_does_not_affect_execution, ssa_gen::Ssa,
+        },
+    };
 
     mod unsigned {
         use super::*;
@@ -1227,5 +1236,118 @@ mod tests {
             return v8
         }
         ");
+    }
+
+    /// Asserts that every numeric constant used by `main` fits the bit size of its own type.
+    fn assert_constants_fit_their_types(ssa: &Ssa) {
+        let function = ssa.main();
+        let dfg = &function.dfg;
+        let check = |value| {
+            if let Some((constant, typ)) = dfg.get_numeric_constant_with_type(value)
+                && !matches!(typ, NumericType::NativeField)
+            {
+                assert!(
+                    constant.num_bits() <= typ.bit_size::<FieldElement>(),
+                    "constant {constant} does not fit in {typ}:\n{ssa}"
+                );
+            }
+        };
+        for block in function.reachable_blocks() {
+            for instruction in dfg[block].instructions() {
+                dfg[*instruction].for_each_value(check);
+            }
+            dfg[block].unwrap_terminator().for_each_value(check);
+        }
+    }
+
+    // A shift by a constant at least as large as the bit size fails the
+    // "attempt to bit-shift with overflow" constraint, and the power of two computed for it
+    // must still be a valid constant of the shifted type.
+    #[test_case("shr", "i8", 8)]
+    #[test_case("shr", "i8", 9)]
+    #[test_case("shr", "i16", 16)]
+    #[test_case("shr", "i32", 32)]
+    #[test_case("shr", "i64", 64)]
+    #[test_case("shr", "u8", 8)]
+    #[test_case("shr", "u32", 32)]
+    #[test_case("shl", "i8", 8)]
+    #[test_case("shl", "i32", 32)]
+    #[test_case("shl", "u8", 8)]
+    fn shift_by_constant_not_less_than_bit_size_uses_in_range_constants(
+        op: &str,
+        typ: &str,
+        rhs: u32,
+    ) {
+        let src = format!(
+            "
+        acir(inline) fn main f0 {{
+          b0(v0: {typ}):
+            v2 = {op} v0, {typ} {rhs}
+            return v2
+        }}
+        "
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert!(
+            ssa.to_string()
+                .contains("constrain u1 0 == u1 1, \"attempt to bit-shift with overflow\""),
+            "missing overflow constraint:\n{ssa}"
+        );
+        assert_constants_fit_their_types(&ssa);
+    }
+
+    #[test]
+    fn signed_shr_by_constant_bit_size() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            v2 = shr v0, i8 8
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
+            v3 = cast v0 as u8
+            v5 = lt u8 127, v3
+            v6 = cast v5 as Field
+            v7 = cast v0 as Field
+            v8 = add v6, v7
+            v9 = truncate v8 to 8 bits, max_bit_size: 9
+            v10 = cast v9 as i8
+            v12 = div v10, i8 256
+            v13 = cast v12 as Field
+            v15 = add v13, Field 256
+            v16 = sub v15, v6
+            v17 = truncate v16 to 8 bits, max_bit_size: 9
+            v18 = cast v17 as i8
+            return v18
+        }
+        "#);
+    }
+
+    // The largest valid shift amount, one less than the bit size, keeps its power of two.
+    #[test_case(Value::i8(-3), Value::i8(-1); "minus_3")]
+    #[test_case(Value::i8(-128), Value::i8(-1); "minus_128")]
+    #[test_case(Value::i8(-1), Value::i8(-1); "minus_1")]
+    #[test_case(Value::i8(0), Value::i8(0); "zero")]
+    #[test_case(Value::i8(127), Value::i8(0); "max")]
+    fn signed_shr_by_constant_bit_size_minus_one(input: Value, expected: Value) {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            v2 = shr v0, i8 7
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![input], |ssa| ssa.remove_bit_shifts());
+        assert_eq!(result, Ok(vec![expected]));
+        assert_constants_fit_their_types(&ssa);
     }
 }

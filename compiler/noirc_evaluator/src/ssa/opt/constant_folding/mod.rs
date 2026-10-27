@@ -4259,4 +4259,97 @@ mod test {
             "the mutator observes its own copy"
         );
     }
+
+    // A `cast` relabels the type of a field element without changing it, so a constant that
+    // does not fit the destination width cannot be represented as a constant of that type.
+    // Folding must keep the cast so that the program computes the same value as before folding.
+    #[test_case("i16 256"; "i16_256")]
+    #[test_case("i32 384"; "i32_384")]
+    #[test_case("i16 -1"; "i16_minus_1")]
+    #[test_case("i64 -129"; "i64_minus_129")]
+    #[test_case("u16 300"; "u16_300")]
+    #[test_case("Field 256"; "field_256")]
+    fn does_not_fold_signed_narrowing_cast_of_out_of_range_constant(constant: &str) {
+        for runtime in ["acir(inline)", "brillig(inline)"] {
+            let src = format!(
+                "
+            {runtime} fn main f0 {{
+              b0():
+                v1 = cast {constant} as i8
+                return v1
+            }}
+            "
+            );
+            let ssa = Ssa::from_str_no_validation(&src).unwrap();
+            let (ssa, result) = assert_pass_does_not_affect_execution(ssa, vec![], |ssa| {
+                ssa.fold_constants(DEFAULT_MAX_ITER)
+            });
+            assert!(result.is_ok(), "{runtime} `cast {constant} as i8` failed: {result:?}");
+
+            // `src` fails full validation, so it is compared without `assert_normalized_ssa_equals`.
+            let mut ssa = ssa;
+            let mut expected = Ssa::from_str_no_validation(&src).unwrap();
+            ssa.normalize_ids();
+            expected.normalize_ids();
+            assert_eq!(
+                ssa.print_without_locations().to_string(),
+                expected.print_without_locations().to_string()
+            );
+        }
+    }
+
+    // Casts into a signed type whose constant fits the destination width are folded, and the
+    // folded constant keeps the same field element: a widening cast does not sign-extend.
+    #[test_case("i16 127", Value::i8(127); "i16_127_to_i8")]
+    #[test_case("i16 200", Value::i8(-56); "i16_200_to_i8")]
+    #[test_case("i32 255", Value::i8(-1); "i32_255_to_i8")]
+    #[test_case("u8 255", Value::i8(-1); "u8_255_to_i8")]
+    #[test_case("Field 255", Value::i8(-1); "field_255_to_i8")]
+    #[test_case("u16 0", Value::i8(0); "u16_0_to_i8")]
+    fn folds_cast_to_i8_of_constant_that_fits(constant: &str, expected: Value) {
+        let src = format!(
+            "
+        acir(inline) fn main f0 {{
+          b0():
+            v1 = cast {constant} as i8
+            return v1
+        }}
+        "
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
+        let (ssa, result) = assert_pass_does_not_affect_execution(ssa, vec![], |ssa| {
+            ssa.fold_constants(DEFAULT_MAX_ITER)
+        });
+        assert_eq!(result, Ok(vec![expected.clone()]));
+        let expected_src = format!(
+            "
+        acir(inline) fn main f0 {{
+          b0():
+            return {expected}
+        }}
+        "
+        );
+        assert_normalized_ssa_equals(ssa, &expected_src);
+    }
+
+    #[test_case("cast i8 -1 as i16", Value::i16(255); "i8_minus_1_to_i16")]
+    #[test_case("cast i8 -128 as i32", Value::i32(128); "i8_minus_128_to_i32")]
+    #[test_case("cast i16 -1 as i64", Value::i64(65535); "i16_minus_1_to_i64")]
+    fn folds_widening_signed_cast_without_sign_extension(instruction: &str, expected: Value) {
+        let src = format!(
+            "
+        acir(inline) fn main f0 {{
+          b0():
+            v1 = {instruction}
+            return v1
+        }}
+        "
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
+        let (ssa, result) = assert_pass_does_not_affect_execution(ssa, vec![], |ssa| {
+            ssa.fold_constants(DEFAULT_MAX_ITER)
+        });
+        assert_eq!(result, Ok(vec![expected]));
+        assert!(!ssa.to_string().contains("cast"), "widening cast was not folded:\n{ssa}");
+    }
 }
