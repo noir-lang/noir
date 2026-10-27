@@ -1988,3 +1988,65 @@ fn item_fixed_to_a_type_mentioning_a_parents_own_associated_type_for_a_generic_c
     "#;
     assert_no_errors(src);
 }
+
+/// A parent bound that fixes an associated type (`Child: P1<Item = Field>`) leaves the parent's
+/// own parents in view: a grandparent declaring an item of the same name makes `Self::Item`
+/// ambiguous, as in rustc (E0221).
+#[test]
+fn associated_type_a_parent_fixes_is_ambiguous_with_a_grandparents_of_the_same_name() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait P1: Grand { type Item; }
+    pub trait Child: P1<Item = Field> {
+        fn f(self, x: Self::Item) -> Field { let _ = self; x }
+                      ^^^^^^^^^^ Multiple applicable items in scope
+                      ~~~~~~~~~~ Multiple traits which provide `Item` are implemented and in scope: `Grand`, `P1<Item = Field>`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// Each type an associated type is fixed to is listed once in the ambiguity error, however many
+/// parents fix it to that type.
+#[test]
+fn associated_type_fixed_to_one_type_by_two_of_three_parents_is_listed_once() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait P1: Grand<Item = u8> {}
+    pub trait P2: Grand<Item = Field> {}
+    pub trait P3: Grand<Item = Field> {}
+    pub trait Child: P1 + P2 + P3 {
+        fn f(self, x: Self::Item) -> Field { let _ = self; x }
+                      ^^^^^^^^^^ Multiple applicable items in scope
+                      ~~~~~~~~~~ Multiple traits which provide `Item` are implemented and in scope: `Grand<Item = Field>`, `Grand<Item = u8>`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// In a generic caller, an item one parent fixes through its own associated type
+/// (`P1: Grand<Item = Self::Out>`) is that type even when another parent (`P3: Grand`) reaches
+/// the same trait first.
+#[test]
+fn item_fixed_through_a_parents_own_associated_type_for_a_generic_caller_in_either_order() {
+    for parents in ["P1 + P3", "P3 + P1"] {
+        let src = format!(
+            r#"
+    pub trait Grand {{ type Item; }}
+    pub trait P1: Grand<Item = Self::Out> {{ type Out; }}
+    pub trait P3: Grand {{}}
+    pub trait Child: {parents} {{}}
+    fn g<T: Child>(x: T::Out) -> <T as Grand>::Item {{ x }}
+    pub struct S {{}}
+    impl Grand for S {{ type Item = Field; }}
+    impl P1 for S {{ type Out = Field; }}
+    impl P3 for S {{}}
+    impl Child for S {{}}
+    fn main() {{ let _ = g::<S>(3); }}
+    "#
+        );
+        assert_no_errors(&src);
+    }
+}
