@@ -81,11 +81,51 @@ where
     FieldBytes<C>: From<[u8; 32]>,
     Scalar<C>: Reduce<U256> + IsHigh,
 {
+    #[allow(non_snake_case)]
+    let Some((R, r)) =
+        nonce_point::<C>(hashed_msg, public_key_x_bytes, public_key_y_bytes, signature)
+    else {
+        return Ok(false);
+    };
+
+    // Compare R.x with signature's r component.
+    match R.to_sec1_point(false).coordinates() {
+        k256::elliptic_curve::sec1::Coordinates::Uncompressed { x, y: _ } => {
+            // Per ECDSA specification (SEC 1, section 4.1.4), R.x is reduced modulo the curve
+            // order before comparing it against `r`, as R.x may lie in `[C::ORDER, p)`.
+            let v = <Scalar<C> as Reduce<U256>>::reduce(&U256::from_be_slice(x));
+            Ok(v == r)
+        }
+        k256::elliptic_curve::sec1::Coordinates::Identity => Ok(false),
+        _ => {
+            Err(BlackBoxResolutionError::Failed(func, "Unexpected coordinate encoding".to_string()))
+        }
+    }
+}
+
+/// Computes the point `R = z/s * G + r/s * Q` whose x-coordinate an ECDSA verifier compares
+/// against the signature's `r` component, returning it alongside `r`.
+///
+/// Returns `None` if the inputs fail any of the checks listed on [`verify_signature`].
+fn nonce_point<C>(
+    hashed_msg: &[u8; 32],
+    public_key_x_bytes: &[u8; 32],
+    public_key_y_bytes: &[u8; 32],
+    signature: &[u8; 64],
+) -> Option<(AffinePoint<C>, Scalar<C>)>
+where
+    C: EcdsaCurve + CurveArithmetic,
+    SignatureSize<C>: ArraySize,
+    FieldBytesSize<C>: ModulusSize,
+    AffinePoint<C>: FromSec1Point<C> + ToSec1Point<C>,
+    FieldBytes<C>: From<[u8; 32]>,
+    Scalar<C>: Reduce<U256> + IsHigh,
+{
     // Convert the inputs into the curve's data structures
     let Ok(signature) = Signature::<C>::try_from(signature.as_slice()) else {
         // Signature `r` and `s` are forbidden from being zero.
         log::warn!("Signature provided for ECDSA verification is zero");
-        return Ok(false);
+        return None;
     };
 
     let point = Sec1Point::<C>::from_affine_coordinates(
@@ -98,7 +138,7 @@ where
     if pubkey.is_none().into() {
         // Public key must sit on the curve.
         log::warn!("Invalid public key provided for ECDSA verification");
-        return Ok(false);
+        return None;
     }
     let pubkey = pubkey.unwrap();
 
@@ -117,7 +157,7 @@ where
         log::warn!(
             "Signature provided for ECDSA verification is not properly normalized (high S value)"
         );
-        return Ok(false);
+        return None;
     }
 
     let s_inv = s.as_ref().invert().unwrap();
@@ -129,24 +169,10 @@ where
         + (ProjectivePoint::<C>::from(*pubkey.as_affine()) * u2))
         .to_affine();
 
-    // Compare R.x with signature's r component.
-    match R.to_sec1_point(false).coordinates() {
-        k256::elliptic_curve::sec1::Coordinates::Uncompressed { x, y: _ } => {
-            // Per ECDSA specification (SEC 1, section 4.1.4), R.x is reduced modulo the curve
-            // order before comparing it against `r`, as R.x may lie in `[C::ORDER, p)`.
-            let v = <Scalar<C> as Reduce<U256>>::reduce(&U256::from_be_slice(x));
-            Ok(v == *r)
-        }
-        k256::elliptic_curve::sec1::Coordinates::Identity => Ok(false),
-        _ => {
-            Err(BlackBoxResolutionError::Failed(func, "Unexpected coordinate encoding".to_string()))
-        }
-    }
+    Some((R, *r))
 }
 
-/// Computes the x-coordinate of `R = z/s * G + r/s * Q` for the given inputs as an integer, without
-/// reducing it modulo the curve order. Tests use this to show which branch of the comparison
-/// against `r` a set of inputs exercises.
+/// The x-coordinate of [`nonce_point`] as an integer, without reducing it modulo the curve order.
 #[cfg(test)]
 fn nonce_point_x<C>(
     hashed_msg: &[u8; 32],
@@ -160,21 +186,9 @@ where
     FieldBytesSize<C>: ModulusSize,
     AffinePoint<C>: FromSec1Point<C> + ToSec1Point<C>,
     FieldBytes<C>: From<[u8; 32]>,
-    Scalar<C>: Reduce<U256>,
+    Scalar<C>: Reduce<U256> + IsHigh,
 {
-    let signature = Signature::<C>::try_from(signature.as_slice()).unwrap();
-    let point = Sec1Point::<C>::from_affine_coordinates(
-        &FieldBytes::<C>::from(*public_key_x_bytes),
-        &FieldBytes::<C>::from(*public_key_y_bytes),
-        false,
-    );
-    let pubkey = PublicKey::<C>::from_sec1_point(&point).unwrap();
-    let z = <Scalar<C> as Reduce<U256>>::reduce(&U256::from_be_slice(hashed_msg));
-
-    let s_inv = signature.s().as_ref().invert().unwrap();
-    #[allow(non_snake_case)]
-    let R = ((ProjectivePoint::<C>::generator() * (z * s_inv))
-        + (ProjectivePoint::<C>::from(*pubkey.as_affine()) * (*signature.r() * s_inv)))
-        .to_affine();
-    U256::from_be_slice(R.to_sec1_point(false).x().unwrap())
+    let (point, _) =
+        nonce_point::<C>(hashed_msg, public_key_x_bytes, public_key_y_bytes, signature).unwrap();
+    U256::from_be_slice(point.to_sec1_point(false).x().unwrap())
 }
