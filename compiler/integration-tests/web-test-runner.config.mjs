@@ -37,7 +37,7 @@ export default {
       ctx.set('Cross-Origin-Embedder-Policy', 'require-corp');
 
       if (ctx.url.endsWith('.wasm.gz')) {
-        ctx.url = ctx.url.replace('/', '/node_modules/@aztec/bb.js/dest/browser/');
+        ctx.url = ctx.url.replace('/', '/node_modules/@aztec-foundation/bb.js/dest/browser/');
       }
       // Mock pino as its not supported on ESM environment
       // In our tests we are overriding the logger to tslog anyway

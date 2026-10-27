@@ -153,7 +153,7 @@ fn unary_not_on_field_type_variable() {
     fn main() {
         let num: Field = 0;
         assert_eq(!0, num);
-                  ^^^^^^^ Types in a binary operation should match, but found Field and u32
+                  ^^^^^^^ Types in a binary operation should match, but found u32 and Field
     }
     "#;
     check_errors(src);

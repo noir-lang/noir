@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#trait">Trait Hash</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -110,7 +110,7 @@
 <p>A type that can be fed into a <a href="../../std/hash/trait.Hasher.html"><code>Hasher</code></a>.</p>
 <p><code>hash</code> writes the value to the hasher as a sequence of <code>Field</code>s. Two values that are equal
 must write the same sequence. The implementations in the standard library write integers and
-<code>bool</code>s as a single <code>Field</code>, arrays and tuples as their elements in order, and vectors as
+<code>bool</code>s as a single <a href="../../std/primitive.Field.html"><code>Field</code></a>, arrays and tuples as their elements in order, and vectors as
 their length followed by their elements.</p>
 <p>The trait can be derived with <code>#[derive(Hash)]</code>, which hashes each field of a struct in order.</p>
 <p>Example:</p>

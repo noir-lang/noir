@@ -18,10 +18,8 @@
 use std::collections::{BTreeMap, HashSet};
 
 use super::{enums::UnresolvedEnumVariants, function::UnresolvedFunctionMeta};
-use noirc_errors::Location;
-
 use crate::{
-    Type,
+    Type, TypeVariableId,
     ast::{Ident, UnresolvedType},
     elaborator::structs::UnresolvedStructFields,
     hir::def_map::LocalModuleId,
@@ -131,22 +129,24 @@ pub(super) struct DeferredItems {
     /// Enum variants, deferred for the same reason as [`Self::struct_fields`].
     pub(super) enum_variants: Deferred<TypeId, UnresolvedEnumVariants>,
 
-    /// The associated types and constants of each trait impl. One impl's items may name another
-    /// impl's (`let N: u32 = <[u8; 3] as C>::N;`), so they are resolved the first time a lookup
-    /// selects the impl, and otherwise when the impl is collected.
-    pub(super) trait_impl_associated_types: Deferred<TraitImplId, UnresolvedImplAssociatedTypes>,
+    /// The associated types and constants of trait impls, keyed by the type variable that stands
+    /// for each item in its impl's trait generics. One impl's items may name another impl's
+    /// (`let N: u32 = <[u8; 3] as C>::N;`), or another item of the same impl through a global, so
+    /// each is resolved the first time something reads it, and otherwise when the impl is
+    /// collected.
+    pub(super) trait_impl_associated_types: Deferred<TypeVariableId, UnresolvedImplAssociatedType>,
 
     /// Trait bookkeeping that cannot run until the drains above have resolved the metas it reads.
     pub(super) trait_work: PendingTraitWork,
 }
 
-/// What resolving a trait impl's associated types and constants needs: the impl's own context,
-/// and the written value of each item.
-pub(super) struct UnresolvedImplAssociatedTypes {
+/// What resolving one of a trait impl's associated types or constants needs: the impl's own
+/// context, and the item's written value.
+pub(super) struct UnresolvedImplAssociatedType {
     pub(super) module_id: LocalModuleId,
     pub(super) self_type: Type,
     pub(super) trait_id: TraitId,
     pub(super) generics: ResolvedGenerics,
-    pub(super) types: Vec<(Ident, UnresolvedType)>,
-    pub(super) location: Location,
+    pub(super) name: Ident,
+    pub(super) typ: UnresolvedType,
 }

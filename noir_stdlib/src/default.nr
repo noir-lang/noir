@@ -3,9 +3,30 @@ use crate::meta::derive_via;
 /// Return an implementation-defined default value for the given type.
 /// This is most often a zeroed value or an empty container, but there
 /// are no actual restrictions on what an implementation could return.
+///
+/// The standard library's implementations return zero for [`Field`] and the integer types,
+/// `false` for `bool`, an empty vector, and arrays and tuples whose elements are all default
+/// values. Deriving it with `#[derive(Default)]` sets every field of a struct to its default.
+///
+/// Example:
+///
+/// ```noir
+/// #[derive(Default)]
+/// struct Config {
+///     limit: u32,
+///     enabled: bool,
+/// }
+///
+/// fn main() {
+///     let config: Config = Default::default();
+///     assert_eq(config.limit, 0);
+///     assert(!config.enabled);
+/// }
+/// ```
 #[derive_via(derive_default)]
 // docs:start:default-trait
 pub trait Default {
+    /// Returns the default value of `Self`.
     fn default() -> Self;
 }
 // docs:end:default-trait

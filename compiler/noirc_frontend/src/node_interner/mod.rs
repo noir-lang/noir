@@ -380,6 +380,22 @@ pub enum ImplSearchErrorKind {
     RecursionLimitReached,
 }
 
+impl ImplSearchErrorKind {
+    /// Whether the search couldn't decide yet, because the answer depends on a type that isn't
+    /// known: a later binding may still make it succeed. Every other error is final.
+    pub(crate) fn is_undecided(&self) -> bool {
+        match self {
+            ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType
+            | ImplSearchErrorKind::MultipleMatching(_) => true,
+            // Reaching the limit doesn't depend on what is known yet: the impls recurse
+            // without end whatever the types turn out to be.
+            ImplSearchErrorKind::NoImplFound(_)
+            | ImplSearchErrorKind::NoMatching(_)
+            | ImplSearchErrorKind::RecursionLimitReached => false,
+        }
+    }
+}
+
 /// All the information from a function that is filled out during definition collection rather than
 /// name resolution. As a result, if information about a function is needed during name resolution,
 /// this is the only place where it is safe to retrieve it (where all fields are guaranteed to be initialized).
@@ -1071,6 +1087,20 @@ impl NodeInterner {
         methods.find_direct_method(typ, check_self_param, self)
     }
 
+    /// Returns every direct (inherent) method named `method_name` that applies to `typ`.
+    pub fn lookup_direct_methods(
+        &self,
+        typ: &Type,
+        method_name: &str,
+        check_self_param: bool,
+    ) -> Vec<FuncId> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods.find_direct_methods(typ, check_self_param, self)
+    }
+
     /// Returns true if any method (direct or trait impl) is registered under `method_name`
     /// for the type's method key, regardless of type compatibility.
     pub fn has_method_with_name(&self, typ: &Type, method_name: &str) -> bool {
@@ -1111,7 +1141,9 @@ impl NodeInterner {
         methods.direct.iter().map(|m| m.method).collect()
     }
 
-    /// Looks up methods that apply to the given type but are defined in traits.
+    /// Looks up methods of trait impls for the given type's own type (`impl Foo for S`), leaving out
+    /// impls for all types `T` (see [`Self::lookup_generic_methods`]). For a generic type (`T`),
+    /// its own impls are exactly the impls for all types `T`.
     ///
     /// The third tuple element is the impl's self type as it was recorded when the impl was
     /// registered (see [`Self::add_method`]). This is the concrete type the impl applies to,
@@ -1152,12 +1184,15 @@ impl NodeInterner {
             .collect()
     }
 
+    /// The methods named `method_name` of impls for all types `T`, e.g. `impl<T> Foo for T`.
+    fn generic_methods(&self, method_name: &str) -> Option<&Methods> {
+        self.methods.get(&TypeMethodKey::Generic).and_then(|h| h.get(method_name))
+    }
+
     /// Same as [`Self::method_candidate_ids`] but for `impl<T>`-style generic
     /// trait impls keyed under `TypeMethodKey::Generic`.
     pub fn generic_method_candidate_ids(&self, method_name: &str) -> Vec<FuncId> {
-        self.methods
-            .get(&TypeMethodKey::Generic)
-            .and_then(|h| h.get(method_name))
+        self.generic_methods(method_name)
             .map(|methods| {
                 methods
                     .direct
@@ -1178,9 +1213,7 @@ impl NodeInterner {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        self.methods
-            .get(&TypeMethodKey::Generic)
-            .and_then(|h| h.get(method_name))
+        self.generic_methods(method_name)
             .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
             .unwrap_or_default()
     }

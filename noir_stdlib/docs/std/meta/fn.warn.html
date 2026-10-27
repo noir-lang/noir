@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In module meta</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="ctstring/index.html">ctstring</a></div></li>
@@ -59,10 +59,23 @@
 )</code></pre>
 
 <div class="comments">
-<p>Issues a warning diagnostic at the given location  with the given primary
-message and an optional secondary message. Execution continues after this
-function is called.</p>
-</div>
+<p>Issues a warning diagnostic at <code>location</code>, with an optional secondary message.</p>
+<p>Execution continues after this function is called.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="comment">// Warns "`add` has no documentation", pointing at `add`.</span>
+    <span class="kw">let</span> name = f.name();
+    std::meta::warn(
+        <span class="string">f"</span><span class="string">`</span><span class="interpolation">{name}</span><span class="string">` has no documentation</span><span class="string">"</span>,
+        Option::&lt;fmtstr&lt;<span class="number">0</span>, ()&gt;&gt;::none(),
+        f.location(),
+    );
+}</code></pre></div>
 </div>
 </main>
 </span>

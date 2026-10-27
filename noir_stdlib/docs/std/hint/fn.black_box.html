@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In module hint</h2>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.black_box.html">black_box</a></div></li>
@@ -40,7 +40,11 @@
 <p>An identity function that <em>hints</em> to the compiler to be maximally pessimistic about what <code>black_box</code> could do.</p>
 <p>This can be used to block the SSA optimization passes being applied to a value, which should help to prevent
 test programs from being optimized down to nothing and have them resemble runtime code more closely.</p>
-</div>
+<p>It returns <code>value</code> unchanged and adds no constraints of its own.</p>
+<p>Example:</p>
+<pre><code><span class="comment">// Without `black_box`, the compiler could compute `x * 2` at compile time.</span>
+<span class="kw">let</span> x = std::hint::black_box(<span class="number">21</span>);
+<span class="kw">assert_eq</span>(x * <span class="number">2</span>, <span class="number">42</span>);</code></pre></div>
 </div>
 </main>
 </span>

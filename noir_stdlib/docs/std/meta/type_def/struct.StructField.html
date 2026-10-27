@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct StructField</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -46,25 +46,68 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A field of a <a href="../../../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a>, returned from
-<a href="../../../std/primitive.TypeDefinition.html#fields"><code>TypeDefinition::fields</code></a> and <a href="../../../std/primitive.TypeDefinition.html#fields_as_written"><code>TypeDefinition::fields_as_written</code></a>.</p></div>
+<p>A field of a <a href="../../../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a>.</p>
+<p>It is returned by <a href="../../../std/primitive.TypeDefinition.html#fields"><code>TypeDefinition::fields</code></a> and <a href="../../../std/primitive.TypeDefinition.html#fields_as_written"><code>TypeDefinition::fields_as_written</code></a>.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+    <span class="kw">pub</span> items: [T; N],
+    count: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(pair: TypeDefinition) {
+    <span class="kw">let</span> items = pair.fields(@[<span class="kw">quote</span> { u8 }.as_type(), <span class="kw">quote</span> { <span class="number">2</span> }.as_type()])[<span class="number">0</span>];
+    <span class="kw">assert_eq</span>(items.name(), <span class="kw">quote</span> { items });
+    <span class="kw">assert_eq</span>(items.typ(), <span class="kw">quote</span> { [u8; <span class="number">2</span>] }.as_type());
+    <span class="kw">assert</span>(items.visibility().is_public());
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/type_def/struct.StructField.html" class="struct">StructField</a></code></h3>
 
 <div class="padded-methods"><code id="name" class="code-header">pub comptime fn <a href="#name" class="fn">name</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>The field's declared name, as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p></div>
+<p>The field's declared name, as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+    <span class="kw">pub</span> items: [T; N],
+    count: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(pair: TypeDefinition) {
+    <span class="kw">assert_eq</span>(pair.fields_as_written()[<span class="number">1</span>].name(), <span class="kw">quote</span> { count });
+}</code></pre></div>
 </div><code id="typ" class="code-header">pub comptime fn <a href="#typ" class="fn">typ</a>(self) -> <a href="../../../std/primitive.Type.html" class="primitive">Type</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The field's declared type.</p>
-</div>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+    <span class="kw">pub</span> items: [T; N],
+    count: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(pair: TypeDefinition) {
+    <span class="kw">assert_eq</span>(pair.fields_as_written()[<span class="number">1</span>].typ(), <span class="kw">quote</span> { u32 }.as_type());
+}</code></pre></div>
 </div><code id="visibility" class="code-header">pub comptime fn <a href="#visibility" class="fn">visibility</a>(self) -> <a href="../../../std/meta/item_visibility/struct.ItemVisibility.html" class="struct">ItemVisibility</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The field's declared visibility.</p>
-</div>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+    <span class="kw">pub</span> items: [T; N],
+    count: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(pair: TypeDefinition) {
+    <span class="kw">let</span> fields = pair.fields_as_written();
+    <span class="kw">assert</span>(fields[<span class="number">0</span>].visibility().is_public());
+    <span class="kw">assert</span>(fields[<span class="number">1</span>].visibility().is_private());
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct MethodCallExpression</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -66,7 +66,15 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A method call decomposed by <a href="../../../std/primitive.Expr.html#as_method_call"><code>Expr::as_method_call</code></a>.</p></div>
+<p>A method call decomposed by <a href="../../../std/primitive.Expr.html#as_method_call"><code>Expr::as_method_call</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> call = <span class="kw">quote</span> { foo.bar::&lt;u32&gt;(<span class="number">1</span>) }.as_expr().unwrap().as_method_call().unwrap();
+    <span class="kw">assert_eq</span>(call.receiver().quoted(), <span class="kw">quote</span> { foo });
+    <span class="kw">assert_eq</span>(call.method_name(), <span class="kw">quote</span> { bar });
+    <span class="kw">assert_eq</span>(call.generics().len(), <span class="number">1</span>);
+    <span class="kw">assert_eq</span>(call.arguments().len(), <span class="number">1</span>);
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.MethodCallExpression.html" class="struct">MethodCallExpression</a></code></h3>
 
@@ -74,21 +82,44 @@
 
 <div class="padded-description"><div class="comments">
 <p>The method receiver.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> call = <span class="kw">quote</span> { foo.bar() }.as_expr().unwrap().as_method_call().unwrap();
+    <span class="kw">assert_eq</span>(call.receiver().quoted(), <span class="kw">quote</span> { foo });
+}</code></pre></div>
 </div><code id="method_name" class="code-header">pub comptime fn <a href="#method_name" class="fn">method_name</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>The method name as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p></div>
+<p>The method name as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> call = <span class="kw">quote</span> { foo.bar() }.as_expr().unwrap().as_method_call().unwrap();
+    <span class="kw">assert_eq</span>(call.method_name(), <span class="kw">quote</span> { bar });
+}</code></pre></div>
 </div><code id="generics" class="code-header">pub comptime fn <a href="#generics" class="fn">generics</a>(self) -> [<a href="../../../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>]</code>
 
 <div class="padded-description"><div class="comments">
 <p>The explicit generic arguments in source order.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> call = <span class="kw">quote</span> { foo.bar::&lt;u32&gt;() }.as_expr().unwrap().as_method_call().unwrap();
+    <span class="kw">let</span> typ = call.generics()[<span class="number">0</span>];
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { $typ }, <span class="kw">quote</span> { u32 });
+
+    <span class="kw">let</span> call = <span class="kw">quote</span> { foo.bar() }.as_expr().unwrap().as_method_call().unwrap();
+    <span class="kw">assert_eq</span>(call.generics().len(), <span class="number">0</span>);
+}</code></pre></div>
 </div><code id="arguments" class="code-header">pub comptime fn <a href="#arguments" class="fn">arguments</a>(self) -> [<a href="../../../std/primitive.Expr.html" class="primitive">Expr</a>]</code>
 
 <div class="padded-description"><div class="comments">
 <p>The call arguments in source order.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> call = <span class="kw">quote</span> { foo.bar(x, <span class="number">2</span>) }.as_expr().unwrap().as_method_call().unwrap();
+    <span class="kw">let</span> arguments = call.arguments();
+    <span class="kw">assert_eq</span>(arguments[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(arguments[<span class="number">1</span>].as_integer().unwrap().value(), <span class="number">2</span>);
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

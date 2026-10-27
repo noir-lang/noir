@@ -244,6 +244,8 @@ impl<'a> Formatter<'a> {
         self.skip_comments_and_whitespace();
         if self.token == token {
             self.write_current_token_and_bump();
+        } else if token == Token::Less && self.token == Token::ShiftLeft {
+            self.write_first_less_of_shift_left();
         } else {
             panic!("Expected token {:?}, got: {:?}", token, self.token);
         }
@@ -342,6 +344,21 @@ impl<'a> Formatter<'a> {
 
     pub(crate) fn is_at(&self, token: Token) -> bool {
         self.token == token
+    }
+
+    /// True if the current token is `<` or starts with one.
+    pub(crate) fn is_at_less(&self) -> bool {
+        self.is_at(Token::Less) || self.is_at(Token::ShiftLeft)
+    }
+
+    /// Writes the first `<` of the current `<<` token, leaving the second as the current token.
+    /// `<<` is lexed as one token, but in `Store<<T as HasKey>::Key>` it opens a generic list and
+    /// then a qualified path.
+    fn write_first_less_of_shift_left(&mut self) {
+        self.write(&Token::Less.to_string());
+        let start = self.token_span.start();
+        self.token = Token::Less;
+        self.token_span = Span::single_char(start + 1);
     }
 
     /// Advances to the next token (the current token is not written).

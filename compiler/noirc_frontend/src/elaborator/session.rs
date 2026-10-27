@@ -66,6 +66,11 @@ pub(crate) struct ElaborationSession {
     /// variables of the runtime blocks being elaborated. A nested elaborator sees the variables
     /// visible to the comptime function that asked for it.
     pub(super) comptime_scopes: ComptimeScopes,
+
+    /// Where-clause bounds already reported as unneeded, by location. A bound is added to scope
+    /// by every item that carries it (an impl's bound is copied into each of its methods) and
+    /// again when each function body is elaborated, so this keeps the warning to one per bound.
+    pub(super) reported_unneeded_trait_constraints: HashSet<Location>,
 }
 
 impl Elaborator<'_> {

@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In module mem</h2>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.array_refcount.html">array_refcount</a></div></li>
@@ -43,7 +43,12 @@
 <p>Returns the internal reference count of an array value in unconstrained code.</p>
 <p>Arrays only have reference count in unconstrained code - using this anywhere
 else will return zero.</p>
-</div>
+<p>It is meant for debugging how often arrays are copied in unconstrained code.</p>
+<p>Example:</p>
+<pre><code><span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
+    <span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+    <span class="kw">assert</span>(std::mem::array_refcount(array) &gt; <span class="number">0</span>);
+}</code></pre></div>
 </div>
 </main>
 </span>

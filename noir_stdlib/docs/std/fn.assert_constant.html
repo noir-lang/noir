@@ -19,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In crate std</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="aes128/index.html">aes128</a></div></li>
@@ -97,7 +97,11 @@
 <div class="comments">
 <p>Asserts that the given value is known at compile-time.
 Useful for debugging for-loop bounds.</p>
-</div>
+<p>Compilation fails if <code>x</code> isn't a compile-time constant after the compiler's optimizations,
+in both constrained and unconstrained code. At comptime every value is known, so it passes.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> n = <span class="number">2</span> + <span class="number">3</span>;
+std::assert_constant(n);</code></pre></div>
 </div>
 </main>
 </span>

@@ -90,15 +90,16 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
         args.compile_options.silence_warnings,
     );
 
+    if deny_warnings && !broken_links.is_empty() {
+        let msg = if broken_links.len() == 1 {
+            "Error: doc comments contain 1 broken link".to_string()
+        } else {
+            format!("Error: doc comments contain {} broken links", broken_links.len())
+        };
+        return Err(CliError::Generic(msg));
+    }
+
     if args.check {
-        if !broken_links.is_empty() {
-            let msg = if broken_links.len() == 1 {
-                "Error: doc comments contain 1 broken link".to_string()
-            } else {
-                format!("Error: doc comments contain {} broken links", broken_links.len())
-            };
-            return Err(CliError::Generic(msg));
-        }
         return Ok(());
     }
 

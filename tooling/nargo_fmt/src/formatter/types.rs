@@ -252,6 +252,16 @@ mod tests {
     }
 
     #[test]
+    fn format_named_type_whose_first_generic_is_as_trait_path() {
+        let src = " Store <<T as HasKey>::Key> ";
+        let expected = "Store<<T as HasKey>::Key>";
+        assert_format_type(src, expected);
+
+        let src = " Store :: <<T as HasKey>::Key> ";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
     fn format_array_type_with_constant() {
         let src = " [ Field ; 1 ] ";
         let expected = "[Field; 1]";

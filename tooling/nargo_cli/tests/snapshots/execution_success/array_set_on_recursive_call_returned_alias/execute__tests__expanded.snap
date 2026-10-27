@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(x: Field, i: u32) -> pub Field {
+    let a: [Field; 2] = [x, x];
+    let m: Field = mutator(a, 1_u32);
+    let b: [Field; 2] = [x, x];
+    assert(b[i] == x, "b must be a fresh array unaffected by the write");
+    b[i] + m
+}
+
+unconstrained fn mutator(a: [Field; 2], n: u32) -> Field {
+    if n == 0_u32 {
+        let mut c: [Field; 2] = alias(a, 1_u32);
+        c[0_u32] = 9_Field;
+        c[1_u32]
+    } else {
+        mutator(a, n - 1_u32)
+    }
+}
+
+unconstrained fn alias(a: [Field; 2], n: u32) -> [Field; 2] {
+    if n == 0_u32 {
+        a
+    } else {
+        alias(a, n - 1_u32)
+    }
+}

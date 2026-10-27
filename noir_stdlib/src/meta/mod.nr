@@ -18,24 +18,61 @@ pub mod unresolved_type;
 use crate::default::Default;
 use crate::option::Option;
 
-/// Calling unquote as a macro (via `unquote!(arg)`) will unquote
-/// its argument. Since this is the effect `!` already does, `unquote`
-/// itself does not need to do anything besides return its argument.
+/// Inserts quoted code at the call site when called as `unquote!(code)`.
+///
+/// Example:
+///
+/// ```noir
+/// fn main() {
+///     let sum: u32 = std::meta::unquote!(quote { 1 + 2 });
+///     assert_eq(sum, 3);
+/// }
+/// ```
 // docs:start:unquote
 pub comptime fn unquote(code: Quoted) -> Quoted {
     // docs:end:unquote
     code
 }
 
-/// Returns the type of any value
+/// Returns the type of any value.
+///
+/// Example:
+///
+/// ```noir
+/// comptime {
+///     assert_eq(std::meta::type_of(1_u8), quote { u8 }.as_type());
+///     assert_eq(std::meta::type_of([true, false]), quote { [bool; 2] }.as_type());
+/// }
+/// ```
 #[builtin(type_of)]
 // docs:start:type_of
 pub comptime fn type_of<T>(x: T) -> Type {}
 // docs:end:type_of
 
-/// Issues an error diagnostic at the given location with the given primary
-/// message and an optional secondary message. Unlike a comptime panic, current
-/// execution will continue allowing possibly multiple errors to be issued.
+/// Issues an error diagnostic at `location`, with an optional secondary message.
+///
+/// Unlike a comptime panic, current execution will continue, allowing multiple errors to be
+/// issued.
+///
+/// Example:
+///
+/// ```noir
+/// #[requires_parameters]
+/// pub fn add(x: u32, y: u32) -> u32 {
+///     x + y
+/// }
+///
+/// comptime fn requires_parameters(f: FunctionDefinition) {
+///     if f.parameters().len() == 0 {
+///         let name = f.name();
+///         std::meta::error(
+///             f"`{name}` must take parameters",
+///             Option::some(f"add at least one parameter"),
+///             f.location(),
+///         );
+///     }
+/// }
+/// ```
 #[builtin(issue_error)]
 // docs:start:error
 pub comptime fn error<let N: u32, T, let N2: u32, T2>(
@@ -45,9 +82,28 @@ pub comptime fn error<let N: u32, T, let N2: u32, T2>(
 ) {}
 // docs:end:error
 
-/// Issues a warning diagnostic at the given location  with the given primary
-/// message and an optional secondary message. Execution continues after this
-/// function is called.
+/// Issues a warning diagnostic at `location`, with an optional secondary message.
+///
+/// Execution continues after this function is called.
+///
+/// Example:
+///
+/// ```noir
+/// #[check]
+/// pub fn add(x: u32, y: u32) -> u32 {
+///     x + y
+/// }
+///
+/// comptime fn check(f: FunctionDefinition) {
+///     // Warns "`add` has no documentation", pointing at `add`.
+///     let name = f.name();
+///     std::meta::warn(
+///         f"`{name}` has no documentation",
+///         Option::<fmtstr<0, ()>>::none(),
+///         f.location(),
+///     );
+/// }
+/// ```
 #[builtin(issue_warning)]
 // docs:start:warn
 pub comptime fn warn<let N: u32, T, let N2: u32, T2>(
@@ -57,20 +113,60 @@ pub comptime fn warn<let N: u32, T, let N2: u32, T2>(
 ) {}
 // docs:end:warn
 
+/// A derive function: given a type definition, it returns a quoted trait impl for that type.
+///
+/// Register one for a trait with [`derive_via`], then use the trait in [`derive`].
+///
+/// Example:
+///
+/// ```noir
+/// use std::meta::DeriveFunction;
+///
+/// comptime fn derive_nothing(_s: TypeDefinition) -> Quoted {
+///     quote {}
+/// }
+///
+/// fn main() {
+///     comptime {
+///         let _handler: DeriveFunction = derive_nothing;
+///     }
+/// }
+/// ```
 // docs:start:derive_example
+// A derive function is one that given a type definition can
+// create us a quoted trait impl from it.
+pub comptime type DeriveFunction = fn(TypeDefinition) -> Quoted;
+
 // These are needed for the unconstrained hashmap we're using to store derive functions
 use crate::collections::umap::UHashMap;
 use crate::hash::BuildHasherDefault;
 use crate::hash::poseidon2::Poseidon2Hasher;
 
-// A derive function is one that given a type definition can
-// create us a quoted trait impl from it.
-pub comptime type DeriveFunction = fn(TypeDefinition) -> Quoted;
-
 // We'll keep a global HANDLERS map to keep track of the derive handler for each trait
 comptime mut global HANDLERS: UHashMap<TraitDefinition, DeriveFunction, BuildHasherDefault<Poseidon2Hasher>> =
     UHashMap::default();
+// docs:end:derive_example
 
+/// Implements each trait in `traits` for the type, using the derive functions registered for them.
+///
+/// Register derive functions with [`derive_via`]. Use it as an attribute: `#[derive(Eq, Default)]`.
+///
+/// Compilation fails if no derive function is registered for one of the traits.
+///
+/// Example:
+///
+/// ```noir
+/// #[derive(Eq, Default)]
+/// pub struct Point {
+///     x: u32,
+///     y: u32,
+/// }
+///
+/// fn main() {
+///     assert_eq(Point::default(), Point { x: 0, y: 0 });
+/// }
+/// ```
+// docs:start:derive_example_body
 // Given a type definition and a vector of traits to derive, create trait impls for each.
 // This function is as simple as iterating over the vector, checking if we have a trait
 // handler registered for the given trait, calling it, and appending the result.
@@ -90,8 +186,40 @@ pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
 
     result
 }
-// docs:end:derive_example
+// docs:end:derive_example_body
 
+/// Registers `f` as the derive function for the trait `t`, so that `#[derive(T)]` calls it.
+///
+/// Use it as an attribute on the trait: `#[derive_via(f)]`.
+///
+/// Compilation fails if a derive function is already registered for the trait.
+///
+/// Example:
+///
+/// ```noir
+/// #[derive_via(derive_greet)]
+/// pub trait Greet {
+///     fn greet() -> str<5>;
+/// }
+///
+/// comptime fn derive_greet(s: TypeDefinition) -> Quoted {
+///     let typ = s.as_type();
+///     quote {
+///         impl Greet for $typ {
+///             fn greet() -> str<5> {
+///                 "hello"
+///             }
+///         }
+///     }
+/// }
+///
+/// #[derive(Greet)]
+/// pub struct Person {}
+///
+/// fn main() {
+///     assert_eq(Person::greet(), "hello");
+/// }
+/// ```
 // docs:start:derive_via
 // To register a handler for a trait, just add it to our handlers map
 // docs:start:derive_via_signature
@@ -101,18 +229,47 @@ pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
 }
 // docs:end:derive_via
 
-/// `make_impl` is a helper function to make a simple impl, usually while deriving a trait.
-/// This impl has a couple assumptions:
-/// 1. The impl only has one function, with the signature `function_signature`
-/// 2. The trait itself does not have any generics.
+/// A helper to make a simple trait impl for a type, usually in a derive function.
 ///
-/// While these assumptions are met, `make_impl` will create an impl from a TypeDefinition,
+/// It assumes the trait has one method, with the signature `function_signature`, and no generics.
+///
+/// Under these assumptions, `make_trait_impl` will create an impl from a [`TypeDefinition`],
 /// automatically filling in the required generics from the type, along with the where clause.
 /// The function body is created by mapping each field with `for_each_field` and joining the
 /// results with `join_fields_with`. The result of this is passed to the `body` function for
 /// any final processing - e.g. wrapping each field in a `StructConstructor { .. }` expression.
 ///
-/// See `derive_eq` and `derive_default` for example usage.
+/// Example:
+///
+/// ```noir
+/// pub trait IsZero {
+///     fn is_zero(self) -> bool;
+/// }
+///
+/// // An attribute that returns quoted code adds that code to the program.
+/// #[derive_is_zero]
+/// pub struct Point {
+///     x: u32,
+///     y: u32,
+/// }
+///
+/// comptime fn derive_is_zero(s: TypeDefinition) -> Quoted {
+///     // `fn is_zero(self) -> bool { (self.x == 0) & (self.y == 0) }`
+///     std::meta::make_trait_impl(
+///         s,
+///         quote { IsZero },
+///         quote { fn is_zero(self) -> bool },
+///         |name| quote { (self.$name == 0) },
+///         quote { & },
+///         |body| body,
+///     )
+/// }
+///
+/// fn main() {
+///     assert(Point { x: 0, y: 0 }.is_zero());
+///     assert(!Point { x: 1, y: 0 }.is_zero());
+/// }
+/// ```
 // docs:start:make_trait_impl
 pub comptime fn make_trait_impl<Env1, Env2>(
     s: TypeDefinition,

@@ -19,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#primitive">Primitive type u32</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -144,17 +144,20 @@
 
 <div class="padded-description"><div class="comments">
 <p>Returns the maximum value representable by <code>u32</code>: 4294967295.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(u32::max_value(), <span class="number">4294967295</span>);</code></pre></div>
 </div><code id="min_value" class="code-header">pub fn <a href="#min_value" class="fn">min_value</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the minimum value representable by <code>u32</code>: 0.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(u32::min_value(), <span class="number">0</span>);</code></pre></div>
 </div><code id="bits" class="code-header">pub fn <a href="#bits" class="fn">bits</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the number of bits in <code>u32</code>: 32.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(u32::bits(), <span class="number">32</span>);</code></pre></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Add-for-u32"><code class="code-header">impl <a href="../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../std/primitive.u32.html" class="primitive">u32</a></code></h3>
 

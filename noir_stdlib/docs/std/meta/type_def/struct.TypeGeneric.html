@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct TypeGeneric</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -45,8 +45,20 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A generic parameter of a <a href="../../../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a>, returned from
-<a href="../../../std/primitive.TypeDefinition.html#generics"><code>TypeDefinition::generics</code></a>.</p></div>
+<p>A generic parameter of a <a href="../../../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a>.</p>
+<p>It is returned by <a href="../../../std/primitive.TypeDefinition.html#generics"><code>TypeDefinition::generics</code></a>.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+    <span class="kw">pub</span> items: [T; N],
+    count: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(pair: TypeDefinition) {
+    <span class="kw">let</span> generics = pair.generics();
+    <span class="kw">assert</span>(generics[<span class="number">0</span>].numeric_type().is_none());
+    <span class="kw">assert_eq</span>(generics[<span class="number">1</span>].numeric_type().unwrap(), <span class="kw">quote</span> { u32 }.as_type());
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/type_def/struct.TypeGeneric.html" class="struct">TypeGeneric</a></code></h3>
 
@@ -54,12 +66,36 @@
 
 <div class="padded-description"><div class="comments">
 <p>The generic's type variable.</p>
-</div>
+<p>It is the generic as written in the definition, such as <code>T</code>, not a concrete type.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+    <span class="kw">pub</span> items: [T; N],
+    count: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(pair: TypeDefinition) {
+    <span class="kw">let</span> t = pair.generics()[<span class="number">0</span>].typ();
+    <span class="kw">assert_eq</span>(<span class="string">f"</span><span class="interpolation">{t}</span><span class="string">"</span>.quoted_contents(), <span class="kw">quote</span> { T });
+}</code></pre></div>
 </div><code id="numeric_type" class="code-header">pub comptime fn <a href="#numeric_type" class="fn">numeric_type</a>(self) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../../std/primitive.Type.html" class="primitive">Type</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this generic is numeric, the numeric type; otherwise <code>None</code>.</p>
-</div>
+<p>The type of this generic if it is numeric, such as <code>u32</code> in <code>let N: u32</code>.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+    <span class="kw">pub</span> items: [T; N],
+    count: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(pair: TypeDefinition) {
+    <span class="kw">let</span> generics = pair.generics();
+    <span class="comment">// `T` is a type generic.</span>
+    <span class="kw">assert</span>(generics[<span class="number">0</span>].numeric_type().is_none());
+    <span class="comment">// `N` is a numeric generic of type `u32`.</span>
+    <span class="kw">assert_eq</span>(generics[<span class="number">1</span>].numeric_type().unwrap(), <span class="kw">quote</span> { u32 }.as_type());
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

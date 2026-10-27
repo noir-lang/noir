@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct RepeatedElementArrayExpression</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -64,7 +64,13 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A repeated-element array decomposed by <a href="../../../std/primitive.Expr.html#as_repeated_element_array"><code>Expr::as_repeated_element_array</code></a>.</p></div>
+<p>A repeated-element array decomposed by <a href="../../../std/primitive.Expr.html#as_repeated_element_array"><code>Expr::as_repeated_element_array</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> array = <span class="kw">quote</span> { [x; <span class="number">3</span>] }.as_expr().unwrap().as_repeated_element_array().unwrap();
+    <span class="kw">assert_eq</span>(array.element().quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(array.length().as_integer().unwrap().value(), <span class="number">3</span>);
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.RepeatedElementArrayExpression.html" class="struct">RepeatedElementArrayExpression</a></code></h3>
 
@@ -72,12 +78,20 @@
 
 <div class="padded-description"><div class="comments">
 <p>The repeated element.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> array = <span class="kw">quote</span> { [x; <span class="number">3</span>] }.as_expr().unwrap().as_repeated_element_array().unwrap();
+    <span class="kw">assert_eq</span>(array.element().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="length" class="code-header">pub comptime fn <a href="#length" class="fn">length</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The array length expression.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> array = <span class="kw">quote</span> { [x; <span class="number">3</span>] }.as_expr().unwrap().as_repeated_element_array().unwrap();
+    <span class="kw">assert_eq</span>(array.length().as_integer().unwrap().value(), <span class="number">3</span>);
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

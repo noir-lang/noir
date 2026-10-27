@@ -19,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In crate std</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="aes128/index.html">aes128</a></div></li>
@@ -97,7 +97,17 @@
 <div class="comments">
 <p>Asserts that the given value is both true and known at compile-time.
 The message can be a string, a format string, or any value, as long as it is known at compile-time</p>
-</div>
+<p>Compilation fails with <code>message</code> if <code>predicate</code> is false or isn't known at compile time. It is
+typically used to check numeric generics.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> first&lt;<span class="kw">let</span> N: u32&gt;(array: [u32; N]) -&gt; u32 {
+    std::static_assert(N &gt; <span class="number">0</span>, <span class="string">"the array must not be empty"</span>);
+    array[<span class="number">0</span>]
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert_eq</span>(first([<span class="number">7</span>, <span class="number">8</span>]), <span class="number">7</span>);
+}</code></pre></div>
 </div>
 </main>
 </span>

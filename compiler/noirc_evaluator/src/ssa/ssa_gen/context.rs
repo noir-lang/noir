@@ -82,19 +82,12 @@ pub(super) struct Loop {
     pub(super) loop_entry: BasicBlockId,
     /// The loop index will be `Some` for a `for` and `None` for a `loop`
     pub(super) loop_index: Option<ValueId>,
+    /// The block `break` jumps to. For an inclusive `for` lowered as an exclusive loop plus a
+    /// final iteration, this is the block after the final iteration, so a `break` in the
+    /// exclusive iterations has no control-flow path into the final iteration's body. The
+    /// ownership pass decides moves on the AST, where `break` leaves the whole loop; a CFG
+    /// that reaches a second copy of the body after a `break` would reuse a moved value.
     pub(super) loop_end: BasicBlockId,
-    /// A variable that tracks whether a `break` was hit or not:
-    /// `false` if a `break` was hit, `true` if not.
-    /// This is only `Some` in the case of an inclusive for loop which is
-    /// generated as an exclusive for loop with an extra iteration for the
-    /// end of the loop. This extra iteration is only done if no `break` was hit
-    /// in the exclusive iterations (and if `start <= end`).
-    /// We track the negated value because we execute the last iteration
-    /// if we did not hit a break, in the end being `did_not_hit_break && (start <= end)`.
-    /// If we tracked whether we hit a break or not, the condition to execute
-    /// the last iteration would be `(not hit_break) && (start <= end)`, which is larger
-    /// by one instruction.
-    pub(super) did_not_hit_break_var: Option<ValueId>,
 }
 
 /// The queue of functions remaining to compile

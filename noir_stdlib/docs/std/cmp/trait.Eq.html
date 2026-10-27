@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#trait">Trait Eq</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -102,11 +102,27 @@
 
 <div class="comments">
 <p>Compare two values for equality</p>
-</div>
+<p><code>Eq</code> provides the <code>==</code> and <code>!=</code> operators. It is implemented for <a href="../../std/primitive.Field.html"><code>Field</code></a>, the integer types,
+<code>bool</code>, <code>str</code>, arrays, vectors and tuples of <code>Eq</code> types, and can be derived with
+<code>#[derive(Eq)]</code>, which compares every field of a struct.</p>
+<p>Example:</p>
+<pre><code>#[derive(Eq)]
+<span class="kw">struct</span> Point {
+    x: Field,
+    y: Field,
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert</span>(Point { x: <span class="number">1</span>, y: <span class="number">2</span> } == Point { x: <span class="number">1</span>, y: <span class="number">2</span> });
+    <span class="kw">assert</span>(Point { x: <span class="number">1</span>, y: <span class="number">2</span> } != Point { x: <span class="number">2</span>, y: <span class="number">1</span> });
+}</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="eq" class="code-header">pub fn <a href="#eq" class="fn">eq</a>(self, other: Self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if <code>self</code> and <code>other</code> are equal. <code>a == b</code> calls <code>a.eq(b)</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Eq-for-()"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for ()</code></h3>
 
 <h3 id="impl-Eq-for-(A, B)"><code class="code-header">impl&lt;A, B&gt; <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for (A, B)

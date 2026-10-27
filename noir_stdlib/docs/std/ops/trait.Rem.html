@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#trait">Trait Rem</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -70,10 +70,25 @@
     pub fn <a href="#rem" class="fn">rem</a>(self, other: Self) -> Self;
 }</code></pre>
 
+<div class="comments">
+<p>The <code>%</code> operator.</p>
+<p>Implemented for the integer types; <a href="../../std/primitive.Field.html"><code>Field</code></a> has no remainder. The result has the sign of the
+left operand, matching <a href="../../std/ops/trait.Div.html"><code>Div</code></a>, which rounds toward zero: <code>-7 % 2</code> is <code>-1</code>. A zero divisor
+fails.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(<span class="number">7_u8</span> % <span class="number">4</span>, <span class="number">3</span>);
+<span class="kw">assert_eq</span>(-<span class="number">7_i8</span> % <span class="number">2</span>, -<span class="number">1</span>);
+<span class="kw">assert_eq</span>(<span class="number">7_i8</span> % -<span class="number">2</span>, <span class="number">1</span>);</code></pre>
+<p>A zero divisor fails:</p>
+<pre><code><span class="comment">// Fails: division by zero.</span>
+<span class="kw">let</span> _ = <span class="number">7_u8</span> % <span class="number">0</span>;</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="rem" class="code-header">pub fn <a href="#rem" class="fn">rem</a>(self, other: Self) -> Self</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>self % other</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Rem-for-i16"><code class="code-header">impl <a href="../../std/ops/trait.Rem.html" class="trait">Rem</a> for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
 
 <h3 id="impl-Rem-for-i32"><code class="code-header">impl <a href="../../std/ops/trait.Rem.html" class="trait">Rem</a> for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>

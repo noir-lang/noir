@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct ConstructorField</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -64,19 +64,35 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A field in a <a href="../../../std/meta/expr/struct.ConstructorExpression.html"><code>ConstructorExpression</code></a>.</p></div>
+<p>A field in a <a href="../../../std/meta/expr/struct.ConstructorExpression.html"><code>ConstructorExpression</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> constructor = <span class="kw">quote</span> { Point { x: <span class="number">1</span>, y: <span class="number">2</span> } }.as_expr().unwrap().as_constructor().unwrap();
+    <span class="kw">let</span> field = constructor.fields()[<span class="number">1</span>];
+    <span class="kw">assert_eq</span>(field.name(), <span class="kw">quote</span> { y });
+    <span class="kw">assert_eq</span>(field.value().as_integer().unwrap().value(), <span class="number">2</span>);
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.ConstructorField.html" class="struct">ConstructorField</a></code></h3>
 
 <div class="padded-methods"><code id="name" class="code-header">pub comptime fn <a href="#name" class="fn">name</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>The field name as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p></div>
+<p>The field name as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> constructor = <span class="kw">quote</span> { Point { x: <span class="number">1</span> } }.as_expr().unwrap().as_constructor().unwrap();
+    <span class="kw">assert_eq</span>(constructor.fields()[<span class="number">0</span>].name(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="value" class="code-header">pub comptime fn <a href="#value" class="fn">value</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The expression assigned to the field.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> constructor = <span class="kw">quote</span> { Point { x: <span class="number">1</span> } }.as_expr().unwrap().as_constructor().unwrap();
+    <span class="kw">assert_eq</span>(constructor.fields()[<span class="number">0</span>].value().as_integer().unwrap().value(), <span class="number">1</span>);
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

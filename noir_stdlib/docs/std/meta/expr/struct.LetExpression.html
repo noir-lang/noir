@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct LetExpression</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -65,7 +65,14 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A let expression decomposed by <a href="../../../std/primitive.Expr.html#as_let"><code>Expr::as_let</code></a>.</p></div>
+<p>A let expression decomposed by <a href="../../../std/primitive.Expr.html#as_let"><code>Expr::as_let</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> let_expr = <span class="kw">quote</span> { <span class="kw">let</span> x: u32 = foo(); }.as_expr().unwrap().as_let().unwrap();
+    <span class="kw">assert_eq</span>(let_expr.pattern().quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">assert</span>(let_expr.typ().is_some());
+    <span class="kw">assert_eq</span>(let_expr.expression().quoted(), <span class="kw">quote</span> { foo() });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.LetExpression.html" class="struct">LetExpression</a></code></h3>
 
@@ -73,17 +80,33 @@
 
 <div class="padded-description"><div class="comments">
 <p>The let pattern.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> let_expr = <span class="kw">quote</span> { <span class="kw">let</span> x = <span class="number">1</span>; }.as_expr().unwrap().as_let().unwrap();
+    <span class="kw">assert_eq</span>(let_expr.pattern().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="typ" class="code-header">pub comptime fn <a href="#typ" class="fn">typ</a>(self) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>The optional type annotation.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> let_expr = <span class="kw">quote</span> { <span class="kw">let</span> x: u32 = <span class="number">1</span>; }.as_expr().unwrap().as_let().unwrap();
+    <span class="kw">let</span> typ = let_expr.typ().unwrap();
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { $typ }, <span class="kw">quote</span> { u32 });
+
+    <span class="kw">let</span> let_expr = <span class="kw">quote</span> { <span class="kw">let</span> x = <span class="number">1</span>; }.as_expr().unwrap().as_let().unwrap();
+    <span class="kw">assert</span>(let_expr.typ().is_none());
+}</code></pre></div>
 </div><code id="expression" class="code-header">pub comptime fn <a href="#expression" class="fn">expression</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The expression assigned to the pattern.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> let_expr = <span class="kw">quote</span> { <span class="kw">let</span> x = foo(); }.as_expr().unwrap().as_let().unwrap();
+    <span class="kw">assert_eq</span>(let_expr.expression().quoted(), <span class="kw">quote</span> { foo() });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

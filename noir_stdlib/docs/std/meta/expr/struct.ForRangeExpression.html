@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct ForRangeExpression</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -67,34 +67,68 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A for loop over a range, decomposed by <a href="../../../std/primitive.Expr.html#as_for_range"><code>Expr::as_for_range</code></a>.</p></div>
+<p>A for loop over a range, decomposed by <a href="../../../std/primitive.Expr.html#as_for_range"><code>Expr::as_for_range</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..n { foo(i) } }.as_expr().unwrap().as_for_range().unwrap();
+    <span class="kw">assert_eq</span>(for_loop.identifier(), <span class="kw">quote</span> { i });
+    <span class="kw">assert_eq</span>(for_loop.start().as_integer().unwrap().value(), <span class="number">0</span>);
+    <span class="kw">assert_eq</span>(for_loop.end().quoted(), <span class="kw">quote</span> { n });
+    <span class="kw">assert</span>(!for_loop.is_inclusive());
+    <span class="kw">assert_eq</span>(for_loop.body().as_block().unwrap()[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { foo(i) });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.ForRangeExpression.html" class="struct">ForRangeExpression</a></code></h3>
 
 <div class="padded-methods"><code id="identifier" class="code-header">pub comptime fn <a href="#identifier" class="fn">identifier</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>The loop variable as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p></div>
+<p>The loop variable as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..n {} }.as_expr().unwrap().as_for_range().unwrap();
+    <span class="kw">assert_eq</span>(for_loop.identifier(), <span class="kw">quote</span> { i });
+}</code></pre></div>
 </div><code id="start" class="code-header">pub comptime fn <a href="#start" class="fn">start</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The range's lower bound.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> i <span class="kw">in</span> <span class="number">1</span>..n {} }.as_expr().unwrap().as_for_range().unwrap();
+    <span class="kw">assert_eq</span>(for_loop.start().as_integer().unwrap().value(), <span class="number">1</span>);
+}</code></pre></div>
 </div><code id="end" class="code-header">pub comptime fn <a href="#end" class="fn">end</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The range's upper bound.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> i <span class="kw">in</span> <span class="number">1</span>..n {} }.as_expr().unwrap().as_for_range().unwrap();
+    <span class="kw">assert_eq</span>(for_loop.end().quoted(), <span class="kw">quote</span> { n });
+}</code></pre></div>
 </div><code id="is_inclusive" class="code-header">pub comptime fn <a href="#is_inclusive" class="fn">is_inclusive</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if the upper bound is inclusive.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> exclusive = <span class="kw">quote</span> { <span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..n {} }.as_expr().unwrap().as_for_range().unwrap();
+    <span class="kw">assert</span>(!exclusive.is_inclusive());
+
+    <span class="kw">let</span> inclusive = <span class="kw">quote</span> { <span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..=n {} }.as_expr().unwrap().as_for_range().unwrap();
+    <span class="kw">assert</span>(inclusive.is_inclusive());
+}</code></pre></div>
 </div><code id="body" class="code-header">pub comptime fn <a href="#body" class="fn">body</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The loop body.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..n { foo(i) } }.as_expr().unwrap().as_for_range().unwrap();
+    <span class="kw">let</span> statements = for_loop.body().as_block().unwrap();
+    <span class="kw">assert_eq</span>(statements[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { foo(i) });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

@@ -17,8 +17,8 @@ use crate::{
     Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
         BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
-        UnresolvedTypeData,
+        ProjectionFinder, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
+        UnresolvedType, UnresolvedTypeData,
     },
     elaborator::{
         UnstableFeature, lints,
@@ -82,10 +82,18 @@ impl Elaborator<'_> {
         impls: &mut ImplMap,
         trait_impls: &mut [UnresolvedTraitImpl],
     ) {
-        // Prepare all trait impls, so we can refer to `<Object as Trait>::Type` in function signatures.
-        let trait_constraints_and_generics = vecmap(trait_impls.iter_mut(), |trait_impl| {
-            self.prepare_trait_impl_for_function_meta_definition(trait_impl)
+        // Prepare all trait impls, so we can refer to `<Object as Trait>::Type` in function
+        // signatures. An impl whose header or where clause projects through another impl
+        // (`impl Foo<<S as C>::T>`) is prepared after the ones that don't, so it finds them
+        // whatever order they are written in. Among projecting impls the source order stays: one
+        // that projects through another projecting impl must come after it.
+        let mut order = vecmap(0..trait_impls.len(), |index| index);
+        order.sort_by_key(|index| header_has_projection(&trait_impls[*index]));
+        let mut prepared = vecmap(order, |index| {
+            (index, self.prepare_trait_impl_for_function_meta_definition(&mut trait_impls[index]))
         });
+        prepared.sort_by_key(|(index, _)| *index);
+        let trait_constraints_and_generics = prepared.into_iter().map(|(_, prepared)| prepared);
 
         // Register metas for regular functions
         for function_set in functions {
@@ -849,4 +857,16 @@ fn is_identifier_pattern(pattern: &HirPattern) -> bool {
         HirPattern::Mutable(inner, _) => is_identifier_pattern(inner),
         HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
+}
+
+/// Whether the trait, self type or where clause of `trait_impl` contains a projection
+/// (`<S as C>::T`). The where clause holds the generics' inline bounds too.
+fn header_has_projection(trait_impl: &UnresolvedTraitImpl) -> bool {
+    let mut finder = ProjectionFinder::new(&trait_impl.generics);
+    trait_impl.r#trait.accept(&mut finder);
+    trait_impl.object_type.accept(&mut finder);
+    for constraint in &trait_impl.where_clause {
+        constraint.accept(&mut finder);
+    }
+    finder.found
 }

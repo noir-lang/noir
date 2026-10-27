@@ -19,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#primitive">Primitive type Type</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -120,7 +120,9 @@
 <pre><code><span class="kw">fn</span> main() {
     <span class="kw">comptime</span> {
         <span class="kw">let</span> typ = <span class="kw">quote</span> { i32 }.as_type();
-        println(typ); <span class="comment">// outputs "i32"</span>
+        <span class="kw">let</span> integer = typ.as_integer().unwrap();
+        <span class="kw">assert</span>(integer.is_signed());
+        <span class="kw">assert_eq</span>(integer.bits(), <span class="number">32</span>);
     }
 }</code></pre></div>
 <h2>Implementations</h2>
@@ -129,7 +131,7 @@
 <div class="padded-methods"><code id="as_array" class="code-header">pub comptime fn <a href="#as_array" class="fn">as_array</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/typ/struct.ArrayType.html" class="struct">ArrayType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this type is an array, return its element and length types.</p>
+<p>If this type is an array, returns its element and length types.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> array_type = <span class="kw">quote</span> { [Field; <span class="number">3</span>] }.as_type();
@@ -141,97 +143,167 @@
 </div><code id="as_constant" class="code-header">pub comptime fn <a href="#as_constant" class="fn">as_constant</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this type is a constant integer (such as the <code>3</code> in the array type <code>[Field; 3]</code>),
-return the numeric constant.</p>
-</div>
+<p>Returns the value of a constant integer type, such as the <code>3</code> in <code>[Field; 3]</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> array = <span class="kw">quote</span> { [Field; <span class="number">3</span>] }.as_type().as_array().unwrap();
+    <span class="kw">assert_eq</span>(array.length_type().as_constant(), Option::some(<span class="number">3</span>));
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { Field }.as_type().as_constant().is_none());
+}</code></pre></div>
 </div><code id="as_integer" class="code-header">pub comptime fn <a href="#as_integer" class="fn">as_integer</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/typ/struct.IntegerType.html" class="struct">IntegerType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is an integer type, return its signedness and bit width.</p>
-</div>
+<p>If this is an integer type, returns its signedness and bit width.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> integer = <span class="kw">quote</span> { u32 }.as_type().as_integer().unwrap();
+    <span class="kw">assert</span>(!integer.is_signed());
+    <span class="kw">assert_eq</span>(integer.bits(), <span class="number">32</span>);
+
+    <span class="comment">// `Field` isn't an integer type.</span>
+    <span class="kw">assert</span>(<span class="kw">quote</span> { Field }.as_type().as_integer().is_none());
+}</code></pre></div>
 </div><code id="as_mutable_reference" class="code-header">pub comptime fn <a href="#as_mutable_reference" class="fn">as_mutable_reference</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is a mutable reference type <code>&amp;mut T</code>, returns the mutable type <code>T</code>.</p>
-</div>
+<p>If this is a mutable reference type <code>&amp;mut T</code>, returns the referenced type <code>T</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> reference = <span class="kw">quote</span> { &<span class="kw">mut</span> [u8; <span class="number">2</span>] }.as_type();
+    <span class="kw">assert_eq</span>(reference.as_mutable_reference().unwrap(), <span class="kw">quote</span> { [u8; <span class="number">2</span>] }.as_type());
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { u8 }.as_type().as_mutable_reference().is_none());
+}</code></pre></div>
 </div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector" class="fn">as_vector</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is a vector type, return the element type of the vector.</p>
-</div>
+<p>If this is a vector type, returns the element type of the vector.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { [u8] }.as_type().as_vector().unwrap(), <span class="kw">quote</span> { u8 }.as_type());
+
+    <span class="comment">// An array isn't a vector.</span>
+    <span class="kw">assert</span>(<span class="kw">quote</span> { [u8; <span class="number">2</span>] }.as_type().as_vector().is_none());
+}</code></pre></div>
 </div><code id="as_str" class="code-header">pub comptime fn <a href="#as_str" class="fn">as_str</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is a <code>str&lt;N&gt;</code> type, returns the length <code>N</code> as a type.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> length = <span class="kw">quote</span> { str&lt;<span class="number">5</span>&gt; }.as_type().as_str().unwrap();
+    <span class="kw">assert_eq</span>(length.as_constant().unwrap(), <span class="number">5</span>);
+}</code></pre></div>
 </div><code id="as_data_type" class="code-header">pub comptime fn <a href="#as_data_type" class="fn">as_data_type</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/typ/struct.DataType.html" class="struct">DataType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is a struct or enum type, returns its <a href="../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a> and
-generic arguments.</p></div>
+<p>Decomposes a struct or enum type into its <a href="../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a> and generic arguments.</p>
+<p>Example:</p>
+<pre><code><span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+    items: [T; N],
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> pair = <span class="kw">quote</span> { Pair&lt;bool, <span class="number">1</span>&gt; }.as_type().as_data_type().unwrap();
+        <span class="kw">assert_eq</span>(pair.definition().name(), <span class="kw">quote</span> { Pair });
+
+        <span class="kw">assert</span>(<span class="kw">quote</span> { (u8, bool) }.as_type().as_data_type().is_none());
+    }
+}</code></pre></div>
 </div><code id="as_tuple" class="code-header">pub comptime fn <a href="#as_tuple" class="fn">as_tuple</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this is a tuple type, returns each element type of the tuple.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> elements = <span class="kw">quote</span> { (u8, bool) }.as_type().as_tuple().unwrap();
+    <span class="kw">assert_eq</span>(elements, @[<span class="kw">quote</span> { u8 }.as_type(), <span class="kw">quote</span> { bool }.as_type()]);
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { u8 }.as_type().as_tuple().is_none());
+}</code></pre></div>
 </div><code id="get_trait_impl" class="code-header">pub comptime fn <a href="#get_trait_impl" class="fn">get_trait_impl</a>(self, constraint: <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a>) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.TraitImpl.html" class="primitive">TraitImpl</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>Retrieves the trait implementation that implements the given
-trait constraint for this type. If the trait constraint is not
-found, <code>None</code> is returned. Note that since the concrete trait implementation
-for a trait constraint specified from a <code>where</code> clause is unknown,
-this function will return <code>None</code> in these cases. If you only want to know
-whether a type implements a trait, use <code>implements</code> instead.</p>
+<p>Returns the trait impl that implements <code>constraint</code> for this type, if there is one.</p>
+<p>Returns <code>None</code> if the trait constraint is not found. Since the concrete trait implementation
+for a trait constraint specified from a <code>where</code> clause is unknown, it also returns <code>None</code> in
+these cases. If you only want to know whether a type implements a trait, use
+<a href="../std/primitive.Type.html#implements"><code>Type::implements</code></a> instead.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> field_type = <span class="kw">quote</span> { Field }.as_type();
     <span class="kw">let</span> default = <span class="kw">quote</span> { Default }.as_trait_constraint();
 
     <span class="kw">let</span> the_impl: TraitImpl = field_type.get_trait_impl(default).unwrap();
-    <span class="kw">assert</span>(the_impl.methods().len(), <span class="number">1</span>);
+    <span class="kw">assert_eq</span>(the_impl.methods().len(), <span class="number">1</span>);
+
+    <span class="comment">// `Field` doesn't implement `Ord`.</span>
+    <span class="kw">let</span> ord = <span class="kw">quote</span> { Ord }.as_trait_constraint();
+    <span class="kw">assert</span>(field_type.get_trait_impl(ord).is_none());
 }</code></pre></div>
 </div><code id="implements" class="code-header">pub comptime fn <a href="#implements" class="fn">implements</a>(self, constraint: <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns <code>true</code> if this type implements the given trait. Note that unlike
-<code>get_trait_impl</code> this will also return true for any <code>where</code> constraints
-in scope.</p>
+<p>Returns <code>true</code> if this type implements the given trait.</p>
+<p>Unlike <a href="../std/primitive.Type.html#get_trait_impl"><code>Type::get_trait_impl</code></a>, this also returns <code>true</code> for any <code>where</code> constraints in scope.</p>
 <p>Example:</p>
-<pre><code><span class="kw">fn</span> foo&lt;T&gt;() <span class="kw">where</span> T: Default {
+<pre><code><span class="kw">pub</span> <span class="kw">fn</span> foo&lt;T&gt;()
+<span class="kw">where</span>
+    T: Default,
+{
     <span class="kw">comptime</span> {
         <span class="kw">let</span> field_type = <span class="kw">quote</span> { Field }.as_type();
         <span class="kw">let</span> default = <span class="kw">quote</span> { Default }.as_trait_constraint();
         <span class="kw">assert</span>(field_type.implements(default));
 
+        <span class="comment">// `T` implements `Default` through the `where` clause.</span>
         <span class="kw">let</span> t = <span class="kw">quote</span> { T }.as_type();
         <span class="kw">assert</span>(t.implements(default));
     }
+}
+
+<span class="kw">fn</span> main() {
+    foo::&lt;Field&gt;();
 }</code></pre></div>
 </div><code id="is_bool" class="code-header">pub comptime fn <a href="#is_bool" class="fn">is_bool</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this type is <code>bool</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert</span>(<span class="kw">quote</span> { bool }.as_type().is_bool());
+    <span class="kw">assert</span>(!<span class="kw">quote</span> { u8 }.as_type().is_bool());
+}</code></pre></div>
 </div><code id="is_field" class="code-header">pub comptime fn <a href="#is_field" class="fn">is_field</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns <code>true</code> if this type is <code>Field</code>.</p>
-</div>
+<p>Returns <code>true</code> if this type is <a href="../std/primitive.Field.html"><code>Field</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert</span>(<span class="kw">quote</span> { Field }.as_type().is_field());
+    <span class="kw">assert</span>(!<span class="kw">quote</span> { u128 }.as_type().is_field());
+}</code></pre></div>
 </div><code id="is_unit" class="code-header">pub comptime fn <a href="#is_unit" class="fn">is_unit</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this type is the unit <code>()</code> type.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert</span>(<span class="kw">quote</span> { () }.as_type().is_unit());
+    <span class="kw">assert</span>(!<span class="kw">quote</span> { (u8,) }.as_type().is_unit());
+}</code></pre></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-Type"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.Type.html" class="primitive">Type</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">eq</span>(self, other: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Note that this is syntactic equality, this is not the same as whether two types will type check
-to be the same type. Unless type inference or generics are being used however, users should not
-typically have to worry about this distinction.</p>
+<p>Compares two types syntactically.</p>
+<p>This is not the same as whether two types will type check to be the same type. The two can
+differ for types that contain generics or unbound type variables, which compare by how they
+are written.</p>
 </div>
 </div></div><h3 id="impl-Hash-for-Type"><code class="code-header">impl <a href="../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../std/primitive.Type.html" class="primitive">Type</a></code></h3>
 

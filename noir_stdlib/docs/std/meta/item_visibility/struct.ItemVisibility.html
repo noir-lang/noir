@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct ItemVisibility</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -47,7 +47,22 @@
 </code></pre>
 <div class="comments">
 <p>The visibility of an item in a Noir program.</p>
-</div>
+<p>It is returned for functions by <a href="../../../std/primitive.FunctionDefinition.html#visibility"><code>FunctionDefinition::visibility</code></a> and for struct fields by
+<a href="../../../std/meta/type_def/struct.StructField.html#visibility"><code>StructField::visibility</code></a>.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">struct</span> Point {
+    <span class="kw">pub</span> x: u32,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) y: u32,
+    z: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(point: TypeDefinition) {
+    <span class="kw">let</span> fields = point.fields_as_written();
+    <span class="kw">assert</span>(fields[<span class="number">0</span>].visibility().is_public());
+    <span class="kw">assert</span>(fields[<span class="number">1</span>].visibility().is_public_crate());
+    <span class="kw">assert</span>(fields[<span class="number">2</span>].visibility().is_private());
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/item_visibility/struct.ItemVisibility.html" class="struct">ItemVisibility</a></code></h3>
 
@@ -55,22 +70,73 @@
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if the item is private.</p>
-</div>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">struct</span> Point {
+    <span class="kw">pub</span> x: u32,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) y: u32,
+    z: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(point: TypeDefinition) {
+    <span class="kw">let</span> fields = point.fields_as_written();
+    <span class="kw">assert</span>(fields[<span class="number">2</span>].visibility().is_private());
+    <span class="kw">assert</span>(!fields[<span class="number">0</span>].visibility().is_private());
+}</code></pre></div>
 </div><code id="is_public" class="code-header">pub comptime fn <a href="#is_public" class="fn">is_public</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if the item is public outside its crate.</p>
-</div>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">struct</span> Point {
+    <span class="kw">pub</span> x: u32,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) y: u32,
+    z: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(point: TypeDefinition) {
+    <span class="kw">let</span> fields = point.fields_as_written();
+    <span class="kw">assert</span>(fields[<span class="number">0</span>].visibility().is_public());
+    <span class="comment">// `pub(crate)` isn't public outside the crate.</span>
+    <span class="kw">assert</span>(!fields[<span class="number">1</span>].visibility().is_public());
+}</code></pre></div>
 </div><code id="is_public_crate" class="code-header">pub comptime fn <a href="#is_public_crate" class="fn">is_public_crate</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if the item is public only within its crate.</p>
-</div>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">struct</span> Point {
+    <span class="kw">pub</span> x: u32,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) y: u32,
+    z: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(point: TypeDefinition) {
+    <span class="kw">let</span> fields = point.fields_as_written();
+    <span class="kw">assert</span>(fields[<span class="number">1</span>].visibility().is_public_crate());
+    <span class="kw">assert</span>(!fields[<span class="number">0</span>].visibility().is_public_crate());
+}</code></pre></div>
 </div><code id="as_quoted" class="code-header">pub comptime fn <a href="#as_quoted" class="fn">as_quoted</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns this visibility as quoted syntax for use in generated code.</p>
-</div>
+<p>It is <code>quote {}</code> for private items, <code>quote { pub(crate) }</code> and <code>quote { pub }</code> otherwise.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">struct</span> Point {
+    <span class="kw">pub</span> x: u32,
+    <span class="kw">pub</span>(<span class="kw">crate</span>) y: u32,
+    z: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(point: TypeDefinition) {
+    <span class="kw">let</span> fields = point.fields_as_written();
+    <span class="kw">assert_eq</span>(fields[<span class="number">0</span>].visibility().as_quoted(), <span class="kw">quote</span> { <span class="kw">pub</span> });
+    <span class="kw">assert_eq</span>(fields[<span class="number">1</span>].visibility().as_quoted(), <span class="kw">quote</span> { <span class="kw">pub</span>(<span class="kw">crate</span>) });
+    <span class="kw">assert_eq</span>(fields[<span class="number">2</span>].visibility().as_quoted(), <span class="kw">quote</span> {});
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

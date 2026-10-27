@@ -1,5 +1,5 @@
 use proptest::{
-    prelude::Rng,
+    prelude::RngExt,
     strategy::{NewTree, Strategy},
     test_runner::TestRunner,
 };

@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 
 use acvm::{AcirField, FieldElement};
 use proptest::{
-    prelude::Rng,
+    prelude::RngExt,
     strategy::{NewTree, Strategy},
     test_runner::TestRunner,
 };

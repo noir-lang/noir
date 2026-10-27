@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In module meta</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="ctstring/index.html">ctstring</a></div></li>
@@ -55,8 +55,12 @@
 <pre><code>pub comptime fn type_of&lt;T&gt;(x: T) -> <a href="../../std/primitive.Type.html" class="primitive">Type</a></code></pre>
 
 <div class="comments">
-<p>Returns the type of any value</p>
-</div>
+<p>Returns the type of any value.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert_eq</span>(std::meta::type_of(<span class="number">1_u8</span>), <span class="kw">quote</span> { u8 }.as_type());
+    <span class="kw">assert_eq</span>(std::meta::type_of([<span class="bool-var">true</span>, <span class="bool-var">false</span>]), <span class="kw">quote</span> { [bool; <span class="number">2</span>] }.as_type());
+}</code></pre></div>
 </div>
 </main>
 </span>

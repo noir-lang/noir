@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#mod">Module meta</a></h2>
 <h3>Module items</h3>
 <ul class="sidebar-list">
@@ -101,35 +101,24 @@
 <div id="page-content">
 <h2 id="modules">Modules</h2><ul class="item-list">
 <li><div class="item-name"><a href="ctstring/index.html" class="module">ctstring</a></div><div class="item-description"></div></li>
-<li><div class="item-name"><a href="expr/index.html" class="module">expr</a></div><div class="item-description">Contains methods on the built-in <code>Expr</code> type for quoted, syntactically valid expressions.</div></li>
+<li><div class="item-name"><a href="expr/index.html" class="module">expr</a></div><div class="item-description">Contains methods on the built-in <a href="../../std/primitive.Expr.html"><code>Expr</code></a> type for quoted, syntactically valid expressions.</div></li>
 <li><div class="item-name"><a href="function_def/index.html" class="module">function_def</a></div><div class="item-description"></div></li>
 <li><div class="item-name"><a href="item_visibility/index.html" class="module">item_visibility</a></div><div class="item-description"></div></li>
 <li><div class="item-name"><a href="op/index.html" class="module">op</a></div><div class="item-description"></div></li>
-<li><div class="item-name"><a href="typ/index.html" class="module">typ</a></div><div class="item-description">Contains methods on the built-in <code>Type</code> type used for representing a type in the source program.</div></li>
+<li><div class="item-name"><a href="typ/index.html" class="module">typ</a></div><div class="item-description">Contains methods on the built-in <a href="../../std/primitive.Type.html"><code>Type</code></a> type used for representing a type in the source program.</div></li>
 <li><div class="item-name"><a href="type_def/index.html" class="module">type_def</a></div><div class="item-description"></div></li>
 </ul>
 <h2 id="type-aliases">Type aliases</h2><ul class="item-list">
-<li><div class="item-name"><a href="type.DeriveFunction.html" class="type">DeriveFunction</a></div><div class="item-description"></div></li>
+<li><div class="item-name"><a href="type.DeriveFunction.html" class="type">DeriveFunction</a></div><div class="item-description">A derive function: given a type definition, it returns a quoted trait impl for that type.</div></li>
 </ul>
 <h2 id="functions">Functions</h2><ul class="item-list">
-<li><div class="item-name"><a href="fn.derive.html" class="fn">derive</a></div><div class="item-description"></div></li>
-<li><div class="item-name"><a href="fn.derive_via.html" class="fn">derive_via</a></div><div class="item-description"></div></li>
-<li><div class="item-name"><a href="fn.error.html" class="fn">error</a></div><div class="item-description">Issues an error diagnostic at the given location with the given primary
-message and an optional secondary message. Unlike a comptime panic, current
-execution will continue allowing possibly multiple errors to be issued.</div></li>
-<li><div class="item-name"><a href="fn.make_trait_impl.html" class="fn">make_trait_impl</a></div><div class="item-description"><code>make_impl</code> is a helper function to make a simple impl, usually while deriving a trait.
-This impl has a couple assumptions:</p>
-<ol>
-<li>The impl only has one function, with the signature <code>function_signature</code></li>
-<li>The trait itself does not have any generics.</li>
-</ol></div></li>
-<li><div class="item-name"><a href="fn.type_of.html" class="fn">type_of</a></div><div class="item-description">Returns the type of any value</div></li>
-<li><div class="item-name"><a href="fn.unquote.html" class="fn">unquote</a></div><div class="item-description">Calling unquote as a macro (via <code>unquote!(arg)</code>) will unquote
-its argument. Since this is the effect <code>!</code> already does, <code>unquote</code>
-itself does not need to do anything besides return its argument.</div></li>
-<li><div class="item-name"><a href="fn.warn.html" class="fn">warn</a></div><div class="item-description">Issues a warning diagnostic at the given location  with the given primary
-message and an optional secondary message. Execution continues after this
-function is called.</div></li>
+<li><div class="item-name"><a href="fn.derive.html" class="fn">derive</a></div><div class="item-description">Implements each trait in <code>traits</code> for the type, using the derive functions registered for them.</div></li>
+<li><div class="item-name"><a href="fn.derive_via.html" class="fn">derive_via</a></div><div class="item-description">Registers <code>f</code> as the derive function for the trait <code>t</code>, so that <code>#[derive(T)]</code> calls it.</div></li>
+<li><div class="item-name"><a href="fn.error.html" class="fn">error</a></div><div class="item-description">Issues an error diagnostic at <code>location</code>, with an optional secondary message.</div></li>
+<li><div class="item-name"><a href="fn.make_trait_impl.html" class="fn">make_trait_impl</a></div><div class="item-description">A helper to make a simple trait impl for a type, usually in a derive function.</div></li>
+<li><div class="item-name"><a href="fn.type_of.html" class="fn">type_of</a></div><div class="item-description">Returns the type of any value.</div></li>
+<li><div class="item-name"><a href="fn.unquote.html" class="fn">unquote</a></div><div class="item-description">Inserts quoted code at the call site when called as <code>unquote!(code)</code>.</div></li>
+<li><div class="item-name"><a href="fn.warn.html" class="fn">warn</a></div><div class="item-description">Issues a warning diagnostic at <code>location</code>, with an optional secondary message.</div></li>
 </ul>
 </div>
 </main>

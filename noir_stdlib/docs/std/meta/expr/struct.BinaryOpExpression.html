@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct BinaryOpExpression</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -65,7 +65,14 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A binary operation decomposed by <a href="../../../std/primitive.Expr.html#as_binary_op"><code>Expr::as_binary_op</code></a>.</p></div>
+<p>A binary operation decomposed by <a href="../../../std/primitive.Expr.html#as_binary_op"><code>Expr::as_binary_op</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap();
+    <span class="kw">assert_eq</span>(op.lhs().quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">assert</span>(op.operator().is_add());
+    <span class="kw">assert_eq</span>(op.rhs().quoted(), <span class="kw">quote</span> { y });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.BinaryOpExpression.html" class="struct">BinaryOpExpression</a></code></h3>
 
@@ -73,17 +80,29 @@
 
 <div class="padded-description"><div class="comments">
 <p>The left-hand side of the operation.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap();
+    <span class="kw">assert_eq</span>(op.lhs().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="operator" class="code-header">pub comptime fn <a href="#operator" class="fn">operator</a>(self) -> <a href="../../../std/meta/op/struct.BinaryOp.html" class="struct">BinaryOp</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The binary operator.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x * y }.as_expr().unwrap().as_binary_op().unwrap();
+    <span class="kw">assert</span>(op.operator().is_multiply());
+}</code></pre></div>
 </div><code id="rhs" class="code-header">pub comptime fn <a href="#rhs" class="fn">rhs</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The right-hand side of the operation.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap();
+    <span class="kw">assert_eq</span>(op.rhs().quoted(), <span class="kw">quote</span> { y });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

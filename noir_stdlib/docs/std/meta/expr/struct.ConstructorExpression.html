@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct ConstructorExpression</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -64,7 +64,14 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A constructor expression decomposed by <a href="../../../std/primitive.Expr.html#as_constructor"><code>Expr::as_constructor</code></a>.</p></div>
+<p>A constructor expression decomposed by <a href="../../../std/primitive.Expr.html#as_constructor"><code>Expr::as_constructor</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> constructor = <span class="kw">quote</span> { Point { x: <span class="number">1</span>, y: <span class="number">2</span> } }.as_expr().unwrap().as_constructor().unwrap();
+    <span class="kw">let</span> typ = constructor.typ();
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { $typ }, <span class="kw">quote</span> { Point });
+    <span class="kw">assert_eq</span>(constructor.fields().len(), <span class="number">2</span>);
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.ConstructorExpression.html" class="struct">ConstructorExpression</a></code></h3>
 
@@ -72,12 +79,23 @@
 
 <div class="padded-description"><div class="comments">
 <p>The type being constructed.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> constructor = <span class="kw">quote</span> { Point { x: <span class="number">1</span> } }.as_expr().unwrap().as_constructor().unwrap();
+    <span class="kw">let</span> typ = constructor.typ();
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { $typ }, <span class="kw">quote</span> { Point });
+}</code></pre></div>
 </div><code id="fields" class="code-header">pub comptime fn <a href="#fields" class="fn">fields</a>(self) -> [<a href="../../../std/meta/expr/struct.ConstructorField.html" class="struct">ConstructorField</a>]</code>
 
 <div class="padded-description"><div class="comments">
 <p>The fields in source order.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> constructor = <span class="kw">quote</span> { Point { x: <span class="number">1</span>, y: <span class="number">2</span> } }.as_expr().unwrap().as_constructor().unwrap();
+    <span class="kw">let</span> fields = constructor.fields();
+    <span class="kw">assert_eq</span>(fields[<span class="number">0</span>].name(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(fields[<span class="number">1</span>].name(), <span class="kw">quote</span> { y });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

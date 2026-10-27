@@ -396,11 +396,31 @@ impl Function {
                             // of that propagation, and in Brillig they write through their
                             // vector operand in place when its reference count is 1, so a
                             // call to one that receives a Brillig array input moves it.
-                            if let Value::Intrinsic(intrinsic) = &self.dfg[*func]
-                                && intrinsic.mutates_array_operand_in_brillig()
-                                && arguments.iter().any(|arg| brillig_array_inputs.contains(arg))
-                            {
-                                brillig_array_input_was_moved = true;
+                            //
+                            // A user-function callee that receives a Brillig array input and
+                            // returns a value holding an array may hand that input back (for
+                            // example `fn id(v: [Field; 3]) -> [Field; 3] { v }`, or wrapped as
+                            // `[v]`). This function could then write through the result into
+                            // the input's buffer in place, so the input counts as moved.
+                            let receives_brillig_array_input =
+                                arguments.iter().any(|arg| brillig_array_inputs.contains(arg));
+                            if receives_brillig_array_input {
+                                let moves_input = match &self.dfg[*func] {
+                                    Value::Intrinsic(intrinsic) => {
+                                        intrinsic.mutates_array_operand_in_brillig()
+                                    }
+                                    Value::Function(_) => {
+                                        self.dfg.instruction_results(*instruction).iter().any(
+                                            |result| {
+                                                self.dfg.type_of_value(*result).contains_an_array()
+                                            },
+                                        )
+                                    }
+                                    _ => false,
+                                };
+                                if moves_input {
+                                    brillig_array_input_was_moved = true;
+                                }
                             }
                         }
 
@@ -1363,6 +1383,125 @@ mod tests {
             v2 = array_get v0, index u32 0 -> [u1; 1]
             inc_rc v2
             return
+        }
+        ");
+    }
+
+    /// `f1` hands its array parameter straight back, so the `array_set` in `f0` writes through
+    /// `v2` into `v0`'s buffer in place when its reference count is 1. Passing `v0` to a call
+    /// whose result holds an array therefore moves it.
+    #[test]
+    fn considers_impure_if_brillig_input_array_is_passed_to_a_call_returning_an_array_and_there_is_an_array_set()
+     {
+        let src = "
+        brillig(inline_never) fn mutate f0 {
+          b0(v0: [Field; 3], v1: u32):
+            v2 = call f1(v0) -> [Field; 3]
+            v3 = array_set v2, index v1, value Field 99
+            v4 = array_get v3, index u32 0 -> Field
+            return v4
+        }
+        brillig(inline_never) fn ident f1 {
+          b0(v0: [Field; 3]):
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline_never) impure fn mutate f0 {
+          b0(v0: [Field; 3], v1: u32):
+            v3 = call f1(v0) -> [Field; 3]
+            v5 = array_set v3, index v1, value Field 99
+            v7 = array_get v5, index u32 0 -> Field
+            return v7
+        }
+        brillig(inline_never) pure fn ident f1 {
+          b0(v0: [Field; 3]):
+            return v0
+        }
+        ");
+    }
+
+    /// `f1` returns its array parameter wrapped in a fresh outer array, so the inner array `f0`
+    /// reads back out of the result is `v0`'s buffer.
+    #[test]
+    fn considers_impure_if_brillig_input_array_is_passed_to_a_call_returning_a_nested_array_and_there_is_an_array_set()
+     {
+        let src = "
+        brillig(inline_never) fn mutate f0 {
+          b0(v0: [Field; 3], v1: u32):
+            v2 = call f1(v0) -> [[Field; 3]; 1]
+            v3 = array_get v2, index u32 0 -> [Field; 3]
+            v4 = array_set v3, index v1, value Field 99
+            v5 = array_get v4, index u32 0 -> Field
+            return v5
+        }
+        brillig(inline_never) fn wrap f1 {
+          b0(v0: [Field; 3]):
+            v1 = make_array [v0] : [[Field; 3]; 1]
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline_never) impure fn mutate f0 {
+          b0(v0: [Field; 3], v1: u32):
+            v3 = call f1(v0) -> [[Field; 3]; 1]
+            v5 = array_get v3, index u32 0 -> [Field; 3]
+            v7 = array_set v5, index v1, value Field 99
+            v8 = array_get v7, index u32 0 -> Field
+            return v8
+        }
+        brillig(inline_never) pure fn wrap f1 {
+          b0(v0: [Field; 3]):
+            v1 = make_array [v0] : [[Field; 3]; 1]
+            return v1
+        }
+        ");
+    }
+
+    /// A call whose results hold no array cannot hand a Brillig array input back, so passing
+    /// one to it does not move it.
+    #[test]
+    fn does_not_consider_impure_if_brillig_input_array_is_passed_to_a_call_returning_no_array() {
+        let src = "
+        brillig(inline_never) fn f f0 {
+          b0(v0: [Field; 3], v1: u32):
+            v2 = call f1(v0) -> Field
+            v3 = make_array [v2, v2, v2] : [Field; 3]
+            v4 = array_set v3, index v1, value Field 99
+            v5 = array_get v4, index u32 0 -> Field
+            return v5
+        }
+        brillig(inline_never) fn first f1 {
+          b0(v0: [Field; 3]):
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline_never) predicate_pure fn f f0 {
+          b0(v0: [Field; 3], v1: u32):
+            v3 = call f1(v0) -> Field
+            v4 = make_array [v3, v3, v3] : [Field; 3]
+            v6 = array_set v4, index v1, value Field 99
+            v8 = array_get v6, index u32 0 -> Field
+            return v8
+        }
+        brillig(inline_never) pure fn first f1 {
+          b0(v0: [Field; 3]):
+            v2 = array_get v0, index u32 0 -> Field
+            return v2
         }
         ");
     }

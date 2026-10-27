@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct AssertEqExpression</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -65,7 +65,14 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>An assert-eq expression decomposed by <a href="../../../std/primitive.Expr.html#as_assert_eq"><code>Expr::as_assert_eq</code></a>.</p></div>
+<p>An assert-eq expression decomposed by <a href="../../../std/primitive.Expr.html#as_assert_eq"><code>Expr::as_assert_eq</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert_eq</span>(x, y, <span class="string">"differ"</span>) }.as_expr().unwrap().as_assert_eq().unwrap();
+    <span class="kw">assert_eq</span>(assertion.lhs().quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(assertion.rhs().quoted(), <span class="kw">quote</span> { y });
+    <span class="kw">assert_eq</span>(assertion.message().unwrap().quoted(), <span class="kw">quote</span> { <span class="string">"differ"</span> });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.AssertEqExpression.html" class="struct">AssertEqExpression</a></code></h3>
 
@@ -73,17 +80,32 @@
 
 <div class="padded-description"><div class="comments">
 <p>The left-hand side of the equality assertion.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert_eq</span>(x, y) }.as_expr().unwrap().as_assert_eq().unwrap();
+    <span class="kw">assert_eq</span>(assertion.lhs().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="rhs" class="code-header">pub comptime fn <a href="#rhs" class="fn">rhs</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The right-hand side of the equality assertion.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert_eq</span>(x, y) }.as_expr().unwrap().as_assert_eq().unwrap();
+    <span class="kw">assert_eq</span>(assertion.rhs().quoted(), <span class="kw">quote</span> { y });
+}</code></pre></div>
 </div><code id="message" class="code-header">pub comptime fn <a href="#message" class="fn">message</a>(self) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../../std/primitive.Expr.html" class="primitive">Expr</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>The optional assertion message.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert_eq</span>(x, y) }.as_expr().unwrap().as_assert_eq().unwrap();
+    <span class="kw">assert</span>(assertion.message().is_none());
+
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert_eq</span>(x, y, <span class="string">"differ"</span>) }.as_expr().unwrap().as_assert_eq().unwrap();
+    <span class="kw">assert_eq</span>(assertion.message().unwrap().quoted(), <span class="kw">quote</span> { <span class="string">"differ"</span> });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

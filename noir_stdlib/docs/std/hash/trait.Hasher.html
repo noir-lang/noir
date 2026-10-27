@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#trait">Trait Hasher</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -32,6 +32,7 @@
 </ul>
 <h3>Implementors</h3>
 <ul class="sidebar-list">
+<li><a href="#impl-Hasher-for-IdentityHasher">IdentityHasher</a></li>
 <li><a href="#impl-Hasher-for-MaxHasher">MaxHasher</a></li>
 <li><a href="#impl-Hasher-for-Poseidon2Hasher">Poseidon2Hasher</a></li>
 </ul>
@@ -76,7 +77,7 @@
 }</code></pre>
 
 <div class="comments">
-<p>A hash function that accepts input one <code>Field</code> at a time.</p>
+<p>A hash function that accepts input one <a href="../../std/primitive.Field.html"><code>Field</code></a> at a time.</p>
 <p>Values that implement <a href="../../std/hash/trait.Hash.html"><code>Hash</code></a> write themselves to a <code>Hasher</code> with <a href="../../std/hash/trait.Hasher.html#write"><code>Hasher::write</code></a>, and
 <a href="../../std/hash/trait.Hasher.html#finish"><code>Hasher::finish</code></a> returns the hash of everything written. Hashers are used by hash-based
 collections and by generic code that needs to hash values of any type.</p>
@@ -191,6 +192,8 @@ Override this for more efficient implementations that avoid copying.</p>
     <span class="kw">assert_eq</span>(hasher.finish_ref(), <span class="number">5</span>);
 }</code></pre></div>
 </div></div><h2>Implementors</h2>
+<h3 id="impl-Hasher-for-IdentityHasher"><code class="code-header">impl <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a> for IdentityHasher</code></h3>
+
 <h3 id="impl-Hasher-for-MaxHasher"><code class="code-header">impl <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a> for MaxHasher</code></h3>
 
 <h3 id="impl-Hasher-for-Poseidon2Hasher"><code class="code-header">impl <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a> for Poseidon2Hasher</code></h3>

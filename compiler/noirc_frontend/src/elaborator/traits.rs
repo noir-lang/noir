@@ -190,14 +190,16 @@ use crate::{
         comptime::InterpreterError,
         def_collector::dc_crate::UnresolvedTrait,
         resolution::errors::ResolverError,
-        type_check::{TypeCheckError, generics::TraitGenerics},
+        type_check::{NoMatchingImplFoundError, TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
         function::FuncMeta,
         traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitFunction},
         types::ResolvedGenerics,
     },
-    node_interner::{DependencyId, FuncId, ImplSearchErrorKind, ReferenceId, TraitId},
+    node_interner::{
+        DependencyId, FuncId, ImplSearchErrorKind, ReferenceId, TraitId, TraitLookupMode,
+    },
 };
 
 use super::{
@@ -221,6 +223,45 @@ impl Elaborator<'_> {
         let context = ItemContext::new(ModuleContext::in_module(module_id))
             .with_impl(ImplContext::in_trait(trait_id, self_type));
         self.with_item_context(context, f)
+    }
+}
+
+impl Elaborator<'_> {
+    /// Binds each placeholder that a bound in `constraints` gives one of its trait's associated
+    /// types to the type the impl search decides for it, once the bound's object type is rigid
+    /// under `bindings`. `where Self::Target: Mappable` introduces a placeholder for `Mappable`'s
+    /// `Target`; once `Self::Target` is `bool` for an impl, `<bool as Mappable>::Target` has a
+    /// single answer (`u32`). A placeholder `bindings` already binds is left alone.
+    pub(super) fn bind_placeholders_to_normalized_associated_types<'a>(
+        &self,
+        constraints: impl Iterator<Item = &'a TraitConstraint>,
+        bindings: &mut TypeBindings,
+    ) {
+        for constraint in constraints {
+            let object_type = constraint.typ.substitute(bindings);
+            let trait_bound = &constraint.trait_bound;
+            let ordered =
+                vecmap(&trait_bound.trait_generics.ordered, |generic| generic.substitute(bindings));
+            for named_arg in &trait_bound.trait_generics.named {
+                let Type::NamedGeneric(NamedGeneric { type_var, .. }) = &named_arg.typ else {
+                    continue;
+                };
+                if bindings.contains_key(&type_var.id()) {
+                    continue;
+                }
+                if let Some(normalized) = self.normalize_rigid_associated_type(
+                    &object_type,
+                    trait_bound.trait_id,
+                    &ordered,
+                    named_arg.name.as_str(),
+                ) {
+                    bindings.insert(
+                        type_var.id(),
+                        (type_var.clone(), type_var.kind().into_owned(), normalized),
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -463,6 +504,11 @@ impl Elaborator<'_> {
 
                 // Inside a trait's declaration, `<Self as Trait>::Item` has one name throughout:
                 // the associated type itself (see `lookup_associated_type_on_self`).
+                // A parent bound written in the where clause (`trait Chk where Self: Lim`) leaves it
+                // out just as one written as a supertrait (`trait Chk: Lim`) does.
+                if object_is_own_self && declared_by_trait {
+                    continue;
+                }
                 if object_is_own_self {
                     let typ = associated_type
                         .clone()
@@ -639,6 +685,21 @@ impl Elaborator<'_> {
         Some(ResolvedTraitBound { trait_id, trait_generics, location })
     }
 
+    /// Assumes `constraints` and the bounds they imply, as hypotheses rather than bounds written
+    /// on the item being elaborated.
+    pub(super) fn assume_trait_constraints<'a>(
+        &mut self,
+        constraints: impl Iterator<Item = &'a TraitConstraint>,
+    ) {
+        let mut seen = BoundSet::default();
+        for constraint in constraints {
+            let (typ, bound) = (&constraint.typ, &constraint.trait_bound);
+            seen.insert_root(typ, bound);
+            let written = false;
+            self.add_trait_bound_to_scope_inner(bound.location, typ, bound, written, &mut seen);
+        }
+    }
+
     /// Adds the given trait constraints to scope as assumed trait impls.
     ///
     /// Since there is no global/local scope distinction for trait constraints,
@@ -656,7 +717,7 @@ impl Elaborator<'_> {
             let (typ, bound) = (&constraint.typ, &constraint.trait_bound);
             seen.insert_root(typ, bound);
             let written = true;
-            self.add_trait_bound_to_scope_inner(location, typ, bound, written, &mut seen);
+            self.add_trait_bound_to_scope_inner(bound.location, typ, bound, written, &mut seen);
         }
 
         // Also assume `self` implements the current trait if we are inside a trait definition
@@ -676,6 +737,126 @@ impl Elaborator<'_> {
             let written = false;
             self.add_trait_bound_to_scope_inner(location, &self_type, bound, written, &mut seen);
         }
+    }
+
+    /// Reports every `where` clause bound of this crate's functions, impls and traits that names
+    /// no generic parameter and that no impl satisfies, such as `fn main() where S: Marker` or
+    /// `impl Foo for S where S: Marker` without an `impl Marker for S`.
+    ///
+    /// Inside the function such a bound is an assumed impl like any other, and it is only
+    /// discharged when a caller instantiates the function. A bound without generics needs no
+    /// instantiation to decide, and nothing a caller does can make it hold. Accepting it lets the
+    /// body rely on an impl that does not exist, which is how `main`, which has no caller, could
+    /// make a blanket impl look applicable to a type it does not apply to.
+    ///
+    /// An impl or trait with such a bound never applies, so its methods can never be called either.
+    ///
+    /// This runs once the crate is elaborated, so impls generated by comptime code are visible.
+    pub(super) fn check_where_clauses_without_generics(&mut self) {
+        let owner_bounds = self.impl_and_trait_where_clauses_in_crate();
+        // A method's where clause also holds the bounds of its impl's or trait's where clause.
+        // Those are checked once for the impl or trait, so they are left out of the functions'.
+        let owner_bound_locations = owner_bounds
+            .iter()
+            .map(|constraint| constraint.trait_bound.location)
+            .collect::<rustc_hash::FxHashSet<_>>();
+
+        let mut function_bounds = self
+            .interner
+            .func_meta
+            .iter()
+            .filter(|(_, meta)| meta.source_crate == self.crate_id)
+            .flat_map(|(id, meta)| meta.trait_constraints.iter().map(move |c| (*id, c)))
+            .filter(|(_, c)| is_checkable_bound(c))
+            .filter(|(_, c)| !owner_bound_locations.contains(&c.trait_bound.location))
+            .map(|(id, c)| (id, c.clone()))
+            .collect::<Vec<_>>();
+        function_bounds.sort_by_key(|(id, _)| *id);
+
+        let function_bounds = function_bounds.into_iter().map(|(_, constraint)| constraint);
+        for constraint in owner_bounds.into_iter().filter(is_checkable_bound).chain(function_bounds)
+        {
+            self.check_where_clause_bound_without_generics(constraint);
+        }
+    }
+
+    /// The where clauses of this crate's inherent impls, trait impls and traits, in declaration
+    /// order.
+    fn impl_and_trait_where_clauses_in_crate(&self) -> Vec<TraitConstraint> {
+        let mut impls =
+            self.interner.get_impls_in_crate(self.crate_id).into_iter().collect::<Vec<_>>();
+        impls.sort();
+        let mut trait_impls = self
+            .interner
+            .get_trait_implementations_in_crate(self.crate_id)
+            .into_iter()
+            .collect::<Vec<_>>();
+        trait_impls.sort();
+        let mut traits = self
+            .interner
+            .traits
+            .values()
+            .filter(|the_trait| the_trait.crate_id == self.crate_id)
+            .collect::<Vec<_>>();
+        traits.sort_by_key(|the_trait| the_trait.id);
+
+        let impl_where_clauses =
+            impls.into_iter().map(|id| &self.interner.get_impl(id).where_clause[..]);
+        let trait_impl_where_clauses =
+            trait_impls.into_iter().map(|id| self.interner.get_where_clause_for_impl(id));
+        let trait_where_clauses = traits.into_iter().map(|the_trait| &the_trait.where_clause[..]);
+        impl_where_clauses
+            .chain(trait_impl_where_clauses)
+            .chain(trait_where_clauses)
+            .flatten()
+            .cloned()
+            .collect()
+    }
+
+    /// Expects a bound for which [`is_checkable_bound`] holds.
+    fn check_where_clause_bound_without_generics(&mut self, constraint: TraitConstraint) {
+        if let Some(error) = self.where_clause_bound_without_generics_error(&constraint) {
+            self.push_err(TypeCheckError::NoMatchingImplFound(error));
+        }
+    }
+
+    /// The error [`Self::check_where_clause_bound_without_generics`] reports for `constraint`,
+    /// if any. Expects a bound for which [`is_checkable_bound`] holds.
+    pub(super) fn where_clause_bound_without_generics_error(
+        &self,
+        constraint: &TraitConstraint,
+    ) -> Option<NoMatchingImplFoundError> {
+        let bound = &constraint.trait_bound;
+
+        // An associated type the bound leaves out, or sets to something generic, can be anything.
+        let named = vecmap(&bound.trait_generics.named, |named| {
+            let typ = if named.typ.contains_type_variable() {
+                self.interner.next_type_variable()
+            } else {
+                named.typ.clone()
+            };
+            NamedType { name: named.name.clone(), typ }
+        });
+
+        let result = self.interner.try_lookup_trait_implementation(
+            &constraint.typ,
+            bound.trait_id,
+            &bound.trait_generics.ordered,
+            &named,
+            TraitLookupMode::IgnoreAssumed,
+        );
+        let Err(
+            ImplSearchErrorKind::NoImplFound(mut failing)
+            | ImplSearchErrorKind::NoMatching(mut failing),
+        ) = result
+        else {
+            return None;
+        };
+        if failing.is_empty() {
+            failing.push(constraint.clone());
+        }
+
+        NoMatchingImplFoundError::new(self.interner, failing, constraint.trait_bound.location)
     }
 
     /// The removing counterpart for [`Self::add_trait_constraints_to_scope`].
@@ -982,7 +1163,11 @@ impl Elaborator<'_> {
         match self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
             Ok(true) => (),
             Ok(false) if !written => (),
+            // The same bound is added to scope more than once (see
+            // `ElaborationSession::reported_unneeded_trait_constraints`), but is reported once.
+            Ok(false) if self.session.reported_unneeded_trait_constraints.contains(&location) => (),
             Ok(false) => {
+                self.session.reported_unneeded_trait_constraints.insert(location);
                 if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
                     let trait_name = the_trait.name.to_string();
                     let typ = object.clone();
@@ -1520,6 +1705,11 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
+            // A generic of another kind is reported where the impl's generics are resolved, and
+            // can't stand for the trait's.
+            if !trait_fn_kind.unifies(&impl_fn_generic.kind()) {
+                continue;
+            }
             let arg = impl_fn_generic.clone().into_named_generic(name, None);
             bindings.insert(
                 trait_fn_generic.id(),
@@ -1527,40 +1717,15 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
             );
         }
 
-        // A `where` clause such as `where Self::Target: Mappable` introduces an implicit generic
-        // for each of `Mappable`'s associated types. Once the constraint's object type is rigid
-        // for this impl (e.g. `Self::Target` becomes `bool`), the chained projection
-        // `<Self::Target as Mappable>::Target` has a single answer via the real impl
-        // (`<bool as Mappable>::Target = u32`). Bind each such implicit generic to that answer so
-        // the trait method's signature matches the impl method's already-normalized signature.
+        bindings.extend(impl_trait_parameter_bindings(trait_fn_meta, meta));
+
+        // The trait method's signature then matches the impl method's already-normalized one.
         // This handles cases the `original_type_var_id` shortcut below cannot, since that shortcut
         // assumes the projection's object is `Self` rather than a further associated type.
-        for constraint in &trait_fn_meta.trait_constraints {
-            let object_type = constraint.typ.substitute(&bindings);
-            let trait_bound = &constraint.trait_bound;
-            let ordered = vecmap(&trait_bound.trait_generics.ordered, |generic| {
-                generic.substitute(&bindings)
-            });
-            for named_arg in &trait_bound.trait_generics.named {
-                let Type::NamedGeneric(NamedGeneric { type_var, .. }) = &named_arg.typ else {
-                    continue;
-                };
-                if bindings.contains_key(&type_var.id()) {
-                    continue;
-                }
-                if let Some(normalized) = elaborator.normalize_rigid_associated_type(
-                    &object_type,
-                    trait_bound.trait_id,
-                    &ordered,
-                    named_arg.name.as_str(),
-                ) {
-                    bindings.insert(
-                        type_var.id(),
-                        (type_var.clone(), type_var.kind().into_owned(), normalized),
-                    );
-                }
-            }
-        }
+        elaborator.bind_placeholders_to_normalized_associated_types(
+            trait_fn_meta.all_trait_constraints(),
+            &mut bindings,
+        );
 
         // There is special handling expected for parent traits. Say we have code like this:
         //
@@ -1719,4 +1884,44 @@ impl BoundSet {
     fn leave(&mut self) {
         self.path.pop();
     }
+}
+
+/// Whether [`Elaborator::check_where_clauses_without_generics`] can decide `constraint`: its object
+/// type and trait arguments name no generic or type variable, and nothing in it failed to resolve.
+pub(super) fn is_checkable_bound(constraint: &TraitConstraint) -> bool {
+    let generics = &constraint.trait_bound.trait_generics;
+    let types = std::iter::once(&constraint.typ).chain(&generics.ordered);
+    let named = generics.named.iter().map(|named| &named.typ);
+    types.clone().all(|typ| !typ.contains_type_variable())
+        && types.chain(named).all(|typ| !contains_error_type(typ))
+}
+
+/// Whether `typ` mentions [`Type::Error`], for which an error has already been reported.
+fn contains_error_type(typ: &Type) -> bool {
+    let typ = typ.follow_bindings();
+    matches!(typ, Type::Error) || typ.any_child(contains_error_type)
+}
+
+/// Binds the generic each `impl Trait` parameter of a trait method declares to the one the
+/// impl's method declares for the same parameter: they are the methods' generics too, only
+/// unnamed.
+pub(super) fn impl_trait_parameter_bindings(
+    declaration: &FuncMeta,
+    implementation: &FuncMeta,
+) -> TypeBindings {
+    let mut bindings = TypeBindings::default();
+    let parameters = declaration.parameters.0.iter().zip(&implementation.parameters.0);
+    for ((_, declared, _), (_, implemented, _)) in parameters {
+        if let (Type::NamedGeneric(declared), Type::NamedGeneric(implemented)) =
+            (declared, implemented)
+            && declared.is_impl_trait_parameter()
+            && implemented.is_impl_trait_parameter()
+        {
+            let type_var = declared.type_var.clone();
+            let kind = type_var.kind().into_owned();
+            bindings
+                .insert(type_var.id(), (type_var, kind, Type::NamedGeneric(implemented.clone())));
+        }
+    }
+    bindings
 }

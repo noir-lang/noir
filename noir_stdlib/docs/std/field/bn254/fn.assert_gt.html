@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In module bn254</h2>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.assert_gt.html">assert_gt</a></div></li>
@@ -40,6 +40,15 @@
 <div id="page-content">
 <pre><code>pub fn assert_gt(a: <a href="../../../std/primitive.Field.html" class="primitive">Field</a>, b: <a href="../../../std/primitive.Field.html" class="primitive">Field</a>)</code></pre>
 
+<div class="comments">
+<p>Asserts that <code>a</code> is greater than <code>b</code>, comparing them as integers in <code>0..p</code>.</p>
+<p>Fully constrained. Only meaningful when compiling for the BN254 field.</p>
+<p>Example:</p>
+<pre><code>std::field::bn254::assert_gt(<span class="number">2</span>, <span class="number">1</span>);
+<span class="comment">// -1 is the largest field element.</span>
+std::field::bn254::assert_gt(-<span class="number">1</span>, <span class="number">1</span>);</code></pre>
+<h2>Failures</h2>
+<p>Fails if <code>a</code> is less than or equal to <code>b</code>.</p></div>
 </div>
 </main>
 </span>

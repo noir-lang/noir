@@ -3191,6 +3191,80 @@ mod test {
         assert!(execution_result.is_ok());
     }
 
+    // `f3` hands its array parameter straight back, so `f2`'s `array_set` writes into the buffer
+    // `f1` allocated for `v2` in place (RC == 1 in brillig, no protecting `inc_rc`). The second
+    // `f1` call must not be deduplicated against the first, or the trailing `array_get` reads 99
+    // instead of `Field 1`.
+    #[test]
+    fn array_set_through_call_returned_alias_prevents_dedup_of_producer_call() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1() -> [Field; 3]
+            v4 = call f2(v2, v0) -> Field
+            v5 = call f1() -> [Field; 3]
+            v10 = array_get v5, index u32 0 -> Field
+            return v10
+        }
+        brillig(inline_never) fn producer f1 {
+          b0():
+            v3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            return v3
+        }
+        brillig(inline_never) fn write_through_alias f2 {
+          b0(v0: [Field; 3], v1: u32):
+            v3 = call f3(v0) -> [Field; 3]
+            v8 = array_set v3, index v1, value Field 99
+            v10 = array_get v8, index u32 0 -> Field
+            return v10
+        }
+        brillig(inline_never) fn alias f3 {
+          b0(v0: [Field; 3]):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let inputs = vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()];
+
+        let (ssa, _) =
+            assert_pass_does_not_affect_execution(ssa, inputs.clone(), |ssa| ssa.purity_analysis());
+
+        let (ssa, execution_result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
+            ssa.fold_constants_using_constraints(MIN_ITER)
+        });
+
+        assert_eq!(
+            execution_result,
+            Ok(vec![Value::from_constant(1_u32.into(), NumericType::NativeField).unwrap()])
+        );
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0(v0: u32):
+            v2 = call f1() -> [Field; 3]
+            v4 = call f2(v2, v0) -> Field
+            v5 = call f1() -> [Field; 3]
+            v7 = array_get v5, index u32 0 -> Field
+            return v7
+        }
+        brillig(inline_never) pure fn producer f1 {
+          b0():
+            v3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            return v3
+        }
+        brillig(inline_never) impure fn write_through_alias f2 {
+          b0(v0: [Field; 3], v1: u32):
+            v3 = call f3(v0) -> [Field; 3]
+            v5 = array_set v3, index v1, value Field 99
+            v7 = array_get v5, index u32 0 -> Field
+            return v7
+        }
+        brillig(inline_never) pure fn alias f3 {
+          b0(v0: [Field; 3]):
+            return v0
+        }
+        ");
+    }
+
     #[test]
     fn bug_array_get_from_array_set_ignores_predicate_without_constraint_info() {
         let src = "

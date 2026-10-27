@@ -1,7 +1,11 @@
 //! Tests for trait bound checking and where clause validation.
 //! Validates that trait bounds are satisfied and constraints on associated types are correctly checked.
 
-use crate::tests::{UnstableFeature, assert_no_errors, check_errors, get_program_using_features};
+use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::type_check::TypeCheckError;
+use crate::tests::{
+    UnstableFeature, assert_no_errors, check_errors, get_program_errors, get_program_using_features,
+};
 
 #[test]
 fn trait_impl_for_a_type_that_implements_another_trait() {
@@ -574,12 +578,16 @@ fn errors_on_mutually_recursive_impls() {
     pub struct Baz {}
 
     impl Foo for Bar where Baz: Foo {
+                                ^^^ No matching impl found for `Bar: Foo`
+                                ~~~ No impl for `Bar: Foo`
         fn foo(self) {
             (Baz {}).foo()
         }
     }
 
     impl Foo for Baz where Bar: Foo {
+                                ^^^ No matching impl found for `Baz: Foo`
+                                ~~~ No impl for `Baz: Foo`
         fn foo(self) {
             (Bar {}).foo()
         }
@@ -587,12 +595,7 @@ fn errors_on_mutually_recursive_impls() {
 
     fn main() {
         (Bar {}).foo();
-        ^^^^^^^^^^^^ No matching impl found for `Bar: Foo`
-        ~~~~~~~~~~~~ No impl for `Bar: Foo`
-
         (Baz {}).foo();
-        ^^^^^^^^^^^^ No matching impl found for `Baz: Foo`
-        ~~~~~~~~~~~~ No impl for `Baz: Foo`
     }
     "#;
     check_errors(src);
@@ -1572,7 +1575,7 @@ fn regression_8485_does_not_panic() {
     }
     "#;
     let full_src = format!("{}\n\n{}", crate::test_utils::stdlib_src::ZEROED, src);
-    let errors = crate::tests::get_program_errors(&full_src);
+    let errors = get_program_errors(&full_src);
     assert!(!errors.is_empty(), "expected regression_8485 to produce errors without panicking");
 }
 
@@ -1666,4 +1669,434 @@ fn global_checked_from_another_functions_comptime_block_does_not_see_its_where_c
     fn main() -> pub Field { G }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn errors_on_where_clause_bound_without_generics_that_no_impl_satisfies() {
+    let src = r#"
+    trait Marker {}
+    trait Foo { fn value(self) -> Field; }
+    struct S {}
+    impl<T> Foo for T where T: Marker { fn value(self) -> Field { 1 } }
+    impl Foo for S { fn value(self) -> Field { 2 } }
+
+    fn main() -> pub Field where S: Marker { S {}.value() }
+                                    ^^^^^^ No matching impl found for `S: Marker`
+                                    ~~~~~~ No impl for `S: Marker`
+                                             ^^^^^^^^^^ Multiple trait impls match the object type `S`
+                                             ~~~~~~~~~~ Ambiguous impl
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_where_clause_bound_without_generics_on_uncalled_function() {
+    let src = r#"
+    trait Marker {}
+    pub fn f() where Field: Marker {}
+                            ^^^^^^ No matching impl found for `Field: Marker`
+                            ~~~~~~ No impl for `Field: Marker`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_where_clause_bound_without_generics_on_inherent_method() {
+    let src = r#"
+    trait Marker {}
+    pub struct S {}
+    impl S {
+        pub fn f() where Self: Marker {}
+                               ^^^^^^ No matching impl found for `S: Marker`
+                               ~~~~~~ No impl for `S: Marker`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_where_clause_bound_without_generics_whose_impl_where_clause_fails() {
+    let src = r#"
+    trait Marker {}
+    trait Other {}
+    impl<T> Marker for [T; 2] where T: Other {}
+    pub fn f() where [Field; 2]: Marker {}
+                                 ^^^^^^ No matching impl found for `T: Other`
+                                 ~~~~~~ No impl for `T: Other`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_where_clause_bound_without_generics_with_mismatched_associated_type() {
+    let src = r#"
+    trait Container { type Item; }
+    pub struct S {}
+    impl Container for S { type Item = u8; }
+    pub fn f() where S: Container<Item = u32> {}
+                        ^^^^^^^^^ No matching impl found for `S: Container<Item = u32>`
+                        ~~~~~~~~~ No impl for `S: Container<Item = u32>`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn where_clause_bound_without_generics_satisfied_by_a_generic_impl_is_only_unneeded() {
+    let src = r#"
+    trait Marker {}
+    trait Other {}
+    impl Other for Field {}
+    impl<T> Marker for [T; 2] where T: Other {}
+    pub fn f() where [Field; 2]: Marker {}
+                                 ^^^^^^ Constraint for `[Field; 2]: Marker` is not needed, another matching impl is already in scope
+                                 ~~~~~~ Unnecessary trait constraint in where clause
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_check_where_clause_bounds_that_name_a_generic() {
+    let src = r#"
+    trait Marker {}
+    pub struct S<T> { pub x: T }
+    pub fn f<T>(_x: T) where S<T>: Marker {}
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_trait_impl_where_clause_bound_without_generics_that_no_impl_satisfies() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {}
+    pub struct S {}
+    impl Foo for S where S: Marker {}
+                            ^^^^^^ No matching impl found for `S: Marker`
+                            ~~~~~~ No impl for `S: Marker`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_inherent_impl_where_clause_bound_without_generics_that_no_impl_satisfies() {
+    let src = r#"
+    trait Marker {}
+    pub struct S {}
+    impl S where Field: Marker {
+                        ^^^^^^ No matching impl found for `Field: Marker`
+                        ~~~~~~ No impl for `Field: Marker`
+        pub fn f() {}
+        pub fn g() {}
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_check_impl_where_clause_bounds_that_name_a_generic() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {}
+    pub struct S<T> { pub x: T }
+    impl<T> Foo for S<T> where S<T>: Marker {}
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_trait_where_clause_bound_without_generics_that_no_impl_satisfies() {
+    let src = r#"
+    trait Marker {}
+    pub trait Foo where Field: Marker {}
+                               ^^^^^^ No matching impl found for `Field: Marker`
+                               ~~~~~~ No impl for `Field: Marker`
+    pub trait Bar where u8: Marker {
+                            ^^^^^^ No matching impl found for `u8: Marker`
+                            ~~~~~~ No impl for `u8: Marker`
+        fn bar();
+        fn baz();
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_report_where_clause_bound_whose_type_failed_to_resolve() {
+    let src = r#"
+    trait Marker {}
+    pub fn f() where Unknown: Marker {}
+                     ^^^^^^^ Could not resolve 'Unknown' in path
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn where_clause_bound_without_generics_is_not_reported_again_where_the_function_is_used() {
+    let src = r#"
+    trait Marker {}
+    pub fn f() where Field: Marker {}
+                            ^^^^^^ No matching impl found for `Field: Marker`
+                            ~~~~~~ No impl for `Field: Marker`
+    fn main() {
+        f();
+        let _g = f;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn where_clause_bound_without_generics_leaving_out_an_associated_type_is_reported_once() {
+    let src = r#"
+    trait Foo { type Bar; }
+    impl Foo for u32 { type Bar = u8; }
+    pub fn f() where u16: Foo {}
+                          ^^^ No matching impl found for `u16: Foo<Bar = _>`
+                          ~~~ No impl for `u16: Foo<Bar = _>`
+    fn main() {
+        f();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_where_clause_bound_without_generics_is_not_reported_again_where_a_method_is_used() {
+    let src = r#"
+    trait Marker {}
+    pub struct S {}
+    impl S where Field: Marker {
+                        ^^^^^^ No matching impl found for `Field: Marker`
+                        ~~~~~~ No impl for `Field: Marker`
+        pub fn m() {}
+    }
+    fn main() {
+        S::m();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn where_clause_bound_with_generics_is_still_checked_where_the_function_is_used() {
+    let src = r#"
+    trait Marker {}
+    impl Marker for u8 {}
+    pub fn f<T>(_x: T) where T: Marker, Field: Marker {}
+                                               ^^^^^^ No matching impl found for `Field: Marker`
+                                               ~~~~~~ No impl for `Field: Marker`
+    fn main() {
+        f(1 as u8);
+        f(1 as u16);
+        ^ No matching impl found for `u16: Marker`
+        ~ No impl for `u16: Marker`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_of_a_where_clause_bound_without_generics_is_bound_where_the_function_is_used() {
+    let src = r#"
+    trait Foo { type Bar; }
+    impl Foo for u32 { type Bar = bool; }
+    pub fn f<B>() -> [B; 0] where u32: Foo<Bar = B> { [] }
+    fn main() {
+        let _x = f();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn where_clause_bound_with_a_generic_only_in_an_associated_type_is_checked_where_the_function_is_used()
+ {
+    let src = r#"
+    trait Foo { type Bar; }
+    impl Foo for u32 { type Bar = bool; }
+    pub fn f<B>() -> [B; 0] where u32: Foo<Bar = B> { [] }
+    fn main() {
+        let _x = f::<u8>();
+                 ^^^^^^^ No matching impl found for `u32: Foo<Bar = u8>`
+                 ~~~~~~~ No impl for `u32: Foo<Bar = u8>`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn where_clause_bound_passed_on_to_a_generic_helper_is_reported_where_the_function_is_used() {
+    let src = r#"
+    trait Foo { type Bar; fn make(x: Field) -> Self::Bar; }
+    impl Foo for u32 { type Bar = Field; fn make(x: Field) -> Field { x } }
+    fn id<T, C>(x: Field) -> C where T: Foo<Bar = C> { T::make(x) }
+    pub fn conv<B>(x: Field) -> B where u32: Foo<Bar = B> { id::<u32, B>(x) }
+    fn main(x: Field) -> pub u8 {
+        conv::<u8>(x)
+        ^^^^^^^^^^ No matching impl found for `u32: Foo<Bar = u8>`
+        ~~~~~~~~~~ No impl for `u32: Foo<Bar = u8>`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn false_where_clause_bound_with_a_concrete_associated_type_is_reported_only_at_the_bound() {
+    let src = r#"
+    trait Foo { type Bar; }
+    impl Foo for u32 { type Bar = bool; }
+    pub fn f() where u32: Foo<Bar = u8> {}
+                          ^^^ No matching impl found for `u32: Foo<Bar = u8>`
+                          ~~~ No impl for `u32: Foo<Bar = u8>`
+    fn main() {
+        f();
+    }
+    "#;
+    check_errors(src);
+}
+
+/// Like [`check_errors`], but also checks that each "not needed" warning is reported exactly as
+/// many times as it is annotated: `check_errors` accepts a repeated diagnostic at an annotated
+/// location.
+fn check_unneeded_trait_constraint_warnings(src: &str) {
+    check_errors(src);
+
+    let is_annotation = |line: &&str| line.trim_start().starts_with(['^', '~']);
+    let expected = src.lines().filter(|line| line.trim_start().starts_with('^')).count();
+    let code = src.lines().filter(|line| !is_annotation(line)).collect::<Vec<_>>().join("\n");
+    let reported = get_program_errors(&code)
+        .into_iter()
+        .filter(|error| {
+            matches!(
+                error,
+                CompilationError::TypeError(TypeCheckError::UnneededTraitConstraint { .. })
+            )
+        })
+        .count();
+    assert_eq!(reported, expected, "expected {expected} unneeded-constraint warning(s)");
+}
+
+#[test]
+fn unneeded_function_bound_without_generics_is_reported_once() {
+    let src = r#"
+    trait Foo {}
+    pub struct W<T> { v: T }
+    impl Foo for W<u16> {}
+
+    pub fn f()
+    where
+        W<u16>: Foo,
+                ^^^ Constraint for `W<u16>: Foo` is not needed, another matching impl is already in scope
+                ~~~ Unnecessary trait constraint in where clause
+    {}
+
+    fn main() {
+        f();
+    }
+    "#;
+    check_unneeded_trait_constraint_warnings(src);
+}
+
+#[test]
+fn repeated_generic_bound_is_reported_once() {
+    let src = r#"
+    trait Foo {}
+
+    pub fn f<T>(_x: T)
+    where
+        T: Foo,
+        T: Foo,
+           ^^^ Constraint for `T: Foo` is not needed, another matching impl is already in scope
+           ~~~ Unnecessary trait constraint in where clause
+    {}
+
+    fn main() {}
+    "#;
+    check_unneeded_trait_constraint_warnings(src);
+}
+
+#[test]
+fn unneeded_trait_impl_bound_without_generics_is_reported_once() {
+    let src = r#"
+    trait Foo {}
+    impl Foo for u8 {}
+
+    trait Tr {
+        fn m();
+        fn n();
+    }
+
+    impl Tr for u16
+    where
+        u8: Foo,
+            ^^^ Constraint for `u8: Foo` is not needed, another matching impl is already in scope
+            ~~~ Unnecessary trait constraint in where clause
+    {
+        fn m() {}
+        fn n() {}
+    }
+
+    fn main() {
+        <u16 as Tr>::m();
+        <u16 as Tr>::n();
+    }
+    "#;
+    check_unneeded_trait_constraint_warnings(src);
+}
+
+#[test]
+fn unneeded_inherent_impl_bound_without_generics_is_reported_once() {
+    let src = r#"
+    trait Foo {}
+    impl Foo for u8 {}
+
+    pub struct S {}
+
+    impl S
+    where
+        u8: Foo,
+            ^^^ Constraint for `u8: Foo` is not needed, another matching impl is already in scope
+            ~~~ Unnecessary trait constraint in where clause
+    {
+        pub fn m() {}
+        pub fn n() {}
+    }
+
+    fn main() {
+        S::m();
+        S::n();
+    }
+    "#;
+    check_unneeded_trait_constraint_warnings(src);
+}
+
+#[test]
+fn unneeded_trait_method_bound_without_generics_is_reported_once() {
+    let src = r#"
+    trait Foo {}
+    impl Foo for u8 {}
+
+    pub trait Tr {
+        fn m()
+        where
+            u8: Foo,
+                ^^^ Constraint for `u8: Foo` is not needed, another matching impl is already in scope
+                ~~~ Unnecessary trait constraint in where clause
+        {}
+    }
+
+    fn main() {}
+    "#;
+    check_unneeded_trait_constraint_warnings(src);
 }

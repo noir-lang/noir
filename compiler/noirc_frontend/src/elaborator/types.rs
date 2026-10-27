@@ -1440,7 +1440,8 @@ impl Elaborator<'_> {
         let associated_types = match impl_kind {
             TraitImplKind::Assumed { trait_generics, .. } => Cow::Owned(trait_generics.named),
             TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
-                self.resolve_trait_impl_associated_types_if_unresolved(impl_id);
+                let name = path.impl_item.as_str();
+                self.resolve_trait_impl_associated_type_if_unresolved(impl_id, name);
                 Cow::Borrowed(self.interner.get_associated_types_for_impl(impl_id))
             }
         };
@@ -1817,6 +1818,14 @@ impl Elaborator<'_> {
         let method_name = last_segment.ident.as_str();
 
         if let Some(func_id) = direct_method {
+            // A turbofish that leaves the distinguishing generics as `_` (`S::<_>::m`) can still
+            // match several non-overlapping inherent impls; it is ambiguous like `S::m`.
+            if let Some(ambiguity) =
+                self.ambiguous_inherent_method(typ, last_segment, &path_resolution)
+            {
+                self.push_errors(generics_errors);
+                return Some(ambiguity);
+            }
             self.push_errors(generics_errors);
             return Some(self.resolve_direct_method(
                 path_resolution.item,
@@ -1901,23 +1910,10 @@ impl Elaborator<'_> {
             return TraitPathResolution { method, item, errors };
         }
 
-        // `TypeName::method` is ambiguous when more than one non-overlapping inherent impl
-        // defines a `method` applicable to `typ` (mirroring Rust's E0034): the path names more
-        // than one function and nothing here disambiguates. Require a method call
-        // (`value.method(..)`) or turbofish (`TypeName::<..>::method(..)`) instead.
-        let impl_types = self.interner.matching_direct_method_types(typ, method_name);
-        if impl_types.len() >= 2 {
+        if let Some(ambiguity) = self.ambiguous_inherent_method(typ, last_segment, &path_resolution)
+        {
             self.push_errors(generics_errors);
-            let mut errors = path_resolution.errors;
-            errors.push(PathResolutionError::MultipleApplicableMethods {
-                ident: last_segment.ident.clone(),
-                impl_types: vecmap(&impl_types, |typ| typ.to_string()),
-            });
-            return TraitPathResolution {
-                method: TraitPathResolutionMethod::MultipleTraitsInScope,
-                item: None,
-                errors,
-            };
+            return ambiguity;
         }
 
         self.push_errors(generics_errors);
@@ -1928,6 +1924,36 @@ impl Elaborator<'_> {
             &last_segment.ident,
             path_resolution.errors,
         )
+    }
+
+    /// A `TypeName::method` or `TypeName::<..>::method` path is ambiguous when more than one
+    /// non-overlapping inherent impl defines a `method` applicable to `typ` (mirroring Rust's
+    /// E0034): the path names more than one function and nothing here disambiguates. Returns the
+    /// resolution reporting [PathResolutionError::MultipleApplicableMethods] in that case, so the
+    /// call requires a turbofish naming the impl's generics, or a method call (`value.method(..)`)
+    /// on a receiver whose type is already known.
+    fn ambiguous_inherent_method(
+        &self,
+        typ: &Type,
+        last_segment: &TypedPathSegment,
+        path_resolution: &PathResolution,
+    ) -> Option<TraitPathResolution> {
+        let method_name = last_segment.ident.as_str();
+        let impl_types = self.interner.matching_direct_method_types(typ, method_name);
+        if impl_types.len() < 2 {
+            return None;
+        }
+
+        let mut errors = path_resolution.errors.clone();
+        errors.push(PathResolutionError::MultipleApplicableMethods {
+            ident: last_segment.ident.clone(),
+            impl_types: vecmap(&impl_types, |typ| typ.to_string()),
+        });
+        Some(TraitPathResolution {
+            method: TraitPathResolutionMethod::MultipleTraitsInScope,
+            item: None,
+            errors,
+        })
     }
 
     /// Resolves the head of a `Type::method` path to the concrete receiver [Type] whose methods we
@@ -2011,7 +2037,7 @@ impl Elaborator<'_> {
         }
 
         let (hir_method_reference, error) =
-            self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.location);
+            self.get_trait_method_in_scope(typ, &trait_methods, method_name, last_segment.location);
         let Some(hir_method_reference) = hir_method_reference else {
             // The method matches multiple traits (in scope, or none in scope), so there's no single
             // method to resolve to. Report the ambiguity here rather than deferring to module-based
@@ -2586,7 +2612,13 @@ impl Elaborator<'_> {
             Type::Function(parameters, ret, _env, unconstrained) => {
                 self.bind_function_type_impl(parameters, ret, *unconstrained, &args, location)
             }
-            Type::Error => Type::Error,
+            // The callee failed to resolve, so nothing determines the arguments' types.
+            Type::Error => {
+                for (arg, _, _) in &args {
+                    bind_unbound_type_variables_to_error(arg);
+                }
+                Type::Error
+            }
             found => {
                 self.push_err(TypeCheckError::ExpectedFunction { found: found.clone(), location });
                 Type::Error
@@ -2747,6 +2779,16 @@ impl Elaborator<'_> {
                 if let TypeBinding::Bound(binding) = var.binding() {
                     return self.comparator_operand_type_rules(other, binding, op, location);
                 }
+                match self
+                    .unify_unknown_operand_with_known(var, other, lhs_type, rhs_type, location)
+                {
+                    Some(true) => {
+                        return self
+                            .comparator_operand_type_rules(lhs_type, rhs_type, op, location);
+                    }
+                    Some(false) => return Ok((Bool, false)),
+                    None => (),
+                }
 
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
                 Ok((Bool, use_impl))
@@ -2779,6 +2821,34 @@ impl Elaborator<'_> {
         }
     }
 
+    /// Unifies the operands of a binary operator when `variable`, one of them, is unbound and the
+    /// other operand's type is known. The variable then has that type, so the caller checks the
+    /// operator against that type's own rules.
+    ///
+    /// Returns `None` if the other operand's type isn't known either. Otherwise returns whether
+    /// the variable got bound. If it didn't, the mismatch has already been reported here.
+    fn unify_unknown_operand_with_known(
+        &mut self,
+        variable: &crate::TypeVariable,
+        other: &Type,
+        lhs_type: &Type,
+        rhs_type: &Type,
+        location: Location,
+    ) -> Option<bool> {
+        if matches!(other.follow_bindings(), Type::TypeVariable(_)) {
+            return None;
+        }
+        self.unify(lhs_type, rhs_type, |elaborator| {
+            elaborator.new_type_mismatch_with_source_error(
+                rhs_type,
+                lhs_type,
+                Source::Binary,
+                location,
+            )
+        });
+        Some(!variable.binding().is_unbound())
+    }
+
     /// Handles the `TypeVariable` case for checking binary operators.
     /// Returns true if we should use the impl for the operator instead of the primitive
     /// version of it.
@@ -2801,20 +2871,19 @@ impl Elaborator<'_> {
 
         let use_impl = !lhs_type.is_numeric_value();
 
-        // If this operator isn't valid for fields we have to possibly narrow
-        // Kind::IntegerOrField to Kind::Integer.
-        // Doing so also ensures a type error if Field is used.
-        // The is_numeric check is to allow impls for custom types to bypass this.
+        // Both operands are unbound type variables here: an operand of known type is checked by
+        // that type's own rules. A numeric variable used with an operator `Field` doesn't
+        // support is narrowed to an integer, and a `Field` it is later unified with is then a
+        // type mismatch. A non-numeric variable is left for the operator's trait impl.
         if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric_value() {
             let target = self.polymorphic_integer();
-
-            use crate::ast::BinaryOpKind::*;
-            use TypeCheckError::*;
-            self.unify(lhs_type, &target, |_| match op.kind {
-                Less | LessEqual | Greater | GreaterEqual => FieldComparison { location },
-                And | Or | Xor | ShiftRight | ShiftLeft => FieldBitwiseOp { location },
-                Modulo => FieldModulo { location },
-                other => unreachable!("Operator {other:?} should be valid for Field"),
+            self.unify(lhs_type, &target, |elaborator| {
+                elaborator.new_type_mismatch_with_source_error(
+                    &target,
+                    lhs_type,
+                    Source::Binary,
+                    location,
+                )
             });
         }
 
@@ -2854,6 +2923,15 @@ impl Elaborator<'_> {
             (TypeVariable(int), other) | (other, TypeVariable(int)) => {
                 if let TypeBinding::Bound(binding) = int.binding() {
                     return self.infix_operand_type_rules(binding, op, other, location);
+                }
+                match self
+                    .unify_unknown_operand_with_known(int, other, lhs_type, rhs_type, location)
+                {
+                    Some(true) => {
+                        return self.infix_operand_type_rules(lhs_type, op, rhs_type, location);
+                    }
+                    Some(false) => return Ok((Error, false)),
+                    None => (),
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
                 Ok((other.clone(), use_impl))
@@ -3227,15 +3305,19 @@ impl Elaborator<'_> {
     /// Try to look up a method on a [Type] by name:
     /// * if the object type is generic, look it up in the trait constraints
     /// * otherwise look it up directly on the type, or in traits the type implements
+    ///
+    /// `call_location` is the location of the whole method call (`object.method(..)`), or of the
+    /// method name for a `Type::method` path; most lookup errors are reported there.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn lookup_method(
         &mut self,
         object_type: &Type,
-        method_name: &str,
-        location: Location,
+        method_ident: &Ident,
+        call_location: Location,
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
+        let method_name = method_ident.as_str();
         match self.structurally_resolve_type(object_type) {
             // TODO(https://github.com/noir-lang/noir/issues/10518): We should allow method calls on
             // `impl Trait`s eventually. For now it is fine since they are only allowed on return types.
@@ -3243,14 +3325,14 @@ impl Elaborator<'_> {
                 self.push_err(TypeCheckError::UnresolvedMethodCall {
                     method_name: method_name.to_string(),
                     object_type: object_type.clone(),
-                    location,
+                    location: call_location,
                 });
                 None
             }
             Type::NamedGeneric(_) => self.lookup_method_in_trait_constraints(
                 object_type,
                 method_name,
-                location,
+                call_location,
                 object_location,
             ),
             // `DefCollectorErrorKind::ReferenceInTraitImpl`: "Trait impls are not allowed on reference types"
@@ -3258,8 +3340,8 @@ impl Elaborator<'_> {
             // This may be a data type or a primitive type.
             Type::Reference(element, _mutable) => self.lookup_method(
                 &element,
-                method_name,
-                location,
+                method_ident,
+                call_location,
                 object_location,
                 check_self_param,
             ),
@@ -3270,14 +3352,16 @@ impl Elaborator<'_> {
 
             // The type variable must be unbound at this point since follow_bindings was called
             Type::TypeVariable(var) if *var.kind() == Kind::Normal => {
-                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall {
+                    location: call_location,
+                });
                 None
             }
 
             other => self.lookup_type_or_primitive_method(
                 &other,
-                method_name,
-                location,
+                method_ident,
+                call_location,
                 object_location,
                 check_self_param,
             ),
@@ -3288,17 +3372,42 @@ impl Elaborator<'_> {
     fn lookup_type_or_primitive_method(
         &mut self,
         object_type: &Type,
-        method_name: &str,
-        location: Location,
+        method_ident: &Ident,
+        call_location: Location,
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
+        let method_name = method_ident.as_str();
         // First search in the type methods. A directly-defined (inherent) method that is
         // visible from here always wins. If it exists but is not visible, we do not commit to
         // it yet: an accessible trait method may exist that should be called instead. We keep
         // the inherent method around as a fallback so that, if no trait method resolves, the
         // caller still reports the appropriate "private" visibility error against it.
-        let direct_method = self.lookup_direct_method(object_type, method_name, check_self_param);
+        self.resolve_method_candidate_metas(object_type, method_name);
+        let direct_methods =
+            self.interner.lookup_direct_methods(object_type, method_name, check_self_param);
+
+        // Non-overlapping inherent impls (`impl S<u8>`, `impl S<u16>`) can all apply to a receiver
+        // whose type is not yet known (`S<_>`). Picking one would fix the receiver's type from
+        // whichever impl happens to be registered first, so the receiver's type must be known.
+        if direct_methods.len() >= 2 {
+            let candidates = vecmap(&direct_methods, |func_id| {
+                let meta = self.interner.function_meta(func_id);
+                let impl_type = meta.self_type.clone().unwrap_or(Type::Error);
+                (impl_type, meta.name.location)
+            });
+            self.push_err(TypeCheckError::MultipleApplicableMethodsForObject {
+                method_name: method_name.to_string(),
+                candidates,
+                location: method_ident.location(),
+            });
+
+            // The object's type stays unknown.
+            bind_unbound_type_variables_to_error(object_type);
+            return None;
+        }
+
+        let direct_method = direct_methods.first().copied();
         if let Some(method_id) = direct_method
             && self.method_call_is_visible(method_id, object_type)
         {
@@ -3310,7 +3419,12 @@ impl Elaborator<'_> {
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
-            return self.return_trait_method_in_scope(&trait_methods, method_name, location);
+            return self.return_trait_method_in_scope(
+                object_type,
+                &trait_methods,
+                method_name,
+                call_location,
+            );
         }
 
         // If we couldn't find any trait methods, search in
@@ -3318,7 +3432,12 @@ impl Elaborator<'_> {
         let generic_methods =
             self.lookup_generic_methods(object_type, method_name, check_self_param);
         if !generic_methods.is_empty() {
-            return self.return_trait_method_in_scope(&generic_methods, method_name, location);
+            return self.return_trait_method_in_scope(
+                object_type,
+                &generic_methods,
+                method_name,
+                call_location,
+            );
         }
 
         // No trait method applies. Fall back to the inaccessible inherent method (if any) so the
@@ -3330,7 +3449,12 @@ impl Elaborator<'_> {
         // It could be that this type is a composite type that is bound to a trait,
         // for example `x: (T, U) ... where (T, U): SomeTrait`
         // (so this case is a generalization of the NamedGeneric case)
-        self.lookup_method_in_trait_constraints(object_type, method_name, location, object_location)
+        self.lookup_method_in_trait_constraints(
+            object_type,
+            method_name,
+            call_location,
+            object_location,
+        )
     }
 
     /// Given a list of functions and the trait they belong to, returns the one function
@@ -3338,11 +3462,13 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn return_trait_method_in_scope(
         &mut self,
+        object_type: &Type,
         trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
     ) -> Option<HirMethodReference> {
-        let (method, error) = self.get_trait_method_in_scope(trait_methods, method_name, location);
+        let (method, error) =
+            self.get_trait_method_in_scope(object_type, trait_methods, method_name, location);
         if let Some(error) = error {
             self.push_err(error);
         }
@@ -3352,6 +3478,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn get_trait_method_in_scope(
         &mut self,
+        object_type: &Type,
         trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
@@ -3380,8 +3507,13 @@ impl Elaborator<'_> {
                 // This is the backwards-compatible case where there's a single trait but it's not in scope
                 let trait_id = *traits.iter().next().unwrap();
                 let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
-                let method =
-                    self.trait_hir_method_reference(trait_id, trait_methods, method_name, location);
+                let method = self.trait_hir_method_reference(
+                    object_type,
+                    trait_id,
+                    trait_methods,
+                    method_name,
+                    location,
+                );
                 let error = PathResolutionError::TraitMethodNotInScope {
                     ident: Ident::new(method_name.into(), location),
                     trait_name,
@@ -3412,33 +3544,27 @@ impl Elaborator<'_> {
         }
 
         let trait_id = traits_in_scope[0].0;
-        let method =
-            self.trait_hir_method_reference(trait_id, trait_methods, method_name, location);
+        let method = self.trait_hir_method_reference(
+            object_type,
+            trait_id,
+            trait_methods,
+            method_name,
+            location,
+        );
         let error = None;
         (Some(method), error)
     }
 
     fn trait_hir_method_reference(
         &self,
+        object_type: &Type,
         trait_id: TraitId,
         trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
     ) -> HirMethodReference {
-        // If we find a single trait impl method, return it so we don't have to later determine the impl.
-        // Exception: if the single match points at the trait's own method declaration (which happens
-        // when an impl inherits the default body — the impl's slot shares the trait's `FuncId`),
-        // the function meta carries the trait's `Self` type variable, not the impl's concrete type.
-        // Fall through to the `TraitItemId` path so the caller can bind `Self` to the resolved
-        // self type via the trait constraint.
-        if trait_methods.len() == 1
-            && self
-                .interner
-                .try_function_meta(&trait_methods[0].0)
-                .is_none_or(|meta| meta.trait_id.is_none())
-        {
-            let (func_id, _, _) = &trait_methods[0];
-            return HirMethodReference::FuncId(*func_id);
+        if let Some(func_id) = self.directly_bound_impl_method(object_type, trait_methods) {
+            return HirMethodReference::FuncId(func_id);
         }
 
         // The trait's generics at this call are unknowns that type checking solves.
@@ -3460,6 +3586,31 @@ impl Elaborator<'_> {
             trait_generics,
             assumed,
         })
+    }
+
+    /// The method a call binds directly, without its impl being determined by the trait
+    /// constraint: the single candidate, when it is a method of an impl and the impl search can
+    /// select no other impl for `object_type`.
+    ///
+    /// A default body an impl inherits shares the trait's `FuncId`, whose `Self` the trait
+    /// constraint binds. A call another impl can serve goes through the trait constraint too,
+    /// which selects that impl or reports the ambiguity.
+    fn directly_bound_impl_method(
+        &self,
+        object_type: &Type,
+        trait_methods: &[(FuncId, TraitId, Type)],
+    ) -> Option<FuncId> {
+        let [(func_id, _, _)] = trait_methods else { return None };
+        let meta = self.interner.function_meta(func_id);
+        if meta.trait_id.is_some() {
+            return None;
+        }
+        if let Some(impl_id) = meta.trait_impl
+            && self.interner.another_impl_applies(object_type, impl_id)
+        {
+            return None;
+        }
+        Some(*func_id)
     }
 
     /// Assuming that we are currently elaborating a function, try to look up a method in:
@@ -4152,5 +4303,22 @@ impl Elaborator<'_> {
         }
 
         fully_qualified_module_path(self.def_maps, self.crate_graph, &self.crate_id, trait_.id.0)
+    }
+}
+
+/// Binds every unbound type variable in `typ` to the error type.
+///
+/// Used once an error has been reported that leaves `typ` undetermined: an unbound variable would
+/// otherwise be defaulted (an integer variable to `Field`, say) or reported as needing an
+/// annotation, and the trait constraints on it would then fail with errors that only follow from
+/// the one already reported.
+fn bind_unbound_type_variables_to_error(typ: &Type) {
+    let mut unbound = Vec::new();
+    typ.unbound_type_variables(&mut unbound);
+    let mut seen = HashSet::new();
+    for variable in unbound {
+        if seen.insert(variable.id()).is_none() {
+            variable.bind(Type::Error);
+        }
     }
 }

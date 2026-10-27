@@ -19,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#primitive">Primitive type str</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -109,12 +109,16 @@
 
 <div class="padded-description"><div class="comments">
 <p>Converts the given string into a byte array</p>
-</div>
+<p>The bytes are the string's UTF-8 encoding, so <code>N</code> is its length in bytes, not characters.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(<span class="string">"Noir"</span>.as_bytes(), [<span class="number">78</span>, <span class="number">111</span>, <span class="number">105</span>, <span class="number">114</span>]);
+<span class="kw">assert_eq</span>(<span class="string">"é"</span>.as_bytes().len(), <span class="number">2</span>);</code></pre></div>
 </div><code id="as_bytes_vec" class="code-header">pub fn <a href="#as_bytes_vec" class="fn">as_bytes_vec</a>(self) -> [<a href="../std/primitive.u8.html" class="primitive">u8</a>]</code>
 
 <div class="padded-description"><div class="comments">
 <p>return a byte vector of the str content</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(<span class="string">"Noir"</span>.as_bytes_vec(), @[<span class="number">78</span>, <span class="number">111</span>, <span class="number">105</span>, <span class="number">114</span>]);</code></pre></div>
 </div></div></div>
 </main>
 </span>

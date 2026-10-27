@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct UnaryOpExpression</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -64,7 +64,13 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A unary operation decomposed by <a href="../../../std/primitive.Expr.html#as_unary_op"><code>Expr::as_unary_op</code></a>.</p></div>
+<p>A unary operation decomposed by <a href="../../../std/primitive.Expr.html#as_unary_op"><code>Expr::as_unary_op</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { -x }.as_expr().unwrap().as_unary_op().unwrap();
+    <span class="kw">assert</span>(op.operator().is_minus());
+    <span class="kw">assert_eq</span>(op.rhs().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.UnaryOpExpression.html" class="struct">UnaryOpExpression</a></code></h3>
 
@@ -72,12 +78,20 @@
 
 <div class="padded-description"><div class="comments">
 <p>The unary operator.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { !x }.as_expr().unwrap().as_unary_op().unwrap();
+    <span class="kw">assert</span>(op.operator().is_not());
+}</code></pre></div>
 </div><code id="rhs" class="code-header">pub comptime fn <a href="#rhs" class="fn">rhs</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The operand on the right-hand side of the operator.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { -x }.as_expr().unwrap().as_unary_op().unwrap();
+    <span class="kw">assert_eq</span>(op.rhs().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

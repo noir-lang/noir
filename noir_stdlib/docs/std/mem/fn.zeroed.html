@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In module mem</h2>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.array_refcount.html">array_refcount</a></div></li>
@@ -43,7 +43,14 @@
 <p>For any type, return an instance of that type by initializing
 all of its fields to 0. This is considered to be unsafe since there
 is no guarantee that all zeroes is a valid bit pattern for every type.</p>
-</div>
+<p>It is useful as a placeholder for values that are overwritten before they are read, for example
+to fill an array before setting its elements.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> x: u32 = std::mem::zeroed();
+<span class="kw">assert_eq</span>(x, <span class="number">0</span>);
+
+<span class="kw">let</span> pair: (bool, [u8; <span class="number">2</span>]) = std::mem::zeroed();
+<span class="kw">assert_eq</span>(pair, (<span class="bool-var">false</span>, [<span class="number">0</span>, <span class="number">0</span>]));</code></pre></div>
 </div>
 </main>
 </span>

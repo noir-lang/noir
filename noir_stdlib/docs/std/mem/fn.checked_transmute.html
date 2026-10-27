@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In module mem</h2>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.array_refcount.html">array_refcount</a></div></li>
@@ -47,7 +47,15 @@ If not, a compilation error is issued.</p>
 which the compiler otherwise cannot prove equal during type checking.
 You can use this to obtain a value of the correct type while still asserting
 that it is equal to the previous.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="comment">// `concat` returns `[u8; N + N]`, which the type checker doesn't treat as `[u8; 2 * N]`.</span>
+<span class="kw">fn</span> twice&lt;<span class="kw">let</span> N: u32&gt;(a: [u8; N]) -&gt; [u8; <span class="number">2</span> * N] {
+    std::mem::checked_transmute(a.concat(a))
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert_eq</span>(twice([<span class="number">1</span>, <span class="number">2</span>]), [<span class="number">1</span>, <span class="number">2</span>, <span class="number">1</span>, <span class="number">2</span>]);
+}</code></pre></div>
 </div>
 </main>
 </span>

@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.0.0-rc.6](https://github.com/noir-lang/noir/compare/v1.0.0-rc.5...v1.0.0-rc.6) (2026-10-20)
+
+
+### Bug Fixes
+
+* **frontend:** An impl search with an undecided where clause one level down is undecided ([#14013](https://github.com/noir-lang/noir/issues/14013)) ([985870e](https://github.com/noir-lang/noir/commit/985870e0e065946f468cbccb7d2e00dcaf44bfd0))
+* **frontend:** Count a blanket impl whose where clause holds alongside a type's own trait impls ([#14026](https://github.com/noir-lang/noir/issues/14026)) ([5934f27](https://github.com/noir-lang/noir/commit/5934f27afc15ac58b2adf9923c277a9588e40b24))
+* **frontend:** Do not report follow-on errors for the arguments of a call whose callee failed to resolve ([#14045](https://github.com/noir-lang/noir/issues/14045)) ([96d8e8b](https://github.com/noir-lang/noir/commit/96d8e8bfb67a85bcca86cef561f9ded4dff3224a))
+* **frontend:** Don't choose an impl while another impl's where clause is undecided ([#13999](https://github.com/noir-lang/noir/issues/13999)) ([c9ec59a](https://github.com/noir-lang/noir/commit/c9ec59ab4fe917f5ea1a752adcebf9b37b14e3b6))
+* **frontend:** Drop a call-site where-clause failure only if the declaration check reports that bound ([#14059](https://github.com/noir-lang/noir/issues/14059)) ([13888fd](https://github.com/noir-lang/noir/commit/13888fd64dfec5b6bebf11842b7133dbebae86fb))
+* **frontend:** Find a blanket impl ambiguity through the impl search ([#14048](https://github.com/noir-lang/noir/issues/14048)) ([7f92187](https://github.com/noir-lang/noir/commit/7f9218716c28c126110abb0690b159e634de671d))
+* **frontend:** Give a comptime local read from runtime code its declared type ([#14014](https://github.com/noir-lang/noir/issues/14014)) ([0a3db9c](https://github.com/noir-lang/noir/commit/0a3db9c79be07c95820b1fd9d5dcdaaaac85a857))
+* **frontend:** Make arithmetic proptests instantiate the expression's variables ([#14022](https://github.com/noir-lang/noir/issues/14022)) ([f8ea879](https://github.com/noir-lang/noir/commit/f8ea879d591672c6f6abd20562c7e05ef484a706))
+* **frontend:** Prefer a single where-clause candidate when the object type is not yet known ([#14038](https://github.com/noir-lang/noir/issues/14038)) ([7d01bb5](https://github.com/noir-lang/noir/commit/7d01bb5278e5b801c6bd5e4655311103977f86e5))
+* **frontend:** Print type-level arithmetic in its canonical form in `nargo expand` ([#14007](https://github.com/noir-lang/noir/issues/14007)) ([b094c92](https://github.com/noir-lang/noir/commit/b094c920cdc6842290c0ac296ec941482d2d6478))
+* **frontend:** Read a trait impl's associated constant from a global while the impl is collected ([#14011](https://github.com/noir-lang/noir/issues/14011)) ([0e3a9a5](https://github.com/noir-lang/noir/commit/0e3a9a55d95fc49d79b8a317339517cc2b5c32f6))
+* **frontend:** Reject a method call that several inherent impls can serve on an uninferred receiver ([#14015](https://github.com/noir-lang/noir/issues/14015)) ([3ca79f7](https://github.com/noir-lang/noir/commit/3ca79f70a7adc55f989f5281c14de7bb2475a9a6))
+* **frontend:** Reject a wildcard turbofish call that several inherent impls can serve ([#14036](https://github.com/noir-lang/noir/issues/14036)) ([29b8c74](https://github.com/noir-lang/noir/commit/29b8c74d1841fbe101de11cf08fdd2a91809656b))
+* **frontend:** Reject where-clause bounds without generics that no impl satisfies ([#14029](https://github.com/noir-lang/noir/issues/14029)) ([674b9e5](https://github.com/noir-lang/noir/commit/674b9e546e193cd55fe9b712e7875df6c0076fee))
+* **frontend:** Report a false where-clause bound without generics only at the bound ([#14039](https://github.com/noir-lang/noir/issues/14039)) ([f77b0be](https://github.com/noir-lang/noir/commit/f77b0be6fbffb13fcdcd982f4225730296839cac))
+* **frontend:** Report an unneeded where-clause bound once ([#14037](https://github.com/noir-lang/noir/issues/14037)) ([1c3475e](https://github.com/noir-lang/noir/commit/1c3475e30e5630638d3ead0a8a6eb8240f122885))
+* **frontend:** Resolve a struct literal's or pattern's turbofish against the type alias it names ([#13997](https://github.com/noir-lang/noir/issues/13997)) ([8b49012](https://github.com/noir-lang/noir/commit/8b490123ead8b90a87a1e33d0f19948409782629))
+* **frontend:** Resolve a trait impl's associated items the first time a lookup selects it ([#14006](https://github.com/noir-lang/noir/issues/14006)) ([c37c648](https://github.com/noir-lang/noir/commit/c37c648b59ae92a3585ec41380c0b9d28cfd0e67))
+* **frontend:** Simplify away a commutative operand that only evaluates to a constant ([#14018](https://github.com/noir-lang/noir/issues/14018)) ([4b05b39](https://github.com/noir-lang/noir/commit/4b05b39f219b34b4d20a7e6faf0e04babe58bd16))
+* **ssa:** Do not mutate an array in place after pushing it into a vector ([#14017](https://github.com/noir-lang/noir/issues/14017)) ([afefa5e](https://github.com/noir-lang/noir/commit/afefa5eae1c5601403fb8ea309393775c87c53c1))
+* **ssa:** Make `break` in an inclusive range skip the peeled final iteration ([#14035](https://github.com/noir-lang/noir/issues/14035)) ([d5e8a5b](https://github.com/noir-lang/noir/commit/d5e8a5bc1a586bf7561c83e2d10712624323aaf2))
+* **stdlib:** Count a `UHashMap` insert into a tombstone ([#13689](https://github.com/noir-lang/noir/issues/13689)) ([191767a](https://github.com/noir-lang/noir/commit/191767a3a2adb6cab3155055e12b190e7b0e8393))
+
 ## [1.0.0-rc.5](https://github.com/noir-lang/noir/compare/v1.0.0-rc.4...v1.0.0-rc.5) (2026-10-15)
 
 

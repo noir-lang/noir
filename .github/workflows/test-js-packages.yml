@@ -96,7 +96,7 @@ jobs:
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
 
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
@@ -127,7 +127,7 @@ jobs:
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
 
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           key: noirc-abi
           cache-on-failure: true
@@ -163,7 +163,7 @@ jobs:
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
 
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           key: noir-wasm
           cache-on-failure: true
@@ -202,7 +202,7 @@ jobs:
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
 
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           key: acvm-js
           cache-on-failure: true
@@ -945,13 +945,16 @@ jobs:
       - name: nargo doc on stdlib
         working-directory: ./noir_stdlib
         run: |
-          nargo doc
+          nargo doc --deny-warnings
           rm -rf ./docs
           mv ./target/docs .
           if ! git diff --exit-code; then
             echo "nargo doc produced changes on noir_stdlib. Please run `just stdlib-doc`, then commit and push any changes."
             exit 1
           fi
+
+      - name: Check every public stdlib item is documented
+        run: ./scripts/stdlib_doc_inventory.py --check
 
       - name: Run stdlib doc comment examples
         run: ./scripts/check_stdlib_doc_examples.py --nargo nargo

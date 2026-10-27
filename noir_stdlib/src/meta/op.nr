@@ -1,5 +1,19 @@
 use crate::hash::Hash;
 
+/// A unary operator in quoted code.
+///
+/// One of `-`, `!`, `&mut` or `*`.
+/// It is returned by [`UnaryOpExpression::operator`](crate::meta::expr::UnaryOpExpression::operator).
+///
+/// Example:
+///
+/// ```noir
+/// comptime {
+///     let op = quote { -x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+///     assert(op.is_minus());
+///     assert_eq(op.quoted(), quote { - });
+/// }
+/// ```
 pub struct UnaryOp {
     op: Field,
 }
@@ -23,30 +37,96 @@ impl crate::hash::Hash for UnaryOp {
 }
 
 impl UnaryOp {
+    /// Returns `true` if this operator is `-`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { -x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    ///     assert(op.is_minus());
+    ///
+    ///     let other = quote { !x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    ///     assert(!other.is_minus());
+    /// }
+    /// ```
     // docs:start:is_minus
     pub fn is_minus(self) -> bool {
         // docs:end:is_minus
         self.op == 0
     }
 
+    /// Returns `true` if this operator is `!`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { !x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    ///     assert(op.is_not());
+    ///
+    ///     let other = quote { -x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    ///     assert(!other.is_not());
+    /// }
+    /// ```
     // docs:start:is_not
     pub fn is_not(self) -> bool {
         // docs:end:is_not
         self.op == 1
     }
 
+    /// Returns `true` if this operator is `&mut`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { &mut x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    ///     assert(op.is_mutable_reference());
+    ///
+    ///     let other = quote { !x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    ///     assert(!other.is_mutable_reference());
+    /// }
+    /// ```
     // docs:start:is_mutable_reference
     pub fn is_mutable_reference(self) -> bool {
         // docs:end:is_mutable_reference
         self.op == 2
     }
 
+    /// Returns `true` if this operator is `*`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { *x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    ///     assert(op.is_dereference());
+    ///
+    ///     let other = quote { !x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    ///     assert(!other.is_dereference());
+    /// }
+    /// ```
     // docs:start:is_dereference
     pub fn is_dereference(self) -> bool {
         // docs:end:is_dereference
         self.op == 3
     }
 
+    /// Returns this operator as a [`Quoted`] value, to splice into generated code.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { !x }.as_expr().unwrap().as_unary_op().unwrap().operator().quoted();
+    ///     assert_eq(op, quote { ! });
+    ///
+    ///     // Apply the same operator to another operand.
+    ///     let negated = quote { $op y };
+    ///     assert_eq(negated, quote { !y });
+    /// }
+    /// ```
     // docs:start:unary_quoted
     pub comptime fn quoted(self) -> Quoted {
         // docs:end:unary_quoted
@@ -65,6 +145,20 @@ impl UnaryOp {
     }
 }
 
+/// A binary operator in quoted code.
+///
+/// One of `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `&`, `|`, `^`, `>>` or `<<`.
+/// It is returned by [`BinaryOpExpression::operator`](crate::meta::expr::BinaryOpExpression::operator).
+///
+/// Example:
+///
+/// ```noir
+/// comptime {
+///     let op = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+///     assert(op.is_add());
+///     assert_eq(op.quoted(), quote { + });
+/// }
+/// ```
 pub struct BinaryOp {
     op: Field,
 }
@@ -85,102 +179,324 @@ impl crate::hash::Hash for BinaryOp {
 }
 
 impl BinaryOp {
+    /// Returns `true` if this operator is `+`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_add());
+    ///
+    ///     let other = quote { x - y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_add());
+    /// }
+    /// ```
     // docs:start:is_add
     pub fn is_add(self) -> bool {
         // docs:end:is_add
         self.op == 0
     }
 
+    /// Returns `true` if this operator is `-`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x - y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_subtract());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_subtract());
+    /// }
+    /// ```
     // docs:start:is_subtract
     pub fn is_subtract(self) -> bool {
         // docs:end:is_subtract
         self.op == 1
     }
 
+    /// Returns `true` if this operator is `*`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x * y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_multiply());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_multiply());
+    /// }
+    /// ```
     // docs:start:is_multiply
     pub fn is_multiply(self) -> bool {
         // docs:end:is_multiply
         self.op == 2
     }
 
+    /// Returns `true` if this operator is `/`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x / y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_divide());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_divide());
+    /// }
+    /// ```
     // docs:start:is_divide
     pub fn is_divide(self) -> bool {
         // docs:end:is_divide
         self.op == 3
     }
 
+    /// Returns `true` if this operator is `==`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x == y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_equal());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_equal());
+    /// }
+    /// ```
     // docs:start:is_equal
     pub fn is_equal(self) -> bool {
         // docs:end:is_equal
         self.op == 4
     }
 
+    /// Returns `true` if this operator is `!=`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x != y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_not_equal());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_not_equal());
+    /// }
+    /// ```
     // docs:start:is_not_equal
     pub fn is_not_equal(self) -> bool {
         // docs:end:is_not_equal
         self.op == 5
     }
 
+    /// Returns `true` if this operator is `<`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x < y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_less_than());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_less_than());
+    /// }
+    /// ```
     // docs:start:is_less_than
     pub fn is_less_than(self) -> bool {
         // docs:end:is_less_than
         self.op == 6
     }
 
+    /// Returns `true` if this operator is `<=`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x <= y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_less_than_or_equal());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_less_than_or_equal());
+    /// }
+    /// ```
     // docs:start:is_less_than_or_equal
     pub fn is_less_than_or_equal(self) -> bool {
         // docs:end:is_less_than_or_equal
         self.op == 7
     }
 
+    /// Returns `true` if this operator is `>`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x > y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_greater_than());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_greater_than());
+    /// }
+    /// ```
     // docs:start:is_greater_than
     pub fn is_greater_than(self) -> bool {
         // docs:end:is_greater_than
         self.op == 8
     }
 
+    /// Returns `true` if this operator is `>=`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x >= y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_greater_than_or_equal());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_greater_than_or_equal());
+    /// }
+    /// ```
     // docs:start:is_greater_than_or_equal
     pub fn is_greater_than_or_equal(self) -> bool {
         // docs:end:is_greater_than_or_equal
         self.op == 9
     }
 
+    /// Returns `true` if this operator is `&`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x & y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_and());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_and());
+    /// }
+    /// ```
     // docs:start:is_and
     pub fn is_and(self) -> bool {
         // docs:end:is_and
         self.op == 10
     }
 
+    /// Returns `true` if this operator is `|`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x | y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_or());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_or());
+    /// }
+    /// ```
     // docs:start:is_or
     pub fn is_or(self) -> bool {
         // docs:end:is_or
         self.op == 11
     }
 
+    /// Returns `true` if this operator is `^`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x ^ y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_xor());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_xor());
+    /// }
+    /// ```
     // docs:start:is_xor
     pub fn is_xor(self) -> bool {
         // docs:end:is_xor
         self.op == 12
     }
 
+    /// Returns `true` if this operator is `>>`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x >> y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_shift_right());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_shift_right());
+    /// }
+    /// ```
     // docs:start:is_shift_right
     pub fn is_shift_right(self) -> bool {
         // docs:end:is_shift_right
         self.op == 13
     }
 
+    /// Returns `true` if this operator is `<<`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x << y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_shift_left());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_shift_left());
+    /// }
+    /// ```
     // docs:start:is_shift_left
     pub fn is_shift_left(self) -> bool {
         // docs:end:is_shift_left
         self.op == 14
     }
 
+    /// Returns `true` if this operator is `%`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x % y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(op.is_modulo());
+    ///
+    ///     let other = quote { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    ///     assert(!other.is_modulo());
+    /// }
+    /// ```
     // docs:start:is_modulo
     pub fn is_modulo(self) -> bool {
         // docs:end:is_modulo
         self.op == 15
     }
 
+    /// Returns this operator as a [`Quoted`] value, to splice into generated code.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let op = quote { x * y }.as_expr().unwrap().as_binary_op().unwrap().operator().quoted();
+    ///     assert_eq(op, quote { * });
+    ///
+    ///     // Apply the same operator to other operands.
+    ///     let product = quote { a $op b };
+    ///     assert_eq(product, quote { a * b });
+    /// }
+    /// ```
     // docs:start:binary_quoted
     pub comptime fn quoted(self) -> Quoted {
         // docs:end:binary_quoted

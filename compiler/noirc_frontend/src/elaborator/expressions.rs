@@ -955,7 +955,7 @@ impl Elaborator<'_> {
 
         let method_ref = self.lookup_method(
             &object_type,
-            method_name,
+            &method_call.method_name,
             location,
             object_location,
             check_self_param,
@@ -1551,6 +1551,10 @@ impl Elaborator<'_> {
 
         let expr_id = self.intern_expr(expr, location);
 
+        // Which rules apply depends on the operand types, so a queued constraint that decides one
+        // of them (a call returning an associated type) is solved before they are inspected.
+        let lhs_type = &self.structurally_resolve_type(lhs_type);
+        let rhs_type = &self.structurally_resolve_type(rhs_type);
         let result = self.infix_operand_type_rules(lhs_type, &operator, rhs_type, location);
         let typ = self.handle_operand_type_rules_result(
             result,

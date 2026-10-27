@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#trait">Trait WrappingSub</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -71,10 +71,22 @@
     pub fn <a href="#wrapping_sub" class="fn">wrapping_sub</a>(self, y: Self) -> Self;
 }</code></pre>
 
+<div class="comments">
+<p><code>-</code> that wraps around instead of failing on overflow.</p>
+<p>For the integer types the result is computed modulo <code>2^N</code>, where <code>N</code> is the type's bit size; for
+signed types this is the two's complement result. For <a href="../../std/primitive.Field.html"><code>Field</code></a> it is the same as <code>-</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::ops::WrappingSub;
+
+<span class="kw">assert_eq</span>(<span class="number">0_u8</span>.wrapping_sub(<span class="number">1</span>), <span class="number">255</span>);
+<span class="kw">assert_eq</span>((-<span class="number">128_i8</span>).wrapping_sub(<span class="number">1</span>), <span class="number">127</span>);</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="wrapping_sub" class="code-header">pub fn <a href="#wrapping_sub" class="fn">wrapping_sub</a>(self, y: Self) -> Self</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>self - y</code>, wrapping around on overflow.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-WrappingSub-for-Field"><code class="code-header">impl <a href="../../std/ops/trait.WrappingSub.html" class="trait">WrappingSub</a> for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
 
 <h3 id="impl-WrappingSub-for-i16"><code class="code-header">impl <a href="../../std/ops/trait.WrappingSub.html" class="trait">WrappingSub</a> for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>

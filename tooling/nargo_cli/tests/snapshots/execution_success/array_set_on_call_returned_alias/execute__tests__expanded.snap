@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+#[inline_never]
+unconstrained fn producer() -> [Field; 3] {
+    [1_Field, 2_Field, 3_Field]
+}
+
+#[inline_never]
+unconstrained fn alias(v: [Field; 3]) -> [Field; 3] {
+    v
+}
+
+#[inline_never]
+unconstrained fn write_through_alias(v: [Field; 3], i: u32) -> Field {
+    let mut w: [Field; 3] = alias(v);
+    w[i] = 99_Field;
+    w[0_u32]
+}
+
+unconstrained fn compute(i: u32) -> (Field, Field) {
+    let a: [Field; 3] = producer();
+    let x: Field = write_through_alias(a, i);
+    let b: [Field; 3] = producer();
+    (b[0_u32], x)
+}
+
+fn main(i: u32) -> pub Field {
+    // Safety: comment added by `nargo expand`
+    let (first, x): (Field, Field) = unsafe { compute(i) };
+    assert(first == 1_Field, "producer must return a fresh array unaffected by the write");
+    assert((i == 0_u32) | (x == 1_Field));
+    first
+}

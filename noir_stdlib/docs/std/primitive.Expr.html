@@ -19,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#primitive">Primitive type Expr</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -129,10 +129,11 @@
 <div id="page-content">
 <div class="comments">
 <p>A compile-time, quoted, syntactically valid expression.</p>
-<p>An <code>Expr</code> can be obtained using <a href="../std/primitive.Quoted.html#as_expr"><code>Quoted::as_expr</code></a>:</p>
+<p>An <a href="../std/primitive.Expr.html"><code>Expr</code></a> can be obtained using <a href="../std/primitive.Quoted.html#as_expr"><code>Quoted::as_expr</code></a>:</p>
 <pre><code><span class="kw">fn</span> main() {
     <span class="kw">comptime</span> {
         <span class="kw">let</span> expr = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> }.as_expr().unwrap();
+        <span class="kw">assert</span>(expr.as_binary_op().unwrap().operator().is_add());
     }
 }</code></pre></div>
 <h2>Implementations</h2>
@@ -142,157 +143,307 @@
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an array literal <code>[elem1, ..., elemN]</code>, this returns a vector of each element in the array.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> elements = <span class="kw">quote</span> { [<span class="number">1</span>, x] }.as_expr().unwrap().as_array().unwrap();
+    <span class="kw">assert_eq</span>(elements[<span class="number">0</span>].as_integer().unwrap().value(), <span class="number">1</span>);
+    <span class="kw">assert_eq</span>(elements[<span class="number">1</span>].quoted(), <span class="kw">quote</span> { x });
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { @[<span class="number">1</span>, x] }.as_expr().unwrap().as_array().is_none());
+}</code></pre></div>
 </div><code id="as_assert" class="code-header">pub comptime fn <a href="#as_assert" class="fn">as_assert</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.AssertExpression.html" class="struct">AssertExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an assert, this returns its predicate and optional message.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert</span>(x) }.as_expr().unwrap().as_assert().unwrap();
+    <span class="kw">assert_eq</span>(assertion.predicate().quoted(), <span class="kw">quote</span> { x });
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { <span class="kw">assert_eq</span>(x, y) }.as_expr().unwrap().as_assert().is_none());
+}</code></pre></div>
 </div><code id="as_assert_eq" class="code-header">pub comptime fn <a href="#as_assert_eq" class="fn">as_assert_eq</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.AssertEqExpression.html" class="struct">AssertEqExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is an assert_eq, this returns the left-hand-side and right-hand-side
-expressions, together with the optional message.</p>
-</div>
+<p>Decomposes an <code>assert_eq(lhs, rhs, message)</code> expression.</p>
+<p>Returns the left- and right-hand sides and the optional message.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert_eq</span>(x, y) }.as_expr().unwrap().as_assert_eq().unwrap();
+    <span class="kw">assert_eq</span>(assertion.lhs().quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(assertion.rhs().quoted(), <span class="kw">quote</span> { y });
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { <span class="kw">assert</span>(x == y) }.as_expr().unwrap().as_assert_eq().is_none());
+}</code></pre></div>
 </div><code id="as_assign" class="code-header">pub comptime fn <a href="#as_assign" class="fn">as_assign</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.AssignExpression.html" class="struct">AssignExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is an assignment, this returns its left- and right-hand sides.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> assignment = <span class="kw">quote</span> { x = <span class="number">1</span> }.as_expr().unwrap().as_assign().unwrap();
+    <span class="kw">assert_eq</span>(assignment.lhs().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="as_binary_op" class="code-header">pub comptime fn <a href="#as_binary_op" class="fn">as_binary_op</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.BinaryOpExpression.html" class="struct">BinaryOpExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a binary operator operation <code>&lt;lhs&gt; &lt;op&gt; &lt;rhs&gt;</code>,
-return the left-hand side, operator, and the right-hand side of the operation.</p>
-</div>
+<p>Decomposes a binary operation <code>&lt;lhs&gt; &lt;op&gt; &lt;rhs&gt;</code>.</p>
+<p>Returns the left-hand side, the operator and the right-hand side.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x &lt; y }.as_expr().unwrap().as_binary_op().unwrap();
+    <span class="kw">assert</span>(op.operator().is_less_than());
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { -x }.as_expr().unwrap().as_binary_op().is_none());
+}</code></pre></div>
 </div><code id="as_block" class="code-header">pub comptime fn <a href="#as_block" class="fn">as_block</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a block <code>{ stmt1; stmt2; ...; stmtN }</code>, return
-a vector containing each statement.</p>
-</div>
+<p>Returns each statement of a block <code>{ stmt1; stmt2; ...; stmtN }</code>.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> statements = <span class="kw">quote</span> { { foo(); bar() } }.as_expr().unwrap().as_block().unwrap();
+    <span class="kw">assert_eq</span>(statements.len(), <span class="number">2</span>);
+    <span class="kw">assert_eq</span>(statements[<span class="number">1</span>].quoted(), <span class="kw">quote</span> { bar() });
+}</code></pre></div>
 </div><code id="as_bool" class="code-header">pub comptime fn <a href="#as_bool" class="fn">as_bool</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.bool.html" class="primitive">bool</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a boolean literal, return that literal.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { <span class="bool-var">true</span> }.as_expr().unwrap().as_bool(), Option::some(<span class="bool-var">true</span>));
+    <span class="kw">assert</span>(<span class="kw">quote</span> { <span class="number">1</span> }.as_expr().unwrap().as_bool().is_none());
+}</code></pre></div>
 </div><code id="as_cast" class="code-header">pub comptime fn <a href="#as_cast" class="fn">as_cast</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.CastExpression.html" class="struct">CastExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a cast expression <code>expr as type</code>, returns the casted
-expression and the type to cast to.</p>
-</div>
+<p>Decomposes a cast <code>expr as type</code> into the expression and the type it is cast to.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> cast = <span class="kw">quote</span> { x <span class="kw">as</span> u8 }.as_expr().unwrap().as_cast().unwrap();
+    <span class="kw">assert_eq</span>(cast.expression().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="as_comptime" class="code-header">pub comptime fn <a href="#as_comptime" class="fn">as_comptime</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a <code>comptime { stmt1; stmt2; ...; stmtN }</code> block,
-return each statement in the block.</p>
-</div>
+<p>Returns each statement of a <code>comptime { stmt1; stmt2; ...; stmtN }</code> block.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> statements = <span class="kw">quote</span> { <span class="kw">comptime</span> { foo(); bar() } }.as_expr().unwrap().as_comptime().unwrap();
+    <span class="kw">assert_eq</span>(statements.len(), <span class="number">2</span>);
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { { foo() } }.as_expr().unwrap().as_comptime().is_none());
+}</code></pre></div>
 </div><code id="as_constructor" class="code-header">pub comptime fn <a href="#as_constructor" class="fn">as_constructor</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.ConstructorExpression.html" class="struct">ConstructorExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a constructor <code>Type { field1: expr1, ..., fieldN: exprN }</code>,
-return the type and the fields.</p>
-</div>
+<p>Decomposes a constructor <code>Type { field1: expr1, ..., fieldN: exprN }</code>.</p>
+<p>Returns the type and the fields.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> constructor = <span class="kw">quote</span> { Point { x: <span class="number">1</span>, y: <span class="number">2</span> } }.as_expr().unwrap().as_constructor().unwrap();
+    <span class="kw">assert_eq</span>(constructor.fields().len(), <span class="number">2</span>);
+}</code></pre></div>
 </div><code id="as_for" class="code-header">pub comptime fn <a href="#as_for" class="fn">as_for</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.ForExpression.html" class="struct">ForExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a for statement over a single expression, return its identifier,
-iterable, and body.</p>
-</div>
+<p>Decomposes a <code>for</code> loop over an expression such as an array.</p>
+<p>Returns the loop variable, the iterable and the body. A loop over a range is decomposed by
+<a href="../std/primitive.Expr.html#as_for_range"><code>Expr::as_for_range</code></a>.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> x <span class="kw">in</span> array {} }.as_expr().unwrap().as_for().unwrap();
+    <span class="kw">assert_eq</span>(for_loop.iterable().quoted(), <span class="kw">quote</span> { array });
+
+    <span class="comment">// A loop over a range is decomposed by `as_for_range` instead.</span>
+    <span class="kw">assert</span>(<span class="kw">quote</span> { <span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..<span class="number">3</span> {} }.as_expr().unwrap().as_for().is_none());
+}</code></pre></div>
 </div><code id="as_for_range" class="code-header">pub comptime fn <a href="#as_for_range" class="fn">as_for_range</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.ForRangeExpression.html" class="struct">ForRangeExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a for statement over a range, return the identifier,
-the range start, the range end, whether the range is inclusive, and the for loop body.</p>
-</div>
+<p>Decomposes a <code>for</code> loop over a range.</p>
+<p>Returns the loop variable, the range start and end, whether the range is inclusive, and the body.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..<span class="number">3</span> {} }.as_expr().unwrap().as_for_range().unwrap();
+    <span class="kw">assert_eq</span>(for_loop.end().as_integer().unwrap().value(), <span class="number">3</span>);
+}</code></pre></div>
 </div><code id="as_function_call" class="code-header">pub comptime fn <a href="#as_function_call" class="fn">as_function_call</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.FunctionCallExpression.html" class="struct">FunctionCallExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a function call <code>foo(arg1, ..., argN)</code>, return
-the function and a vector of each argument.</p>
-</div>
+<p>Decomposes a function call <code>foo(arg1, ..., argN)</code> into the function and its arguments.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> call = <span class="kw">quote</span> { foo(<span class="number">42</span>) }.as_expr().unwrap().as_function_call().unwrap();
+    <span class="kw">assert_eq</span>(call.function().quoted(), <span class="kw">quote</span> { foo });
+
+    <span class="comment">// A method call is decomposed by `as_method_call` instead.</span>
+    <span class="kw">assert</span>(<span class="kw">quote</span> { x.foo() }.as_expr().unwrap().as_function_call().is_none());
+}</code></pre></div>
 </div><code id="as_if" class="code-header">pub comptime fn <a href="#as_if" class="fn">as_if</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.IfExpression.html" class="struct">IfExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is an <code>if condition { then_branch } else { else_branch }</code>,
-return the condition, then branch, and else branch. If there is no else branch,
-<code>None</code> is returned for that branch instead.</p>
-</div>
+<p>Decomposes an <code>if condition { then_branch } else { else_branch }</code> expression.</p>
+<p>Returns the condition, the then branch and the else branch, which is
+<a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> when there is no <code>else</code>. Returns
+<code>Option::none()</code> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> if_expr = <span class="kw">quote</span> { <span class="kw">if</span> c { a } }.as_expr().unwrap().as_if().unwrap();
+    <span class="kw">assert_eq</span>(if_expr.condition().quoted(), <span class="kw">quote</span> { c });
+    <span class="kw">assert</span>(if_expr.alternative().is_none());
+}</code></pre></div>
 </div><code id="as_index" class="code-header">pub comptime fn <a href="#as_index" class="fn">as_index</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.IndexExpression.html" class="struct">IndexExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is an index into an array <code>array[index]</code>, return the
-array and the index.</p>
-</div>
+<p>Decomposes an index <code>collection[index]</code> into the collection and the index.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> index = <span class="kw">quote</span> { array[<span class="number">0</span>] }.as_expr().unwrap().as_index().unwrap();
+    <span class="kw">assert_eq</span>(index.collection().quoted(), <span class="kw">quote</span> { array });
+}</code></pre></div>
 </div><code id="as_integer" class="code-header">pub comptime fn <a href="#as_integer" class="fn">as_integer</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.IntegerLiteral.html" class="struct">IntegerLiteral</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is an integer literal, return its value. Negative integers are encoded
-as the equivalent negative field value such that e.g. <code>-1i8</code> has a value of <code>-1</code> rather
-than the two's complement encoding of <code>255</code>.</p>
-</div>
+<p>Returns the value of an integer literal.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Negative integers are encoded as the equivalent negative field value, so <code>-1i8</code> has a value of
+<code>-1</code> rather than the two's complement encoding <code>255</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { <span class="number">255</span> }.as_expr().unwrap().as_integer().unwrap().value(), <span class="number">255</span>);
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { -<span class="number">1i8</span> }.as_expr().unwrap().as_integer().unwrap().value(), -<span class="number">1</span>);
+    <span class="kw">assert</span>(<span class="kw">quote</span> { x }.as_expr().unwrap().as_integer().is_none());
+}</code></pre></div>
 </div><code id="as_lambda" class="code-header">pub comptime fn <a href="#as_lambda" class="fn">as_lambda</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.LambdaExpression.html" class="struct">LambdaExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If this expression is a lambda, returns the parameters, return type and body.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> lambda = <span class="kw">quote</span> { |x| x + <span class="number">1</span> }.as_expr().unwrap().as_lambda().unwrap();
+    <span class="kw">assert_eq</span>(lambda.parameters()[<span class="number">0</span>].pattern().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="as_let" class="code-header">pub comptime fn <a href="#as_let" class="fn">as_let</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.LetExpression.html" class="struct">LetExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a let statement, returns the let pattern as an <code>Expr</code>,
-the optional type annotation, and the assigned expression.</p>
-</div>
+<p>Decomposes a <code>let</code> statement.</p>
+<p>Returns the pattern as an <code>Expr</code>, the optional type annotation and the assigned expression.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> let_expr = <span class="kw">quote</span> { <span class="kw">let</span> x = <span class="number">1</span>; }.as_expr().unwrap().as_let().unwrap();
+    <span class="kw">assert_eq</span>(let_expr.pattern().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="as_member_access" class="code-header">pub comptime fn <a href="#as_member_access" class="fn">as_member_access</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.MemberAccessExpression.html" class="struct">MemberAccessExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a member access <code>foo.bar</code>, return the struct/tuple
-expression and the field. The field will be represented as a quoted value.</p>
-</div>
+<p>Decomposes a member access <code>foo.bar</code>.</p>
+<p>Returns the struct or tuple expression and the member name as a <a href="../std/primitive.Quoted.html"><code>Quoted</code></a> value.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> access = <span class="kw">quote</span> { point.x }.as_expr().unwrap().as_member_access().unwrap();
+    <span class="kw">assert_eq</span>(access.member(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="as_method_call" class="code-header">pub comptime fn <a href="#as_method_call" class="fn">as_method_call</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.MethodCallExpression.html" class="struct">MethodCallExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a method call <code>foo.bar::&lt;generic1, ..., genericM&gt;(arg1, ..., argN)</code>, return
-the receiver, method name, a vector of each generic argument, and a vector of each argument.</p>
-</div>
+<p>Decomposes a method call <code>foo.bar::&lt;generic1, ..., genericM&gt;(arg1, ..., argN)</code>.</p>
+<p>Returns the receiver, the method name, the generic arguments and the arguments.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> call = <span class="kw">quote</span> { foo.bar(<span class="number">1</span>) }.as_expr().unwrap().as_method_call().unwrap();
+    <span class="kw">assert_eq</span>(call.method_name(), <span class="kw">quote</span> { bar });
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { bar(foo, <span class="number">1</span>) }.as_expr().unwrap().as_method_call().is_none());
+}</code></pre></div>
 </div><code id="as_repeated_element_array" class="code-header">pub comptime fn <a href="#as_repeated_element_array" class="fn">as_repeated_element_array</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.RepeatedElementArrayExpression.html" class="struct">RepeatedElementArrayExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a repeated element array <code>[elem; length]</code>, return
-the repeated element and the length expressions.</p>
-</div>
+<p>Decomposes a repeated-element array <code>[elem; length]</code> into the element and the length.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> array = <span class="kw">quote</span> { [<span class="number">0</span>; <span class="number">4</span>] }.as_expr().unwrap().as_repeated_element_array().unwrap();
+    <span class="kw">assert_eq</span>(array.length().as_integer().unwrap().value(), <span class="number">4</span>);
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { @[<span class="number">0</span>; <span class="number">4</span>] }.as_expr().unwrap().as_repeated_element_array().is_none());
+}</code></pre></div>
 </div><code id="as_repeated_element_vector" class="code-header">pub comptime fn <a href="#as_repeated_element_vector" class="fn">as_repeated_element_vector</a>(
     self,
 ) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.RepeatedElementVectorExpression.html" class="struct">RepeatedElementVectorExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a repeated element vector <code>[elem; length]</code>, return
-the repeated element and the length expressions.</p>
-</div>
+<p>Decomposes a repeated-element vector <code>@[elem; length]</code> into the element and the length.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> vector = <span class="kw">quote</span> { @[<span class="number">0</span>; <span class="number">4</span>] }.as_expr().unwrap().as_repeated_element_vector().unwrap();
+    <span class="kw">assert_eq</span>(vector.length().as_integer().unwrap().value(), <span class="number">4</span>);
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { [<span class="number">0</span>; <span class="number">4</span>] }.as_expr().unwrap().as_repeated_element_vector().is_none());
+}</code></pre></div>
 </div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector" class="fn">as_vector</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a vector literal <code>@[elem1, ..., elemN]</code>,
-return each element of the vector.</p>
-</div>
+<p>Returns each element of a vector literal <code>@[elem1, ..., elemN]</code>.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> elements = <span class="kw">quote</span> { @[<span class="number">1</span>, <span class="number">2</span>] }.as_expr().unwrap().as_vector().unwrap();
+    <span class="kw">assert_eq</span>(elements.len(), <span class="number">2</span>);
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { [<span class="number">1</span>, <span class="number">2</span>] }.as_expr().unwrap().as_vector().is_none());
+}</code></pre></div>
 </div><code id="as_tuple" class="code-header">pub comptime fn <a href="#as_tuple" class="fn">as_tuple</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a tuple <code>(field1, ..., fieldN)</code>,
-return each element of the tuple.</p>
-</div>
+<p>Returns each element of a tuple <code>(field1, ..., fieldN)</code>.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> elements = <span class="kw">quote</span> { (x, <span class="number">1</span>) }.as_expr().unwrap().as_tuple().unwrap();
+    <span class="kw">assert_eq</span>(elements[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(elements[<span class="number">1</span>].as_integer().unwrap().value(), <span class="number">1</span>);
+}</code></pre></div>
 </div><code id="as_unary_op" class="code-header">pub comptime fn <a href="#as_unary_op" class="fn">as_unary_op</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/expr/struct.UnaryOpExpression.html" class="struct">UnaryOpExpression</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is a unary operation <code>&lt;op&gt; &lt;rhs&gt;</code>,
-return the unary operator as well as the right-hand side expression.</p>
-</div>
+<p>Decomposes a unary operation <code>&lt;op&gt; &lt;rhs&gt;</code> into the operator and the right-hand side.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>An immutable reference <code>&amp;x</code> isn't exposed to comptime code, so it also returns
+<code>Option::none()</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { *x }.as_expr().unwrap().as_unary_op().unwrap();
+    <span class="kw">assert</span>(op.operator().is_dereference());
+
+    <span class="kw">assert</span>(<span class="kw">quote</span> { &x }.as_expr().unwrap().as_unary_op().is_none());
+}</code></pre></div>
 </div><code id="as_unsafe" class="code-header">pub comptime fn <a href="#as_unsafe" class="fn">as_unsafe</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this expression is an <code>unsafe { stmt1; ...; stmtN }</code> block,
-return each statement inside in a vector.</p>
-</div>
+<p>Returns each statement of an <code>unsafe { stmt1; ...; stmtN }</code> block.
+Returns <a href="../std/option/struct.Option.html#none"><code>Option::none()</code></a> if this expression is anything else.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> block = <span class="kw">quote</span> { <span class="comment">/* Safety: example */</span> <span class="kw">unsafe</span> { foo() } }.as_expr().unwrap();
+    <span class="kw">let</span> statements = block.as_unsafe().unwrap();
+    <span class="kw">assert_eq</span>(statements[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { foo() });
+}</code></pre></div>
 </div><code id="has_semicolon" class="code-header">pub comptime fn <a href="#has_semicolon" class="fn">has_semicolon</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
@@ -310,21 +461,41 @@ return each statement inside in a vector.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this expression is <code>break</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> statements = <span class="kw">quote</span> { { <span class="kw">break</span>; <span class="kw">continue</span>; } }.as_expr().unwrap().as_block().unwrap();
+    <span class="kw">assert</span>(statements[<span class="number">0</span>].is_break());
+    <span class="kw">assert</span>(!statements[<span class="number">1</span>].is_break());
+}</code></pre></div>
 </div><code id="is_continue" class="code-header">pub comptime fn <a href="#is_continue" class="fn">is_continue</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if this expression is <code>continue</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> statements = <span class="kw">quote</span> { { <span class="kw">break</span>; <span class="kw">continue</span>; } }.as_expr().unwrap().as_block().unwrap();
+    <span class="kw">assert</span>(!statements[<span class="number">0</span>].is_continue());
+    <span class="kw">assert</span>(statements[<span class="number">1</span>].is_continue());
+}</code></pre></div>
 </div><code id="quoted" class="code-header">pub comptime fn <a href="#quoted" class="fn">quoted</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns this expression as a <code>Quoted</code> value. It's the same as <code>quote { $self }</code>.</p>
-</div>
+<p>Returns this expression as a <a href="../std/primitive.Quoted.html"><code>Quoted</code></a> value. It's the same as <code>quote { $self }</code>.</p>
+<p>Two <code>Quoted</code> values are equal when they print the same. An expression prints with its own
+parentheses, so <code>x + y</code> re-quoted through this method equals <code>quote { (x + y) }</code>, not
+<code>quote { x + y }</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> expr = <span class="kw">quote</span> { foo(x) }.as_expr().unwrap();
+    <span class="kw">assert_eq</span>(expr.quoted(), <span class="kw">quote</span> { foo(x) });
+
+    <span class="kw">let</span> sum = <span class="kw">quote</span> { x + y }.as_expr().unwrap();
+    <span class="kw">assert_eq</span>(sum.quoted(), <span class="kw">quote</span> { (x + y) });
+}</code></pre></div>
 </div><code id="resolve" class="code-header">pub comptime fn <a href="#resolve" class="fn">resolve</a>(self, in_function: <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>&gt;) -> <a href="../std/primitive.TypedExpr.html" class="primitive">TypedExpr</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Resolves and type-checks this expression and returns the result as a <code>TypedExpr</code>.</p>
+<p>Resolves and type-checks this expression and returns the result as a <a href="../std/primitive.TypedExpr.html"><code>TypedExpr</code></a>.</p>
 <p>The <code>in_function</code> argument specifies where the expression is resolved:</p>
 <ul>
 <li>If it's <code>none</code>, the expression is resolved in the function where <code>resolve</code> was called</li>
@@ -333,7 +504,22 @@ return each statement inside in a vector.</p>
 <p>If any names used by this expression are not in scope or if there are any type errors,
 this will give compiler errors as if the expression was written directly into
 the current <code>comptime</code> function.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> double(x: u32) -&gt; u32 {
+    x * <span class="number">2</span>
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert_eq</span>(double(<span class="number">3</span>), <span class="number">6</span>);
+
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> call = <span class="kw">quote</span> { double(<span class="number">3</span>) }.as_expr().unwrap().resolve(Option::none());
+        <span class="kw">assert_eq</span>(call.get_type().unwrap(), <span class="kw">quote</span> { u32 }.as_type());
+
+        <span class="kw">let</span> function = <span class="kw">quote</span> { double }.as_expr().unwrap().resolve(Option::none());
+        <span class="kw">assert_eq</span>(function.as_function_definition().unwrap().name(), <span class="kw">quote</span> { double });
+    }
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

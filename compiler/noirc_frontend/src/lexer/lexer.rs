@@ -255,8 +255,11 @@ impl<'a> Lexer<'a> {
                 if self.peek_char_is('=') {
                     self.next_char();
                     Ok(Token::LessEqual.into_span(start, start + 1))
-                    // Note: There is deliberately no case for ShiftLeft. We always lex << as
-                    // two separate Less tokens to help the parser parse nested generic types.
+                } else if self.peek_char_is('<') {
+                    // The parser splits this token back into two `<` where it expects one,
+                    // as in `Store<<T as HasKey>::Key>`.
+                    self.next_char();
+                    Ok(Token::ShiftLeft.into_span(start, start + 1))
                 } else {
                     Ok(prev_token.into_single_span(start))
                 }
@@ -1103,8 +1106,7 @@ mod tests {
             Token::Star,
             Token::Assign,
             Token::Equal,
-            Token::Less,
-            Token::Less,
+            Token::ShiftLeft,
             Token::Greater,
             Token::Greater,
             Token::EOF,

@@ -21,6 +21,8 @@ impl<T, let N: u32> [T; N] {
 
     /// Returns this array as a vector.
     ///
+    /// Example:
+    ///
     /// ```noir
     /// let array = [1, 2];
     /// let vector = array.as_vector();
@@ -33,7 +35,7 @@ impl<T, let N: u32> [T; N] {
     ///
     /// Example:
     ///
-    /// ```rust
+    /// ```noir
     /// let a = [1, 2, 3];
     /// let b = a.map(|a| a * 2);
     /// assert_eq(b, [2, 4, 6]);
@@ -54,8 +56,8 @@ impl<T, let N: u32> [T; N] {
     ///
     /// Example:
     ///
-    /// ```rust
-    /// let a = [1, 2, 3];
+    /// ```noir
+    /// let a: [u32; 3] = [1, 2, 3];
     /// let b = a.mapi(|i, a| i + a * 2);
     /// assert_eq(b, [2, 5, 8]);
     /// ```
@@ -74,15 +76,15 @@ impl<T, let N: u32> [T; N] {
     ///
     /// Example:
     ///
-    /// ```rust
+    /// ```noir
     /// let a = [1, 2, 3];
-    /// let mut b = [0; 3];
-    /// let mut i = 0;
+    /// let mut sum = 0;
+    /// // A closure can't assign to a captured `mut` variable, so it writes through a reference.
+    /// let sum_ref = &mut sum;
     /// a.for_each(|x| {
-    ///     b[i] = x;
-    ///     i += 1;
+    ///     *sum_ref += x;
     /// });
-    /// assert_eq(a, b);
+    /// assert_eq(sum, 6);
     /// ```
     pub fn for_each<Env>(&self, f: fn[Env](T) -> ()) {
         for i in 0..self.len() {
@@ -94,11 +96,12 @@ impl<T, let N: u32> [T; N] {
     ///
     /// Example:
     ///
-    /// ```rust
+    /// ```noir
     /// let a = [1, 2, 3];
     /// let mut b = [0; 3];
+    /// let b_ref = &mut b;
     /// a.for_eachi(|i, x| {
-    ///     b[i] = x;
+    ///     b_ref[i] = x;
     /// });
     /// assert_eq(a, b);
     /// ```
@@ -114,17 +117,11 @@ impl<T, let N: u32> [T; N] {
     /// This is a left fold, so the given function will be applied to the accumulator and first element of
     /// the array, then the second, and so on. For a given call the expected result would be equivalent to:
     ///
-    /// ```rust
-    /// let a1 = [1];
-    /// let a2 = [1, 2];
-    /// let a3 = [1, 2, 3];
-    ///
-    /// let f = |a, b| a - b;
-    /// a1.fold(10, f); //=> f(10, 1)
-    /// a2.fold(10, f); //=> f(f(10, 1), 2)
-    /// a3.fold(10, f); //=> f(f(f(10, 1), 2), 3)
-    ///
-    /// assert_eq(a3.fold(10, f), 10 - 1 - 2 - 3);
+    /// ```noir
+    /// let f = |a: Field, b: Field| a - b;
+    /// assert_eq([1].fold(10, f), f(10, 1));
+    /// assert_eq([1, 2].fold(10, f), f(f(10, 1), 2));
+    /// assert_eq([1, 2, 3].fold(10, f), 10 - 1 - 2 - 3);
     /// ```
     pub fn fold<U, Env>(&self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U {
         for elem in self {
@@ -135,8 +132,6 @@ impl<T, let N: u32> [T; N] {
 
     /// Same as fold, but uses the first element as the starting element.
     ///
-    /// Requires the input array to be non-empty.
-    ///
     /// Example:
     ///
     /// ```noir
@@ -146,6 +141,10 @@ impl<T, let N: u32> [T; N] {
     ///     assert(reduced == 10);
     /// }
     /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if the array is empty.
     pub fn reduce<Env>(&self, f: fn[Env](T, T) -> T) -> T {
         let mut accumulator = self[0];
         for i in 1..self.len() {
@@ -220,19 +219,19 @@ impl<T, let N: u32> [T; N]
 where
     T: Ord + Eq,
 {
-    /// Returns a new sorted array. The original array remains untouched. Notice that this function will
-    /// only work for arrays of fields or integers, not for any arbitrary type. This is because the sorting
-    /// logic it uses internally is optimized specifically for these values. If you need a sort function to
-    /// sort any type, you should use the [`Self::sort_via`] function.
+    /// Returns a new array sorted in ascending order. The original array remains untouched.
+    ///
+    /// It works for any element type that implements [`Ord`], using `<=`. The type
+    /// must also implement [`Eq`], because the result is checked against the input
+    /// in the same way as [`Self::sort_via`]'s. [`Field`] doesn't implement `Ord`, so to sort
+    /// fields, or to sort by another order, use `sort_via`.
     ///
     /// Example:
     ///
-    /// ```rust
-    /// fn main() {
-    ///     let arr = [42, 32];
-    ///     let sorted = arr.sort();
-    ///     assert(sorted == [32, 42]);
-    /// }
+    /// ```noir
+    /// let arr = [42_u32, 32];
+    /// let sorted = arr.sort();
+    /// assert_eq(sorted, [32, 42]);
     /// ```
     pub fn sort(&self) -> Self {
         self.sort_via(|a, b| a <= b)
@@ -247,19 +246,35 @@ where
     /// The original array remains untouched.
     /// The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.
     ///
-    /// Using this method with an operator like `<` that does not return `true` for equal values will result in an assertion failure for arrays with equal elements.
+    /// The sort itself runs in unconstrained code. In constrained code, the result is then checked
+    /// to be a permutation of the input in which every adjacent pair satisfies `ordering`, so it is
+    /// fully constrained.
     ///
     /// Example:
     ///
-    /// ```rust
-    /// fn main() {
-    ///     let arr = [42, 32]
-    ///     let sorted_ascending = arr.sort_via(|a, b| a <= b);
-    ///     assert(sorted_ascending == [32, 42]); // verifies
+    /// ```noir
+    /// let arr = [42_u32, 32];
+    /// let sorted_ascending = arr.sort_via(|a, b| a <= b);
+    /// assert_eq(sorted_ascending, [32, 42]);
     ///
-    ///     let sorted_descending = arr.sort_via(|a, b| a >= b);
-    ///     assert(sorted_descending == [32, 42]); // does not verify
-    /// }
+    /// let sorted_descending = arr.sort_via(|a, b| a >= b);
+    /// assert_eq(sorted_descending, [42, 32]);
+    ///
+    /// // Fields have no `<=`, so compare their integer values with `Field::lt`:
+    /// // `!b.lt(a)` is `a <= b`.
+    /// let fields: [Field; 3] = [3, 1, 2];
+    /// assert_eq(fields.sort_via(|a: Field, b| !b.lt(a)), [1, 2, 3]);
+    /// ```
+    ///
+    /// # Failures
+    ///
+    /// In constrained code, fails if, after sorting, `ordering` returns `false` for some pair of
+    /// adjacent elements: for example, if `ordering` is `<` and the array has two equal elements.
+    /// Unconstrained code doesn't check the result.
+    ///
+    /// ```noir should_fail
+    /// // Fails: `<` returns `false` for the two equal elements.
+    /// let _ = [2_u32, 1, 2].sort_via(|a, b| a < b);
     /// ```
     pub fn sort_via<Env>(&self, ordering: fn[Env](T, T) -> bool) -> Self {
         if N != 0 {
@@ -290,11 +305,9 @@ impl<let N: u32> [u8; N] {
     ///
     /// Example:
     ///
-    /// ```rust
-    /// fn main() {
-    ///     let hi = [104, 105].as_str_unchecked();
-    ///     assert_eq(hi, "hi");
-    /// }
+    /// ```noir
+    /// let hi = [104, 105].as_str_unchecked();
+    /// assert_eq(hi, "hi");
     /// ```
     #[builtin(array_as_str_unchecked)]
     pub fn as_str_unchecked(self) -> str<N> {}

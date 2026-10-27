@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In module panic</h2>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.panic.html">panic</a></div></li>
@@ -41,7 +41,24 @@
 <div class="comments">
 <p>Halt the program at runtime with the given error message.</p>
 <p>The provided error message must be either a <code>str</code> or a <code>fmtstr</code>.</p>
-</div>
+<p>It returns any type, so it can stand in for a value in a branch that should never run. It is
+<code>assert(false, message)</code>: in constrained code, the branch that calls it must be unreachable for
+the program to prove.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> digit_value(c: u8) -&gt; u8 {
+    <span class="kw">if</span> (c &gt;= <span class="number">48</span>) & (c &lt;= <span class="number">57</span>) {
+        c - <span class="number">48</span>
+    } <span class="kw">else</span> {
+        panic(<span class="string">f"</span><span class="string">not a digit: </span><span class="interpolation">{c}</span><span class="string">"</span>)
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert_eq</span>(digit_value(<span class="number">55</span>), <span class="number">7</span>);
+}</code></pre>
+<p>Calling it fails the program with <code>message</code>:</p>
+<pre><code><span class="comment">// Fails with the message "something went wrong".</span>
+<span class="kw">let</span> _: u8 = panic(<span class="string">"something went wrong"</span>);</code></pre></div>
 </div>
 </main>
 </span>

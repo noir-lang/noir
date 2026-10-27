@@ -19,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In crate std</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="aes128/index.html">aes128</a></div></li>
@@ -98,7 +98,10 @@
 <p>Force a field value to be a witness instead of a constant in the compiled output.
 This is often only useful for debugging compiler optimizations.</p>
 <p>This has no effect in unconstrained or comptime code.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> x: Field = <span class="number">5</span>;
+std::as_witness(x);
+<span class="kw">assert_eq</span>(x, <span class="number">5</span>);</code></pre></div>
 </div>
 </main>
 </span>

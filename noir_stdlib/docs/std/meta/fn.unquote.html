@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2>In module meta</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="ctstring/index.html">ctstring</a></div></li>
@@ -55,10 +55,12 @@
 <pre><code>pub comptime fn unquote(code: <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>) -> <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a></code></pre>
 
 <div class="comments">
-<p>Calling unquote as a macro (via <code>unquote!(arg)</code>) will unquote
-its argument. Since this is the effect <code>!</code> already does, <code>unquote</code>
-itself does not need to do anything besides return its argument.</p>
-</div>
+<p>Inserts quoted code at the call site when called as <code>unquote!(code)</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> sum: u32 = std::meta::unquote!(<span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> });
+    <span class="kw">assert_eq</span>(sum, <span class="number">3</span>);
+}</code></pre></div>
 </div>
 </main>
 </span>

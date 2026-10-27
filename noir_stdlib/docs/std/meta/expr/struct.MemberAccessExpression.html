@@ -19,7 +19,7 @@
 <h1><a href="../../../index.html">noir_stdlib</a></h1>
 <div><a href="../../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.5</div>
+<div id="crate-version">1.0.0-rc.6</div>
 <h2><a href="#struct">Struct MemberAccessExpression</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -64,7 +64,13 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A member access decomposed by <a href="../../../std/primitive.Expr.html#as_member_access"><code>Expr::as_member_access</code></a>.</p></div>
+<p>A member access decomposed by <a href="../../../std/primitive.Expr.html#as_member_access"><code>Expr::as_member_access</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> access = <span class="kw">quote</span> { point.x }.as_expr().unwrap().as_member_access().unwrap();
+    <span class="kw">assert_eq</span>(access.object().quoted(), <span class="kw">quote</span> { point });
+    <span class="kw">assert_eq</span>(access.member(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.MemberAccessExpression.html" class="struct">MemberAccessExpression</a></code></h3>
 
@@ -72,11 +78,20 @@
 
 <div class="padded-description"><div class="comments">
 <p>The expression containing the member.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> access = <span class="kw">quote</span> { point.x }.as_expr().unwrap().as_member_access().unwrap();
+    <span class="kw">assert_eq</span>(access.object().quoted(), <span class="kw">quote</span> { point });
+}</code></pre></div>
 </div><code id="member" class="code-header">pub comptime fn <a href="#member" class="fn">member</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>The member name as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p></div>
+<p>The member name as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> access = <span class="kw">quote</span> { point.x }.as_expr().unwrap().as_member_access().unwrap();
+    <span class="kw">assert_eq</span>(access.member(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>
