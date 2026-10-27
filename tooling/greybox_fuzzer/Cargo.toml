@@ -1,5 +1,6 @@
 [package]
 name = "noir_greybox_fuzzer"
+publish = false
 description = "A greybox (coverage) fuzzer for Noir programs"
 version.workspace = true
 authors.workspace = true

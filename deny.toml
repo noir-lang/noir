@@ -23,6 +23,8 @@ ignore = [
 multiple-versions = "warn"
 # Lint level for when a crate version requirement is `*`
 wildcards = "warn"
+# Unversioned `path` dependencies on unpublished workspace crates are not wildcards in practice.
+allow-wildcard-paths = true
 highlight = "all"
 # List of crates to deny
 deny = [

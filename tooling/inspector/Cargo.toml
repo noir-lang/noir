@@ -1,5 +1,6 @@
 [package]
 name = "noir_inspector"
+publish = false
 description = "Inspector for noir build artifacts"
 version.workspace = true
 authors.workspace = true

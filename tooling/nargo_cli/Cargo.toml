@@ -1,5 +1,6 @@
 [package]
 name = "nargo_cli"
+publish = false
 description = "Noir's package manager"
 default-run = "nargo"
 version.workspace = true
