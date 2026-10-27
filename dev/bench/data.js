@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793116287651,
+  "lastUpdate": 1793127277546,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22980,48 +22980,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "d5e8a5bc1a586bf7561c83e2d10712624323aaf2",
-          "message": "fix(ssa): make `break` in an inclusive range skip the peeled final iteration (#14035)",
-          "timestamp": "2026-10-19T12:24:44Z",
-          "tree_id": "067a7f346844ea18467c61e0126c0cb164e0228a",
-          "url": "https://github.com/noir-lang/noir/commit/d5e8a5bc1a586bf7561c83e2d10712624323aaf2"
-        },
-        "date": 1792414023156,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168336,
-            "range": "± 851",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138156,
-            "range": "± 5127",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2650757,
-            "range": "± 2660",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "96ea5803f872f9771bb8d05f12ad90f86ff15298",
           "message": "chore(stdlib): document arrays, vectors, strings, mem, test mocks and top-level functions (#14027)",
@@ -25064,6 +25022,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644025,
             "range": "± 2177",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "622a2fbe1d9d49c8932114afd7dedfc67cae5157",
+          "message": "fix(ssa): don't fold signed casts of out-of-range constants, and fix `two_pow` off-by-one (#14108)",
+          "timestamp": "2026-10-27T18:32:19Z",
+          "tree_id": "bccc287f93b1105ea21ede2c3b740eb26ddcb362",
+          "url": "https://github.com/noir-lang/noir/commit/622a2fbe1d9d49c8932114afd7dedfc67cae5157"
+        },
+        "date": 1793127151610,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98616,
+            "range": "± 250",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87645,
+            "range": "± 1099",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2358537,
+            "range": "± 1835",
             "unit": "ns/iter"
           }
         ]
