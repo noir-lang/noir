@@ -1,8 +1,7 @@
 use acir::BlackBoxFunc;
 use ecdsa::{EcdsaCurve, Signature, SignatureSize};
 use k256::elliptic_curve::{
-    AffinePoint, CurveArithmetic, FieldBytes, FieldBytesSize, PrimeField, ProjectivePoint,
-    PublicKey, Scalar,
+    AffinePoint, CurveArithmetic, FieldBytes, FieldBytesSize, ProjectivePoint, PublicKey, Scalar,
     array::ArraySize,
     bigint::U256,
     ff::Field,
@@ -65,7 +64,8 @@ pub fn ecdsa_secp256r1_verify(
 /// - The public key point is not on the curve
 ///
 /// If `hashed_msg >= C::ORDER`, the message hash is reduced modulo the curve
-/// order per ECDSA specification (SEC 1, section 4.1.4).
+/// order per ECDSA specification (SEC 1, section 4.1.4). The x-coordinate of the
+/// recovered point is likewise reduced modulo the curve order before comparison with `r`.
 fn verify_signature<C>(
     func: BlackBoxFunc,
     hashed_msg: &[u8; 32],
@@ -132,18 +132,10 @@ where
     // Compare R.x with signature's r component.
     match R.to_sec1_point(false).coordinates() {
         k256::elliptic_curve::sec1::Coordinates::Uncompressed { x, y: _ } => {
-            // The conversion from R.x to a scalar can fail if R.x >= curve_order (a possible but rare case).
-            // In this case, the signature is invalid per ECDSA specification, so we return false.
-            // The prover will handle this gracefully - it should generate a proof that fails verification.
-            Ok(Scalar::<C>::from_repr(*x).into_option().map_or_else(
-                || {
-                    log::warn!(
-                        "ECDSA {func} verification: R.x coordinate exceeds scalar field order - signature is invalid"
-                    );
-                    false
-                },
-                |scalar| scalar == *r,
-            ))
+            // Per ECDSA specification (SEC 1, section 4.1.4), R.x is reduced modulo the curve
+            // order before comparing it against `r`, as R.x may lie in `[C::ORDER, p)`.
+            let v = <Scalar<C> as Reduce<U256>>::reduce(&U256::from_be_slice(x));
+            Ok(v == *r)
         }
         k256::elliptic_curve::sec1::Coordinates::Identity => Ok(false),
         _ => {
