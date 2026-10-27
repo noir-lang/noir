@@ -93,14 +93,15 @@ impl<'f> Validator<'f> {
     /// Enforces that every narrowing cast is preceded by an instruction that
     /// guarantees the value being cast fits into the destination type.
     ///
-    /// A `Cast` lowers to an assertion that the value fits in the destination
-    /// type (see the SSA interpreter's handling of [`Instruction::Cast`], which
-    /// errors when the value does not fit), so a *narrowing* cast — one whose
-    /// source type can hold values that do not fit in the destination — is only
-    /// sound when an earlier instruction has already constrained the value. A
-    /// raw narrowing cast on e.g. a program input would otherwise let a value
-    /// that should fail to convert slip through, and downstream passes are then
-    /// free to drop the now-dead failing cast (see the cast-chain simplifier).
+    /// A `Cast` relabels the value's type without checking that it fits: ACIR
+    /// emits no opcode for it, the SSA interpreter keeps the field element (see
+    /// its handling of [`Instruction::Cast`]), and Brillig truncates to the
+    /// destination bit size. So a *narrowing* cast — one whose source type can
+    /// hold values that do not fit in the destination — is only well-defined
+    /// when an earlier instruction has already constrained the value. A raw
+    /// narrowing cast on e.g. a program input would otherwise give a value
+    /// outside its type, on which the backends disagree, and downstream passes
+    /// are free to fold the cast away (see the cast-chain simplifier).
     ///
     /// The value being cast must therefore be one of:
     /// 1. A value that was range-checked to a bit size that fits the destination.

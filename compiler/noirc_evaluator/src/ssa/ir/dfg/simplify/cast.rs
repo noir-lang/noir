@@ -4,7 +4,6 @@ use num_bigint::BigUint;
 use crate::ssa::ir::{
     dfg::{DataFlowGraph, simplify::SimplifyResult, simplify::bail_malformed},
     instruction::Instruction,
-    integer::IntegerConstant,
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
@@ -64,7 +63,8 @@ pub(super) fn simplify_cast(
                 | NumericType::Signed { .. },
                 NumericType::Signed { bit_size },
             ) => {
-                // `IntegerConstant::from_numeric_constant` cannot handle i128
+                // Noir has no `i128` type and the SSA interpreter does not model one, so casts
+                // into it are left alone.
                 if bit_size == 128 {
                     return None;
                 }
@@ -74,17 +74,13 @@ pub(super) fn simplify_cast(
                 // If that element does not fit in `bit_size` bits the cast is malformed: folding it
                 // would produce a constant outside its own type's range, and truncating it would
                 // pick one value for an operation whose result the backends do not agree on.
-                // The cast is kept so the validator can still reject it.
+                // Keeping the cast leaves each backend's semantics in place, and lets the validator
+                // reject a narrowing cast of an out-of-range constant.
                 if constant.num_bits() > bit_size {
                     return None;
                 }
 
-                let integer_constant = IntegerConstant::from_numeric_constant(constant, dst_typ);
-                if integer_constant.is_some() {
-                    SimplifiedTo(dfg.make_constant(constant, dst_typ))
-                } else {
-                    None
-                }
+                SimplifiedTo(dfg.make_constant(constant, dst_typ))
             }
             (NumericType::NativeField, NumericType::NativeField) => {
                 unreachable!("This should be covered in previous if-branch")

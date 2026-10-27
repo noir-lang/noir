@@ -495,14 +495,14 @@ fn remove_bit_shifts_post_check(func: &Function) {
 
 #[cfg(test)]
 mod tests {
-    use acvm::{AcirField, FieldElement};
     use test_case::test_case;
 
     use crate::{
         assert_ssa_snapshot,
         ssa::{
-            interpreter::value::Value, ir::types::NumericType,
-            opt::assert_pass_does_not_affect_execution, ssa_gen::Ssa,
+            interpreter::value::Value,
+            opt::assert_pass_does_not_affect_execution,
+            ssa_gen::{Ssa, validate_ssa},
         },
     };
 
@@ -1238,31 +1238,9 @@ mod tests {
         ");
     }
 
-    /// Asserts that every numeric constant used by `main` fits the bit size of its own type.
-    fn assert_constants_fit_their_types(ssa: &Ssa) {
-        let function = ssa.main();
-        let dfg = &function.dfg;
-        let check = |value| {
-            if let Some((constant, typ)) = dfg.get_numeric_constant_with_type(value)
-                && !matches!(typ, NumericType::NativeField)
-            {
-                assert!(
-                    constant.num_bits() <= typ.bit_size::<FieldElement>(),
-                    "constant {constant} does not fit in {typ}:\n{ssa}"
-                );
-            }
-        };
-        for block in function.reachable_blocks() {
-            for instruction in dfg[block].instructions() {
-                dfg[*instruction].for_each_value(check);
-            }
-            dfg[block].unwrap_terminator().for_each_value(check);
-        }
-    }
-
     // A shift by a constant at least as large as the bit size fails the
     // "attempt to bit-shift with overflow" constraint, and the power of two computed for it
-    // must still be a valid constant of the shifted type.
+    // must still be castable to the shifted type: the output passes full validation.
     #[test_case("shr", "i8", 8)]
     #[test_case("shr", "i8", 9)]
     #[test_case("shr", "i16", 16)]
@@ -1273,7 +1251,7 @@ mod tests {
     #[test_case("shl", "i8", 8)]
     #[test_case("shl", "i32", 32)]
     #[test_case("shl", "u8", 8)]
-    fn shift_by_constant_not_less_than_bit_size_uses_in_range_constants(
+    fn shift_by_constant_not_less_than_bit_size_passes_full_validation(
         op: &str,
         typ: &str,
         rhs: u32,
@@ -1294,7 +1272,7 @@ mod tests {
                 .contains("constrain u1 0 == u1 1, \"attempt to bit-shift with overflow\""),
             "missing overflow constraint:\n{ssa}"
         );
-        assert_constants_fit_their_types(&ssa);
+        validate_ssa(&ssa, true);
     }
 
     #[test]
@@ -1348,6 +1326,6 @@ mod tests {
         let (ssa, result) =
             assert_pass_does_not_affect_execution(ssa, vec![input], |ssa| ssa.remove_bit_shifts());
         assert_eq!(result, Ok(vec![expected]));
-        assert_constants_fit_their_types(&ssa);
+        validate_ssa(&ssa, true);
     }
 }
