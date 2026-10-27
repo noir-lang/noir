@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793113571655,
+  "lastUpdate": 1793113667532,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14862,95 +14862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "564483b8d3b8f1cf73552aab681e540e17d28c7f",
-          "message": "chore(deps): bump streetsidesoftware/cspell-action from 9.1.0 to 9.2.0 in the actions-minor-and-patch group (#14033)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-10-19T11:25:02Z",
-          "tree_id": "12453e6d7088b9aa751f77e4db64f7e66af7c0d6",
-          "url": "https://github.com/noir-lang/noir/commit/564483b8d3b8f1cf73552aab681e540e17d28c7f"
-        },
-        "date": 1792411400788,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 307.3,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 350.09,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 336.59,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 394.3,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 391.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 391.82,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 491.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 501.23,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 390.98,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 88.47,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 80.24,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -19240,6 +19151,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/fcc5bdabb486f27991636d0a0eba472272c07e7b"
         },
         "date": 1793113402530,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 307.93,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 350.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 337.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 396.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 393.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 394.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 496.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 507.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 393.23,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 89.1,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 80.87,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "da10ef0b3295b0175a4efc8ca150d043bf4d77e2",
+          "message": "chore(deps): bump postcss-selector-parser from 6.1.4 to 6.1.5 in /docs (#14107)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-27T14:18:46Z",
+          "tree_id": "85279b21df6de7c5690ca533de718d41df42bc92",
+          "url": "https://github.com/noir-lang/noir/commit/da10ef0b3295b0175a4efc8ca150d043bf4d77e2"
+        },
+        "date": 1793113571344,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
