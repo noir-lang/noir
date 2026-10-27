@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793106816763,
+  "lastUpdate": 1793107817897,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22996,48 +22996,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "2873da68b63fa03abc2f9fd547bed64c425c4059",
-          "message": "chore(stdlib): document UHashMap and Option, and state BoundedVec's unchecked guarantees (#14021)",
-          "timestamp": "2026-10-16T17:25:53Z",
-          "tree_id": "24c3cfd414cb4c021775e16db534ba7c181e800c",
-          "url": "https://github.com/noir-lang/noir/commit/2873da68b63fa03abc2f9fd547bed64c425c4059"
-        },
-        "date": 1792172940360,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 171493,
-            "range": "± 1372",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140088,
-            "range": "± 1511",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2653030,
-            "range": "± 1981",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "191767a3a2adb6cab3155055e12b190e7b0e8393",
           "message": "fix(stdlib): count a `UHashMap` insert into a tombstone (#13689)",
           "timestamp": "2026-10-16T17:57:39Z",
@@ -25079,6 +25037,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2359244,
             "range": "± 1347",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fded85be5a20c52aabefd02b924dceff0cbab795",
+          "message": "fix: impls are checked for overlap once every impl is collected, comparing associated types (#14099)",
+          "timestamp": "2026-10-27T13:03:45Z",
+          "tree_id": "c27922d851acfac71f4b885398cf6bf66772bea6",
+          "url": "https://github.com/noir-lang/noir/commit/fded85be5a20c52aabefd02b924dceff0cbab795"
+        },
+        "date": 1793107720806,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168295,
+            "range": "± 421",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137481,
+            "range": "± 3952",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2649182,
+            "range": "± 2019",
             "unit": "ns/iter"
           }
         ]
