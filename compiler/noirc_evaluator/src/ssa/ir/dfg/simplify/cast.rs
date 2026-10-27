@@ -4,7 +4,6 @@ use num_bigint::BigUint;
 use crate::ssa::ir::{
     dfg::{DataFlowGraph, simplify::SimplifyResult, simplify::bail_malformed},
     instruction::Instruction,
-    integer::IntegerConstant,
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
@@ -64,20 +63,24 @@ pub(super) fn simplify_cast(
                 | NumericType::Signed { .. },
                 NumericType::Signed { bit_size },
             ) => {
-                // `IntegerConstant::from_numeric_constant` cannot handle i128
+                // Noir has no `i128` type and the SSA interpreter does not model one, so casts
+                // into it are left alone.
                 if bit_size == 128 {
                     return None;
                 }
 
-                // Field/Unsigned -> signed
-                // We could only simplify to signed when we are below the maximum integer of the destination type.
-                // However, we expect that overflow constraints have been generated appropriately that enforce correctness.
-                let integer_constant = IntegerConstant::from_numeric_constant(constant, dst_typ);
-                if integer_constant.is_some() {
-                    SimplifiedTo(dfg.make_constant(constant, dst_typ))
-                } else {
-                    None
+                // Field/Unsigned/Signed -> signed
+                // A cast only relabels the type, so the folded constant keeps the same field element.
+                // If that element does not fit in `bit_size` bits the cast is malformed: folding it
+                // would produce a constant outside its own type's range, and truncating it would
+                // pick one value for an operation whose result the backends do not agree on.
+                // Keeping the cast leaves each backend's semantics in place, and lets the validator
+                // reject a narrowing cast of an out-of-range constant.
+                if constant.num_bits() > bit_size {
+                    return None;
                 }
+
+                SimplifiedTo(dfg.make_constant(constant, dst_typ))
             }
             (NumericType::NativeField, NumericType::NativeField) => {
                 unreachable!("This should be covered in previous if-branch")
@@ -130,12 +133,16 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        // The overflow check would fail here.
+        // `u8 300` does not fit in 8 bits, so the cast to `i8` is not folded.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0():
-            constrain u1 1 == u1 0
-            return i8 44
+            v1 = cast u8 300 as i8
+            v2 = truncate v1 to 8 bits, max_bit_size: 9
+            v3 = cast v2 as u8
+            v5 = lt v3, u8 128
+            constrain v5 == u1 0
+            return v2
         }
         ");
     }

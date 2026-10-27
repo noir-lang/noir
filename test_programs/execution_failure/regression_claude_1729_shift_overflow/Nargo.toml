@@ -1,0 +1,6 @@
+[package]
+name = "regression_claude_1729_shift_overflow"
+type = "bin"
+authors = [""]
+
+[dependencies]
