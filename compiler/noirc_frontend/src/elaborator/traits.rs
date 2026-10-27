@@ -175,7 +175,7 @@ use noirc_errors::Location;
 
 use crate::{
     IMPL_TRAIT_PARAMETER_NAME_PREFIX, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBindings,
-    TypeVariable,
+    TypeVariable, TypeVariableId,
     ast::{
         FunctionDefinition, FunctionKind, GenericTypeArgs, Ident, NoirFunction, Path, TraitBound,
         TraitItem, UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType,
@@ -943,31 +943,65 @@ impl Elaborator<'_> {
         constraint: &TraitConstraint,
     ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
         let mut new_constraints = Vec::new();
+        let mut fixes = Vec::new();
         self.collect_parent_associated_types(
             &constraint.typ,
             &constraint.trait_bound,
             &mut new_constraints,
+            &mut fixes,
             &mut rustc_hash::FxHashSet::default(),
         );
 
-        // Every path has been seen, so an item still a placeholder is one no path fixes.
-        let mut new_generics = Vec::new();
-        for parent_constraint in &new_constraints {
-            let trait_bound = &parent_constraint.trait_bound;
-            for named_type in &trait_bound.trait_generics.named {
-                if let Type::TypeVariable(placeholder) =
-                    named_type.typ.follow_bindings_shallow().as_ref()
-                    && placeholder.binding().is_unbound()
-                {
-                    let typ = self.left_out_parent_item(
-                        &parent_constraint.typ,
-                        trait_bound,
-                        named_type.name.as_str(),
-                        &mut new_generics,
-                    );
-                    placeholder.bind(typ);
+        // Every path has been seen. Each item is the one type the paths fix it to, or a fresh
+        // generic if none does. No implementor satisfies two paths fixing it to different
+        // types, which is reported as ambiguous, as rustc does (E0284).
+        let slots: Vec<_> = new_constraints
+            .iter()
+            .flat_map(|parent_constraint| {
+                parent_constraint.trait_bound.trait_generics.named.iter().map(move |named| {
+                    let Type::TypeVariable(slot) = &named.typ else {
+                        unreachable!("every item of a parent constraint is a slot")
+                    };
+                    (parent_constraint, named.name.as_str(), slot.clone())
+                })
+            })
+            .collect();
+        let mut ambiguous = Vec::new();
+        let decided = vecmap(&slots, |(parent_constraint, name, slot)| {
+            let mut fixed: Vec<&Type> = Vec::new();
+            for (_, typ) in fixes.iter().filter(|(id, _)| *id == slot.id()) {
+                if !fixed.contains(&typ) {
+                    fixed.push(typ);
                 }
             }
+            if fixed.len() > 1 {
+                let trait_name = self
+                    .interner
+                    .get_trait(parent_constraint.trait_bound.trait_id)
+                    .name
+                    .to_string();
+                let traits = vecmap(&fixed, |typ| format!("{trait_name}<{name} = {typ}>"));
+                let ident = Ident::new(name.to_string(), constraint.trait_bound.location);
+                ambiguous.push(
+                    crate::hir::resolution::import::PathResolutionError::MultipleTraitsInScope {
+                        ident,
+                        traits,
+                    },
+                );
+            }
+            fixed.first().map(|typ| (*typ).clone())
+        });
+        for error in ambiguous {
+            self.push_err(error);
+        }
+        let mut new_generics = Vec::new();
+        for ((parent_constraint, name, slot), fixed) in slots.iter().zip(decided) {
+            let typ = fixed.unwrap_or_else(|| {
+                let trait_bound = &parent_constraint.trait_bound;
+                let object_type = &parent_constraint.typ;
+                self.left_out_parent_item(object_type, trait_bound, name, &mut new_generics)
+            });
+            slot.bind(typ);
         }
         for parent_constraint in &mut new_constraints {
             let generics = &mut parent_constraint.trait_bound.trait_generics;
@@ -983,15 +1017,16 @@ impl Elaborator<'_> {
         (new_generics, new_constraints)
     }
 
-    /// Recursively walk parent trait hierarchies and add the constraints for the parents with
-    /// associated types to the bounds in scope. An item a bound leaves out is a placeholder,
-    /// which a later path to the same parent may fix.
+    /// Recursively walk parent trait hierarchies, collecting one constraint for each parent with
+    /// associated types. Each of its items is a slot, the same for every path to that parent.
+    /// `fixes` records, for each slot, the types the paths fix it to.
     #[tracing::instrument(level = "trace", skip_all)]
     fn collect_parent_associated_types(
         &mut self,
         object_type: &Type,
         trait_bound: &ResolvedTraitBound,
         new_constraints: &mut Vec<TraitConstraint>,
+        fixes: &mut Vec<(TypeVariableId, Type)>,
         visited: &mut rustc_hash::FxHashSet<TraitId>,
     ) {
         let trait_id = trait_bound.trait_id;
@@ -1006,48 +1041,78 @@ impl Elaborator<'_> {
         let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
 
         for parent_bound in &parent_bounds {
-            let instantiated = parent_bound
-                .instantiate(&bindings, |kind| self.interner.next_type_variable_with_kind(kind));
-            let ordered = &instantiated.trait_generics.ordered;
-            // Every constraint the walk adds is on `object_type`.
-            let earlier = new_constraints.iter().find(|earlier| {
-                earlier.trait_bound.trait_id == instantiated.trait_id
-                    && earlier.trait_bound.trait_generics.ordered == *ordered
+            let mut left_out = Vec::new();
+            let instantiated = parent_bound.instantiate(&bindings, |kind| {
+                let placeholder = self.interner.next_type_variable_with_kind(kind);
+                left_out.push(placeholder.clone());
+                placeholder
             });
-            if let Some(earlier) = earlier {
-                // Another path reached the same parent, and walked its parents, so a placeholder
-                // on either path is the other's item. Two different fixed types are left as they
-                // are: no implementor has both.
-                let earlier_named = &earlier.trait_bound.trait_generics.named;
-                for named in &instantiated.trait_generics.named {
-                    let Some(other) = earlier_named
-                        .iter()
-                        .find(|other| other.name.as_str() == named.name.as_str())
-                    else {
-                        continue;
-                    };
-                    let mut bindings = TypeBindings::default();
-                    if named.typ.try_unify(&other.typ, &mut bindings).is_ok() {
-                        Type::apply_type_bindings(bindings);
-                    }
-                }
+            let ordered = &instantiated.trait_generics.ordered;
+            if let Some(in_scope) =
+                self.item.generics.find_bound(object_type, instantiated.trait_id, ordered)
+            {
+                let in_scope = in_scope.trait_bound.clone();
+                self.collect_parent_associated_types(
+                    object_type,
+                    &in_scope,
+                    new_constraints,
+                    fixes,
+                    visited,
+                );
                 continue;
             }
 
-            let bound = if let Some(in_scope) =
-                self.item.generics.find_bound(object_type, instantiated.trait_id, ordered)
-            {
-                in_scope.trait_bound.clone()
-            } else {
-                if !instantiated.trait_generics.named.is_empty() {
-                    let typ = object_type.clone();
-                    new_constraints
-                        .push(TraitConstraint { typ, trait_bound: instantiated.clone() });
-                }
-                instantiated
-            };
+            if instantiated.trait_generics.named.is_empty() {
+                self.collect_parent_associated_types(
+                    object_type,
+                    &instantiated,
+                    new_constraints,
+                    fixes,
+                    visited,
+                );
+                continue;
+            }
 
-            self.collect_parent_associated_types(object_type, &bound, new_constraints, visited);
+            // Every constraint the walk adds is on `object_type`.
+            let earlier = new_constraints.iter().position(|earlier| {
+                earlier.trait_bound.trait_id == instantiated.trait_id
+                    && earlier.trait_bound.trait_generics.ordered == *ordered
+            });
+            let index = earlier.unwrap_or_else(|| {
+                let mut trait_bound = instantiated.clone();
+                for named in &mut trait_bound.trait_generics.named {
+                    named.typ =
+                        self.interner.next_type_variable_with_kind(named.typ.kind().into_owned());
+                }
+                new_constraints.push(TraitConstraint { typ: object_type.clone(), trait_bound });
+                new_constraints.len() - 1
+            });
+            let slots = &new_constraints[index].trait_bound;
+            let fixed = instantiated.trait_generics.named.iter();
+            for named in fixed.filter(|named| !left_out.contains(&named.typ)) {
+                let slot = slots
+                    .trait_generics
+                    .named
+                    .iter()
+                    .find(|slot| slot.name.as_str() == named.name.as_str());
+                if let Some(Type::TypeVariable(slot)) = slot.map(|slot| &slot.typ)
+                    && !named.typ.occurs(slot.id())
+                {
+                    fixes.push((slot.id(), named.typ.clone()));
+                }
+            }
+
+            // Another path to this parent already walked its parents.
+            if earlier.is_none() {
+                let slots = slots.clone();
+                self.collect_parent_associated_types(
+                    object_type,
+                    &slots,
+                    new_constraints,
+                    fixes,
+                    visited,
+                );
+            }
         }
     }
 
