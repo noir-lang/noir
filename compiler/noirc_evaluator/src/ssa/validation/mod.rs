@@ -114,8 +114,8 @@ impl<'f> Validator<'f> {
     /// initial SSA gen to mirror the instruction simplifier and other logic that
     /// could be accepted as a safe cast.
     ///
-    /// Widening casts, identity casts, and casts to `Field` cannot fail and are
-    /// not checked.
+    /// Widening casts, identity casts, and casts to `Field` keep an in-range value
+    /// in range, so they are not checked.
     fn validate_narrowing_cast_invariant(&mut self, instruction_id: InstructionId) {
         let dfg = &self.function.dfg;
 
@@ -1501,8 +1501,9 @@ pub(crate) fn validate_no_acir_memory_ops(ssa: &Ssa) -> crate::errors::RtResult<
 
 /// Returns the destination bit size when casting `source` to `target` is a
 /// narrowing cast — one where the source may hold values that do not fit in the
-/// destination, so the cast can fail at runtime. Returns `None` when the cast is
-/// always safe (widening, identity, or a cast to `Field`).
+/// destination, so the result may not fit the destination. Returns `None` when
+/// an in-range value always stays in range (widening, identity, or a cast to
+/// `Field`).
 ///
 /// Every numeric value is represented as a field element in `[0, 2^bit_size)`
 /// (signed values are stored in two's complement and zero-extended — see the
