@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793112337583,
+  "lastUpdate": 1793112464466,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22991,48 +22991,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "564483b8d3b8f1cf73552aab681e540e17d28c7f",
-          "message": "chore(deps): bump streetsidesoftware/cspell-action from 9.1.0 to 9.2.0 in the actions-minor-and-patch group (#14033)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-10-19T11:25:02Z",
-          "tree_id": "12453e6d7088b9aa751f77e4db64f7e66af7c0d6",
-          "url": "https://github.com/noir-lang/noir/commit/564483b8d3b8f1cf73552aab681e540e17d28c7f"
-        },
-        "date": 1792410481461,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168795,
-            "range": "± 794",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137889,
-            "range": "± 937",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2649528,
-            "range": "± 1981",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -25084,6 +25042,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2358327,
             "range": "± 1223",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "da10ef0b3295b0175a4efc8ca150d043bf4d77e2",
+          "message": "chore(deps): bump postcss-selector-parser from 6.1.4 to 6.1.5 in /docs (#14107)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-27T14:18:46Z",
+          "tree_id": "85279b21df6de7c5690ca533de718d41df42bc92",
+          "url": "https://github.com/noir-lang/noir/commit/da10ef0b3295b0175a4efc8ca150d043bf4d77e2"
+        },
+        "date": 1793112387155,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98339,
+            "range": "± 247",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87315,
+            "range": "± 919",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2358785,
+            "range": "± 942",
             "unit": "ns/iter"
           }
         ]
