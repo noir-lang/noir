@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: attempt to bit-shift with overflow
+  ┌─ src/main.nr:8:17
+  │
+8 │             a = y >> s;
+  │                 ------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:8:17
+
+Failed assertion

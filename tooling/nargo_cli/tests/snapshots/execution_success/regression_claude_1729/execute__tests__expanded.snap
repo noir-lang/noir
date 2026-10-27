@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(y: i8, z: i32, c: bool) -> pub [i8; 3] {
+    let mut a: i8 = 0_i8;
+    for i in 7_u32..9_u32 {
+        let s: i8 = i as i8;
+        if c {
+            a = y >> s;
+        }
+    }
+    let mut b: i32 = 0_i32;
+    for i in 31_u32..33_u32 {
+        let s: i32 = i as i32;
+        if c {
+            b = z >> s;
+        }
+    }
+    assert((z >> 31_i32) == -1_i32);
+    [a, y >> 7_i8, b as i8]
+}

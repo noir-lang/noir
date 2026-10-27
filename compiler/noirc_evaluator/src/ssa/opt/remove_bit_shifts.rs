@@ -324,7 +324,7 @@ impl Context<'_, '_, '_> {
 
         if let Some(exponent_const) = self.context.dfg.get_numeric_constant(exponent) {
             let exponent_const_as_u32 = exponent_const.try_to_u32();
-            let pow = if exponent_const_as_u32.is_none_or(|v| v > max_bit_size) {
+            let pow = if exponent_const_as_u32.is_none_or(|v| v >= max_bit_size) {
                 // If the exponent is guaranteed to overflow the value returned here doesn't matter as
                 // `enforce_bitshift_rhs_lt_bit_size` will trigger a constrain failure. We don't want to return
                 // `2^exponent` here as that value is later cast to the target type and it would be an invalid cast.
@@ -1319,7 +1319,7 @@ mod tests {
             v8 = add v6, v7
             v9 = truncate v8 to 8 bits, max_bit_size: 9
             v10 = cast v9 as i8
-            v12 = div v10, i8 256
+            v12 = div v10, i8 0
             v13 = cast v12 as Field
             v15 = add v13, Field 256
             v16 = sub v15, v6
