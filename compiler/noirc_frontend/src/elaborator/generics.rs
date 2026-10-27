@@ -5,13 +5,15 @@ use std::rc::Rc;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable,
+    BinaryTypeOperator, Kind, NamedGeneric, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable,
     ast::{
         Ident, IdentOrQuotedType, Path, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedType, UnsupportedNumericGenericType, Visitor,
+        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeExpression,
+        UnsupportedNumericGenericType, Visitor,
     },
     elaborator::types::{WildcardAllowed, WildcardDisallowedContext},
     hir::resolution::errors::ResolverError,
@@ -316,6 +318,31 @@ impl RemoveGenericsAppearingInTypeVisitor<'_, '_> {
 }
 
 impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_, '_> {
+    /// An operation with a constant (a literal, or literals combined, as `2 - 2`) determines its
+    /// other operand when it is `+`, `-`, a multiplication by a non-zero constant or a division by
+    /// 1 or -1. Any other one loses it (`N * 0`, `N / 2` and `N % 2` are the same for different
+    /// `N`), so a generic appearing only there isn't determined by the type. Operations between
+    /// two generics (`N * M`) count for both, as other uses can determine them.
+    fn visit_binary_type_expression(
+        &mut self,
+        lhs: &UnresolvedTypeExpression,
+        op: BinaryTypeOperator,
+        rhs: &UnresolvedTypeExpression,
+        _span: noirc_errors::Span,
+    ) -> bool {
+        let (constant, constant_is_rhs) = match (literal_value(lhs), literal_value(rhs)) {
+            (_, Some(constant)) => (constant, true),
+            (Some(constant), None) => (constant, false),
+            (None, None) => return true,
+        };
+        match op {
+            BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction => true,
+            BinaryTypeOperator::Multiplication => constant != 0.into(),
+            BinaryTypeOperator::Division => constant_is_rhs && constant.magnitude() == &1u8.into(),
+            BinaryTypeOperator::Modulo => false,
+        }
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn visit_path(&mut self, path: &Path) {
         if let Some(ident) = path.as_ident() {
@@ -327,5 +354,24 @@ impl Visitor for RemoveGenericsAppearingInTypeVisitor<'_, '_> {
     fn visit_resolved_type(&mut self, quoted_type_id: QuotedTypeId, _: Location) {
         let typ = self.interner.get_quoted_type(quoted_type_id);
         self.visit_type(typ);
+    }
+}
+
+/// The value of `expr` when it is made of literals only.
+fn literal_value(expr: &UnresolvedTypeExpression) -> Option<BigInt> {
+    match expr {
+        UnresolvedTypeExpression::Constant(value, ..) => Some(value.clone()),
+        UnresolvedTypeExpression::Negation(expr, _) => Some(-literal_value(expr)?),
+        UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, _) => {
+            let (lhs, rhs) = (literal_value(lhs)?, literal_value(rhs)?);
+            match op {
+                BinaryTypeOperator::Addition => Some(lhs + rhs),
+                BinaryTypeOperator::Subtraction => Some(lhs - rhs),
+                BinaryTypeOperator::Multiplication => Some(lhs * rhs),
+                BinaryTypeOperator::Division => (rhs != 0.into()).then(|| lhs / rhs),
+                BinaryTypeOperator::Modulo => (rhs != 0.into()).then(|| lhs % rhs),
+            }
+        }
+        UnresolvedTypeExpression::Variable(_) | UnresolvedTypeExpression::AsTraitPath(_) => None,
     }
 }

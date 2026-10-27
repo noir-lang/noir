@@ -79,13 +79,13 @@ pub enum WildcardAllowed {
     No(WildcardDisallowedContext),
 }
 
-/// Context for positions where `impl Trait` is not allowed as a type.
-/// `impl Trait` is only meaningful in function signatures (parameters and return types).
-///
-/// This context is stored on the elaborator's `ItemContext` and checked in the `TraitAsType` arm of
-/// type resolution. The variant is used to produce a position-specific error message.
+/// Context for positions where `impl Trait` is not allowed as a type. `impl Trait` is only
+/// meaningful as a whole function parameter or return type, and those are handled before type
+/// resolution, so type resolution reports it wherever else it appears.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImplTraitDisallowedContext {
+    /// Anywhere other than a whole function parameter or return type.
+    NestedType,
     StructField,
     EnumVariant,
     Global,
@@ -284,17 +284,12 @@ impl Elaborator<'_> {
                 let path = self.validate_path(path);
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
-            TraitAsType(path, args) => {
-                if let Some(context) = self.item.impl_trait_is_disallowed {
-                    self.push_err(ResolverError::ImplTraitTypeDisallowed {
-                        location: path.location,
-                        context,
-                    });
-                    return Type::Error;
-                }
-                self.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
-                let path = self.validate_path(path);
-                self.resolve_trait_as_type(path, args, mode)
+            TraitAsType(path, _) => {
+                self.push_err(ResolverError::ImplTraitTypeDisallowed {
+                    location: path.location,
+                    context: self.item.impl_trait_error_context,
+                });
+                return Type::Error;
             }
 
             Tuple(fields) => Type::Tuple(vecmap(fields, |field| {
@@ -896,7 +891,7 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_trait_as_type(
+    pub(super) fn resolve_trait_as_type(
         &mut self,
         path: TypedPath,
         args: GenericTypeArgs,

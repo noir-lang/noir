@@ -1757,6 +1757,18 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     if let Some(trait_fn_id) = trait_info.method_ids.get(method_name) {
         let trait_fn_meta = interner.function_meta(trait_fn_id);
 
+        // A `comptime` trait method only exists at compile time, so its impls must too. A
+        // `comptime` impl of a runtime method is allowed: a type that only exists at compile time
+        // (`Quoted`) implements runtime traits (`Eq`) that way.
+        if interner.function_modifiers(trait_fn_id).is_comptime
+            && !interner.function_modifiers(&function).is_comptime
+        {
+            errors.push(TypeCheckError::ComptimeMismatch {
+                item: method_name.to_string(),
+                location: meta.name.location,
+            });
+        }
+
         if trait_fn_meta.direct_generics.len() != meta.direct_generics.len() {
             let expected = trait_fn_meta.direct_generics.len();
             let found = meta.direct_generics.len();

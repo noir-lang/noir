@@ -286,6 +286,17 @@ impl Type {
                         Err(UnificationError)
                     }
                 } else if let InfixExpr(lhs, op, rhs, _) = other {
+                    // `4 = a + a` is `4 = a * 2`, solved as `a = 4 / 2`.
+                    let two = crate::hir::comptime::Integer::try_from_type(
+                        2u32.into(),
+                        &value.get_type(),
+                    );
+                    let (op, rhs) = match two {
+                        Some(two) if op == BinaryTypeOperator::Addition && lhs == rhs => {
+                            (BinaryTypeOperator::Multiplication, Box::new(Constant(two)))
+                        }
+                        _ => (op, rhs),
+                    };
                     if let Some(inverse) = op.approx_inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
                         let new_type = if inverse == BinaryTypeOperator::Division {
@@ -293,6 +304,14 @@ impl Type {
                         } else {
                             Type::inverted_infix_expr(Box::new(Constant(*value)), inverse, rhs)
                         };
+                        // A value out of the kind's range (`0 = a + 1` gives `a = 0 - 1`) is no
+                        // solution.
+                        let solved = new_type.substitute(bindings);
+                        if let Err(error) = solved.evaluate_to_integer(&kind, dummy_location)
+                            && !matches!(error, TypeCheckError::NonConstantEvaluated { .. })
+                        {
+                            return Err(UnificationError);
+                        }
 
                         // Use DoNotMoveConstants to prevent try_unify_by_moving_single_constant_term
                         // from undoing this rewrite, which would cause infinite recursion when

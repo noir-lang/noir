@@ -806,3 +806,51 @@ fn solves_exact_multiplied_generics() {
     "#;
     assert_no_errors(src);
 }
+
+/// `[u8; N + N]` unifies with `[u8; 4]` at `N = 2`, so the impls overlap.
+#[test]
+fn impl_for_an_arithmetic_array_length_overlaps_a_concrete_length() {
+    let src = r#"
+    pub trait Validate { fn validate(self); }
+    impl Validate for [u8; 4] { fn validate(self) {} }
+         ~~~~~~~~ Previous impl defined here
+    impl<let N: u32> Validate for [u8; N + N] { fn validate(self) {} }
+                                  ^^^^^^^^^^^ Impl for type `[u8; (N + N)]` overlaps with existing impl
+                                  ~~~~~~~~~~~ Overlapping impl
+    fn main() {}
+    
+    "#;
+    check_errors(src);
+}
+
+/// `S<N + N>` unifies with `S<4>` at `N = 2`, so the impls overlap.
+#[test]
+fn impl_for_an_arithmetic_generic_overlaps_a_concrete_one() {
+    let src = r#"
+    pub struct S<let N: u32> {}
+    pub trait Tr { fn m(self) -> u32; }
+    impl<let N: u32> Tr for S<N + N> { fn m(self) -> u32 { 1 } }
+                     ~~ Previous impl defined here
+    impl Tr for S<4> { fn m(self) -> u32 { 2 } }
+                ^^^^ Impl for type `S<4>` overlaps with existing impl
+                ~~~~ Overlapping impl
+    fn main() {}
+    
+    "#;
+    check_errors(src);
+}
+
+/// `N + 1 = 0` has no solution in `u32`, so `impl Tr for S<N + 1>` doesn't apply to `S<0>`.
+#[test]
+fn impl_for_n_plus_one_does_not_apply_to_zero() {
+    let src = r#"
+    pub struct S<let N: u32> {}
+    pub trait Tr { fn v() -> u32; }
+    impl<let N: u32> Tr for S<N + 1> { fn v() -> u32 { 7 } }
+    fn main() -> pub u32 { <S<0> as Tr>::v() }
+                            ^^^^^^^^^^ No matching impl found for `S<0>: Tr`
+                            ~~~~~~~~~~ No impl for `S<0>: Tr`
+    
+    "#;
+    check_errors(src);
+}

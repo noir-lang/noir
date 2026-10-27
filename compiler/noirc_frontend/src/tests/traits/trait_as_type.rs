@@ -1,5 +1,8 @@
 //! Functions returning `impl Trait`.
-use crate::{elaborator::UnstableFeature, tests::check_errors_using_features};
+use crate::{
+    elaborator::UnstableFeature,
+    tests::{check_errors, check_errors_using_features},
+};
 
 /// Show that `impl Trait` functions mutually calling each other do not compile currently.
 /// The example below does compile in Rust, but we need to refactor how types are substituted
@@ -323,6 +326,74 @@ fn lazily_elaborated_impl_trait_callee_does_not_inherit_callers_unconstrained_ar
         let _ = f;
         Bar {}
     }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+/// `impl Trait` is only allowed as a whole parameter or return type.
+#[test]
+fn impl_trait_nested_in_a_return_type_is_rejected() {
+    let src = r#"
+    pub trait Foo { fn f(self) -> Field; }
+    impl Foo for Field { fn f(self) -> Field { self } }
+    fn mk(x: Field) -> [impl Foo; 2] { [x, x] }
+                             ^^^ `impl Trait` is not allowed in this position, only as a whole parameter or return type
+                             ~~~ Use a generic type parameter instead
+    fn main(x: Field) -> pub Field { let _a = mk(x); x }
+    
+    "#;
+    check_errors(src);
+}
+
+/// `impl Trait` is only allowed as a whole parameter or return type.
+#[test]
+fn impl_trait_nested_in_a_parameter_type_is_rejected() {
+    let src = r#"
+    pub trait Foo { fn f(self) -> Field; }
+    impl Foo for Field { fn f(self) -> Field { self } }
+    fn take(a: (impl Foo, Field)) -> Field { a.1 }
+                     ^^^ `impl Trait` is not allowed in this position, only as a whole parameter or return type
+                     ~~~ Use a generic type parameter instead
+    fn main(x: Field) -> pub Field { take((x, x)) }
+    
+    "#;
+    check_errors(src);
+}
+
+/// `impl Trait` is only allowed as a whole parameter or return type.
+#[test]
+fn impl_trait_in_a_let_annotation_is_rejected() {
+    let src = r#"
+    pub trait Foo { fn f(self) -> Field; }
+    impl Foo for Field { fn f(self) -> Field { self } }
+    fn main(x: Field) -> pub Field { let a: impl Foo = x; a.f() }
+                                                 ^^^ `impl Trait` is not allowed in this position, only as a whole parameter or return type
+                                                 ~~~ Use a generic type parameter instead
+    
+    "#;
+    check_errors(src);
+}
+
+/// A whole return type may be `impl Trait` in parentheses.
+#[test]
+fn impl_trait_in_parentheses_as_a_whole_return_type_is_accepted() {
+    let src = r#"
+    pub trait Foo { fn f(self) -> Field; }
+    impl Foo for Field { fn f(self) -> Field { self } }
+    fn mk(x: Field) -> (impl Foo) { x }
+    fn main(x: Field) -> pub Field { mk(x).f() }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
+
+/// A whole parameter type may be `impl Trait` in parentheses.
+#[test]
+fn impl_trait_in_parentheses_as_a_whole_parameter_type_is_accepted() {
+    let src = r#"
+    pub trait Foo { fn f(self) -> Field; }
+    impl Foo for Field { fn f(self) -> Field { self } }
+    fn take(x: (impl Foo)) -> Field { x.f() }
+    fn main(x: Field) -> pub Field { take(x) }
     "#;
     check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
 }
