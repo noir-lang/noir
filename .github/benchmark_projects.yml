@@ -116,7 +116,7 @@ projects:
     execution-timeout: 0.01
     brillig-compilation-timeout: 4
     brillig-execution-timeout: 0.01
-    compilation-memory-limit: 450
+    compilation-memory-limit: 600
     execution-memory-limit: 450
   rollup-root:
     repo: AztecProtocol/aztec-packages
@@ -128,7 +128,7 @@ projects:
     execution-timeout: 0.6
     brillig-compilation-timeout: 5
     brillig-execution-timeout: 0.6
-    compilation-memory-limit: 500
+    compilation-memory-limit: 600
     execution-memory-limit: 450
   rollup-tx-base-private:
     repo: AztecProtocol/aztec-packages
@@ -141,7 +141,7 @@ projects:
     brillig-compilation-timeout: 30
     brillig-execution-timeout: 0.75
     compilation-memory-limit: 1700
-    execution-memory-limit: 600
+    execution-memory-limit: 700
   rollup-tx-base-public:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
@@ -153,7 +153,7 @@ projects:
     brillig-compilation-timeout: 120
     brillig-execution-timeout: 0.75
     compilation-memory-limit: 8000
-    execution-memory-limit: 600
+    execution-memory-limit: 700
   semaphore-depth-10:
     repo: noir-lang/noir
     path: test_programs/benchmarks/semaphore_depth_10
