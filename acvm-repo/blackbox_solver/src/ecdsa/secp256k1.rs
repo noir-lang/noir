@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod secp256k1_tests {
     use super::super::ecdsa_secp256k1_verify as verify_signature;
+    use super::super::nonce_point_x;
+    use k256::elliptic_curve::{Curve, bigint::U256};
 
     // 0x3a73f4123a5cd2121f21cd7e8d358835476949d035d9c2da6806b4633ac8c1e2,
     const HASHED_MESSAGE: [u8; 32] = [
@@ -119,6 +121,11 @@ mod secp256k1_tests {
         signature[31] = 0x02;
         signature[62] = 0x30;
         signature[63] = 0x39;
+
+        let order = k256::Secp256k1::ORDER.get();
+        let nonce_point_x =
+            nonce_point_x::<k256::Secp256k1>(&hashed_msg, &pub_key_x, &pub_key_y, &signature);
+        assert_eq!(nonce_point_x, order.wrapping_add(&U256::from_u8(2)));
 
         let valid = verify_signature(&hashed_msg, &pub_key_x, &pub_key_y, &signature).unwrap();
         assert!(valid);

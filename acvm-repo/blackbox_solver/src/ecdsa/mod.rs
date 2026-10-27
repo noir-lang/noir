@@ -143,3 +143,38 @@ where
         }
     }
 }
+
+/// Computes the x-coordinate of `R = z/s * G + r/s * Q` for the given inputs as an integer, without
+/// reducing it modulo the curve order. Tests use this to show which branch of the comparison
+/// against `r` a set of inputs exercises.
+#[cfg(test)]
+fn nonce_point_x<C>(
+    hashed_msg: &[u8; 32],
+    public_key_x_bytes: &[u8; 32],
+    public_key_y_bytes: &[u8; 32],
+    signature: &[u8; 64],
+) -> U256
+where
+    C: EcdsaCurve + CurveArithmetic,
+    SignatureSize<C>: ArraySize,
+    FieldBytesSize<C>: ModulusSize,
+    AffinePoint<C>: FromSec1Point<C> + ToSec1Point<C>,
+    FieldBytes<C>: From<[u8; 32]>,
+    Scalar<C>: Reduce<U256>,
+{
+    let signature = Signature::<C>::try_from(signature.as_slice()).unwrap();
+    let point = Sec1Point::<C>::from_affine_coordinates(
+        &FieldBytes::<C>::from(*public_key_x_bytes),
+        &FieldBytes::<C>::from(*public_key_y_bytes),
+        false,
+    );
+    let pubkey = PublicKey::<C>::from_sec1_point(&point).unwrap();
+    let z = <Scalar<C> as Reduce<U256>>::reduce(&U256::from_be_slice(hashed_msg));
+
+    let s_inv = signature.s().as_ref().invert().unwrap();
+    #[allow(non_snake_case)]
+    let R = ((ProjectivePoint::<C>::generator() * (z * s_inv))
+        + (ProjectivePoint::<C>::from(*pubkey.as_affine()) * (*signature.r() * s_inv)))
+        .to_affine();
+    U256::from_be_slice(R.to_sec1_point(false).x().unwrap())
+}
