@@ -98,7 +98,6 @@ predicates = "3"
 fm.workspace = true
 criterion.workspace = true
 pprof.workspace = true
-paste = "1.0.14"
 proptest.workspace = true
 regex.workspace = true
 serde.workspace = true
