@@ -7,6 +7,7 @@ export default {
     { type: 'doc', id: 'getting_started_with_ai', label: 'Getting Started with AI' },
     { type: 'doc', id: 'getting_started_manually', label: 'Getting Started Manually' },
     { type: 'doc', id: 'installation', label: 'Installation' },
+    { type: 'doc', id: 'migrating_from_rc0', label: 'Migrating from v1.0.0-rc.0' },
     {
       type: 'html',
       value: '<div class="divider"></div>',
