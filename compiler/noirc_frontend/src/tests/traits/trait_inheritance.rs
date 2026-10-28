@@ -2085,3 +2085,56 @@ fn item_fixed_by_one_of_two_parents_is_matched_by_name_for_a_generic_caller() {
         assert_no_errors(&src);
     }
 }
+
+/// Two parents agree when one fixes an item through its own associated type and the other fixes
+/// that one (`P1: Grand<Item = Self::Out>` with `P1<Out = Field>`, next to
+/// `P2: Grand<Item = Field>`): every implementor has `Item = Out = Field`.
+#[test]
+fn associated_type_fixed_through_a_parents_own_that_another_bound_fixes_is_not_an_error() {
+    for parents in ["P1<Out = Field> + P2", "P2 + P1<Out = Field>"] {
+        let src = format!(
+            r#"
+    pub trait Grand {{ type Item; }}
+    pub trait P1: Grand<Item = Self::Out> {{ type Out; }}
+    pub trait P2: Grand<Item = Field> {{}}
+    pub trait Child: {parents} {{
+        fn f(self, x: Self::Item) -> Field {{ let _ = self; x }}
+    }}
+    fn main() {{}}
+    "#
+        );
+        assert_no_errors(&src);
+    }
+}
+
+/// A conflict between two parents is reported on the trait that has both, not again on the
+/// traits that inherit it, as in rustc.
+#[test]
+fn associated_type_conflict_is_reported_only_where_the_parents_meet() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait P1: Grand<Item = u8> {}
+    pub trait P2: Grand<Item = Field> {}
+    pub trait Mid: P1 + P2 {}
+              ^^^ The parent traits fix `<Self as Grand>::Item` to different types: `u8`, `Field`
+              ~~~ No type can implement this trait
+    pub trait Child: Mid {}
+    pub trait GrandChild: Child {}
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// A parent bound fixing an item to a type that doesn't resolve is reported once, as that type.
+#[test]
+fn associated_type_fixed_to_an_unknown_type_is_not_also_a_conflict() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait P1: Grand<Item = Missing> {}
+                               ^^^^^^^ Could not resolve 'Missing' in path
+    pub trait P2: Grand<Item = Field> {}
+    pub trait Child: P1 + P2 {}
+    fn main() {}
+    "#;
+    check_errors(src);
+}

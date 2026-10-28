@@ -45,7 +45,7 @@ pub struct NamedType {
 impl NamedType {
     /// Whether the bound this belongs to fixes the associated type (`Bar<Out = Field>`). An item
     /// the bound leaves out (`Bar`) is a placeholder: a bare type variable.
-    pub fn is_fixed(&self) -> bool {
+    fn is_fixed(&self) -> bool {
         !matches!(self.typ, Type::TypeVariable(_))
     }
 }
@@ -330,6 +330,12 @@ pub struct ParentBound(ResolvedTraitBound);
 impl ParentBound {
     pub fn trait_id(&self) -> TraitId {
         self.0.trait_id
+    }
+
+    /// The names of the associated items the bound fixes (`Out` in `Bar<Out = Field>`).
+    pub fn fixed_items(&self) -> impl Iterator<Item = &str> {
+        let named = self.0.trait_generics.named.iter();
+        named.filter(|named| named.is_fixed()).map(|named| named.name.as_str())
     }
 
     /// The bound for one use of the declaring trait. `bindings` maps the declaring trait's
