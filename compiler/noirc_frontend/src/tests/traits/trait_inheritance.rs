@@ -2125,7 +2125,8 @@ fn associated_type_conflict_is_reported_only_where_the_parents_meet() {
     check_errors(src);
 }
 
-/// A parent bound fixing an item to a type that doesn't resolve is reported once, as that type.
+/// A parent bound fixing an item to a type that doesn't resolve is reported once, as that type,
+/// both on the trait and in a generic caller.
 #[test]
 fn associated_type_fixed_to_an_unknown_type_is_not_also_a_conflict() {
     let src = r#"
@@ -2134,7 +2135,31 @@ fn associated_type_fixed_to_an_unknown_type_is_not_also_a_conflict() {
                                ^^^^^^^ Could not resolve 'Missing' in path
     pub trait P2: Grand<Item = Field> {}
     pub trait Child: P1 + P2 {}
+    pub fn g<T: P1>(x: T::Item) -> Field { x }
     fn main() {}
     "#;
     check_errors(src);
+}
+
+/// A trait with two parents that disagree is reported whatever their order, also when one of
+/// them already has the conflict itself, as in rustc.
+#[test]
+fn associated_type_conflict_with_a_conflicting_parent_is_reported_in_either_order() {
+    for parents in ["P1 + Mid", "Mid + P1"] {
+        let src = format!(
+            r#"
+    pub trait Grand {{ type Item; }}
+    pub trait P1: Grand<Item = u8> {{}}
+    pub trait P2: Grand<Item = Field> {{}}
+    pub trait Mid: P1 + P2 {{}}
+              ^^^ The parent traits fix `<Self as Grand>::Item` to different types: `u8`, `Field`
+              ~~~ No type can implement this trait
+    pub trait Child: {parents} {{}}
+              ^^^^^ The parent traits fix `<Self as Grand>::Item` to different types: `u8`, `Field`
+              ~~~~~ No type can implement this trait
+    fn main() {{}}
+    "#
+        );
+        check_errors(&src);
+    }
 }

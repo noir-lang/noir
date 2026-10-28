@@ -214,9 +214,31 @@ struct ParentItemSlot {
     constraint: usize,
     name: String,
     slot: TypeVariable,
-    /// The types the paths fix the item to, each with the index of the walked bound's parent
-    /// it is reached through.
+    /// The types the paths fix the item to, each with the index of the starting trait's parent
+    /// bound it comes through.
     fixes: Vec<(Type, usize)>,
+}
+
+impl ParentItemSlot {
+    /// The different types two of the starting trait's parents fix the item to, if they
+    /// disagree. Fixes that failed to resolve are already reported, so they are left out.
+    fn conflicting_types(&self) -> Option<Vec<Type>> {
+        let fixes = vecmap(&self.fixes, |(typ, root)| (typ.follow_bindings(), *root));
+        let fixes: Vec<_> = fixes.into_iter().filter(|(typ, _)| *typ != Type::Error).collect();
+        let conflict = fixes.iter().any(|(typ, root)| {
+            fixes.iter().any(|(other, other_root)| typ != other && root != other_root)
+        });
+        if !conflict {
+            return None;
+        }
+        let mut types = Vec::new();
+        for (typ, _) in fixes {
+            if !types.contains(&typ) {
+                types.push(typ);
+            }
+        }
+        Some(types)
+    }
 }
 
 impl Elaborator<'_> {
@@ -1021,7 +1043,8 @@ impl Elaborator<'_> {
 
     /// Reports an associated type that two of the trait's parents fix to different types
     /// (`P1: Grand<Item = u8>`, `P2: Grand<Item = Field>`): no type implements the trait. A
-    /// conflict reached through a single parent is that parent's, and is reported there.
+    /// conflict reached through a single parent is that parent's, and is reported there, as in
+    /// rustc.
     fn check_parent_associated_types_agree(&mut self, trait_id: TraitId) {
         let the_trait = self.interner.get_trait(trait_id);
         let location = the_trait.name.location();
@@ -1032,33 +1055,23 @@ impl Elaborator<'_> {
         // no path fixes is the parent's own.
         self.bind_parent_item_slots(&constraints, &slots);
         for slot in slots {
-            let fixes = vecmap(&slot.fixes, |(typ, parent)| (typ.follow_bindings(), *parent));
-            let Some((first, first_parent)) = fixes.first() else {
+            let Some(types) = slot.conflicting_types() else {
                 continue;
             };
-            let conflicts =
-                fixes.iter().any(|(typ, parent)| typ != first && parent != first_parent);
-            if !conflicts {
-                continue;
-            }
-            let mut types: Vec<String> = Vec::new();
-            for (typ, _) in &fixes {
-                let typ = typ.to_string();
-                if !types.contains(&typ) {
-                    types.push(typ);
-                }
-            }
+            let types = vecmap(types, |typ| typ.to_string());
             let parent_bound = &constraints[slot.constraint].trait_bound;
-            let parent = self
+            let parent_name = self
                 .projection_trait_name(parent_bound.trait_id, &parent_bound.trait_generics.ordered);
-            let item = format!("<Self as {parent}>::{}", slot.name);
+            let item = format!("<Self as {parent_name}>::{}", slot.name);
             self.push_err(ResolverError::ConflictingParentAssociatedType { item, types, location });
         }
     }
 
     /// Recursively walk parent trait hierarchies, collecting one constraint for each parent with
     /// associated types, and a slot for each of its items, the same for every path to that
-    /// parent. `root` is the index of the starting bound's parent this part of the walk is under.
+    /// parent. `root` is the index of the starting trait's parent bound this part of the walk is
+    /// under. Each of those parents is walked in full, so that a fix is recorded for every one
+    /// it comes through, whatever their order.
     #[tracing::instrument(level = "trace", skip_all)]
     fn collect_parent_associated_types(
         &mut self,
@@ -1081,6 +1094,14 @@ impl Elaborator<'_> {
         let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
 
         for (index, parent_bound) in parent_bounds.iter().enumerate() {
+            let mut root_visited;
+            let visited = match root {
+                Some(_) => &mut *visited,
+                None => {
+                    root_visited = visited.clone();
+                    &mut root_visited
+                }
+            };
             let root = root.unwrap_or(index);
             let instantiated = parent_bound
                 .instantiate(&bindings, |kind| self.interner.next_type_variable_with_kind(kind));
@@ -1109,8 +1130,8 @@ impl Elaborator<'_> {
             let constraint = earlier.unwrap_or_else(|| {
                 let mut trait_bound = instantiated.clone();
                 for named in &mut trait_bound.trait_generics.named {
-                    let slot = self.interner.next_type_variable_id();
-                    let slot = TypeVariable::unbound(slot, named.typ.kind().into_owned());
+                    let id = self.interner.next_type_variable_id();
+                    let slot = TypeVariable::unbound(id, named.typ.kind().into_owned());
                     named.typ = Type::TypeVariable(slot.clone());
                     let name = named.name.to_string();
                     let constraint = new_constraints.len();
@@ -1120,36 +1141,31 @@ impl Elaborator<'_> {
                 new_constraints.len() - 1
             });
 
-            // A fixed item that failed to resolve is already reported.
             for name in parent_bound.fixed_items() {
                 let fixed = instantiated
                     .trait_generics
                     .named
                     .iter()
                     .find(|named| named.name.as_str() == name);
+                let fixed = fixed.expect("ICE: a fixed item is one of the bound's items");
                 let slot = slots
                     .iter_mut()
-                    .find(|slot| slot.constraint == constraint && slot.name == name);
-                if let (Some(fixed), Some(slot)) = (fixed, slot)
-                    && fixed.typ != Type::Error
-                    && !fixed.typ.occurs(slot.slot.id())
-                {
+                    .find(|slot| slot.constraint == constraint && slot.name == name)
+                    .expect("ICE: every item of a parent constraint has a slot");
+                if !fixed.typ.occurs(slot.slot.id()) {
                     slot.fixes.push((fixed.typ.clone(), root));
                 }
             }
 
-            // Another path to this parent already walked its parents.
-            if earlier.is_none() {
-                let slot_bound = new_constraints[constraint].trait_bound.clone();
-                self.collect_parent_associated_types(
-                    object_type,
-                    &slot_bound,
-                    Some(root),
-                    new_constraints,
-                    slots,
-                    visited,
-                );
-            }
+            let slot_bound = new_constraints[constraint].trait_bound.clone();
+            self.collect_parent_associated_types(
+                object_type,
+                &slot_bound,
+                Some(root),
+                new_constraints,
+                slots,
+                visited,
+            );
         }
     }
 
