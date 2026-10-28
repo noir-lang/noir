@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793212373033,
+  "lastUpdate": 1793212376000,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -39938,105 +39938,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "96ea5803f872f9771bb8d05f12ad90f86ff15298",
-          "message": "chore(stdlib): document arrays, vectors, strings, mem, test mocks and top-level functions (#14027)",
-          "timestamp": "2026-10-19T12:56:10Z",
-          "tree_id": "5d678f488a78228a6e9a56b1d8e97765725217b3",
-          "url": "https://github.com/noir-lang/noir/commit/96ea5803f872f9771bb8d05f12ad90f86ff15298"
-        },
-        "date": 1792416495952,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 863.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 940,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 700.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 400.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 420.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 519.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 322.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 780.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 818.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 525.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 800,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 961,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 310.3,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2080.4,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 156.1,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "7d01bb5278e5b801c6bd5e4655311103977f86e5",
           "message": "fix(frontend): prefer a single where-clause candidate when the object type is not yet known (#14038)",
@@ -44862,6 +44763,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-merge",
             "value": 310.3,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2080.5,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 156.1,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5e66b836c466da6596455eabd727b905cef922a7",
+          "message": "chore: bump external pinned commits (#14098)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Aztec Bot <49558828+AztecBot@users.noreply.github.com>",
+          "timestamp": "2026-10-28T17:55:45Z",
+          "tree_id": "20af8178c86eed69c60ce23079f91f0c2fdac2e0",
+          "url": "https://github.com/noir-lang/noir/commit/5e66b836c466da6596455eabd727b905cef922a7"
+        },
+        "date": 1793212277355,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 866.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 956,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 704,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 400.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 420.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 519.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 322.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 779.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 818.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 528.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 806.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 967.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 310.4,
             "unit": "KB"
           },
           {
