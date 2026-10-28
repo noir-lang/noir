@@ -2163,3 +2163,42 @@ fn associated_type_conflict_with_a_conflicting_parent_is_reported_in_either_orde
         check_errors(&src);
     }
 }
+
+/// A parent fixing an item to one of the trait's generics conflicts with another fixing it to
+/// something else, as in rustc (E0284): the declaration doesn't say they are the same.
+#[test]
+fn associated_type_fixed_to_a_trait_generic_and_to_another_type_is_an_error() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait Mid<X>: Grand<Item = X> {}
+    pub trait P2: Grand<Item = Field> {}
+    pub trait Child<X>: Mid<X> + P2 {}
+              ^^^^^ The parent traits fix `<Self as Grand>::Item` to different types: `X`, `Field`
+              ~~~~~ No type can implement this trait
+    pub trait Pair<X, Y>: Mid<X> + Mid<Y> {}
+              ^^^^ The parent traits fix `<Self as Grand>::Item` to different types: `X`, `Y`
+              ~~~~ No type can implement this trait
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// Bounds three or more levels up that disagree are not reported on the trait, as in rustc:
+/// none of its parents' own bounds fixes the item.
+#[test]
+fn associated_type_conflict_beyond_a_parents_own_bounds_is_not_reported() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait Mid<X>: Grand<Item = X> {}
+    pub trait Bar: Mid<u8> {}
+    pub trait Baz: Mid<u16> {}
+    pub trait Foo: Bar + Baz {}
+    pub trait P1: Grand<Item = u8> {}
+    pub trait P2: Grand<Item = Field> {}
+    pub trait A: P1 {}
+    pub trait B: P2 {}
+    pub trait Qux: A + B {}
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
