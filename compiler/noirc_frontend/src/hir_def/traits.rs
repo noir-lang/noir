@@ -42,6 +42,14 @@ pub struct NamedType {
     pub typ: Type,
 }
 
+impl NamedType {
+    /// Whether the bound this belongs to fixes the associated type (`Bar<Out = Field>`). An item
+    /// the bound leaves out (`Bar`) is a placeholder: a bare type variable.
+    pub fn is_fixed(&self) -> bool {
+        !matches!(self.typ, Type::TypeVariable(_))
+    }
+}
+
 impl std::fmt::Display for NamedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} = {}", self.name, self.typ)
@@ -324,17 +332,6 @@ impl ParentBound {
         self.0.trait_id
     }
 
-    /// The type the bound gives the parent's associated type `name` (the `Field` of
-    /// `trait Foo: Bar<Out = Field>`) for one use of the declaring trait, with `bindings` as in
-    /// [`ParentBound::instantiate`]. `None` if the bound leaves it out.
-    pub fn associated_type(&self, name: &str, bindings: &TypeBindings) -> Option<Type> {
-        let named = self.0.trait_generics.named.iter().find(|named| named.name.as_str() == name)?;
-        if matches!(named.typ, Type::TypeVariable(_)) {
-            return None;
-        }
-        Some(named.typ.substitute(bindings))
-    }
-
     /// The bound for one use of the declaring trait. `bindings` maps the declaring trait's
     /// `Self`, generics and associated types to that use's (see [`Trait::bound_bindings`]).
     ///
@@ -348,8 +345,8 @@ impl ParentBound {
     ) -> ResolvedTraitBound {
         let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
         for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
-            if let Type::TypeVariable(placeholder) = &declared.typ {
-                named.typ = fresh_placeholder(placeholder.kind().into_owned());
+            if !declared.is_fixed() {
+                named.typ = fresh_placeholder(declared.typ.kind().into_owned());
             }
         }
         ResolvedTraitBound { trait_generics, ..self.0 }
@@ -366,7 +363,7 @@ impl ParentBound {
     ) -> ResolvedTraitBound {
         let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
         for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
-            if matches!(declared.typ, Type::TypeVariable(_))
+            if !declared.is_fixed()
                 && let Some(own) = parent.get_associated_type(named.name.as_str())
             {
                 let parent_name = parent.name.as_str();

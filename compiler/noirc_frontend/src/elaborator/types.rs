@@ -507,26 +507,6 @@ impl Elaborator<'_> {
         let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
         for parent_bound in parent_bounds {
             let parent_id = parent_bound.trait_id();
-            // A parent bound that names the associated type (`trait Foo: Bar<Out = Field>`)
-            // decides it for every implementor.
-            if let Some(typ) = parent_bound.associated_type(name, bindings) {
-                let earlier = found.iter().position(|(id, _)| *id == parent_id);
-                match earlier {
-                    // The parent was reached first through a bound that leaves the type open.
-                    Some(index)
-                        if self.is_own_associated_type(parent_id, name, &found[index].1) =>
-                    {
-                        found[index].1 = typ;
-                    }
-                    // Another bound fixes it to the same type.
-                    Some(index) if found[index].1 == typ => (),
-                    // No implementor can satisfy two bounds fixing it to different types, so both
-                    // are kept, to be reported as ambiguous.
-                    _ => found.push((parent_id, typ)),
-                }
-                visited.insert(parent_id);
-                continue;
-            }
             let parent = self.interner.get_trait(parent_id);
             let bound = parent_bound.instantiate_in_declaration(bindings, parent);
             let parent_bindings = parent.bound_bindings(&self_type, &bound.trait_generics);
@@ -537,6 +517,20 @@ impl Elaborator<'_> {
                 found,
                 visited,
             );
+
+            // A parent bound that fixes the associated type (`trait Foo: Bar<Out = Field>`)
+            // decides it for every implementor, so it replaces the parent's own one. Two bounds
+            // fixing it to different types are reported on the trait declaration.
+            let named = bound.trait_generics.named.iter().find(|named| named.name.as_str() == name);
+            let Some(typ) = named.map(|named| named.typ.clone()) else {
+                continue;
+            };
+            let own = found.iter_mut().find(|(id, earlier)| {
+                *id == parent_id && self.is_own_associated_type(parent_id, name, earlier)
+            });
+            if let Some((_, own)) = own {
+                *own = typ;
+            }
         }
     }
 
