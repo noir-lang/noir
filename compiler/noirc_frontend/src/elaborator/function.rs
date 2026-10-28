@@ -16,12 +16,13 @@ use noirc_errors::Location;
 use crate::{
     Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
-        BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
-        ProjectionFinder, UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint,
-        UnresolvedType, UnresolvedTypeData,
+        BlockExpression, FunctionKind, GenericTypeArgs, Ident, IdentOrQuotedType, NoirFunction,
+        Param, Path, ProjectionFinder, UnresolvedGeneric, UnresolvedGenerics,
+        UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     },
     elaborator::{
         UnstableFeature, lints,
+        path_resolution::PathResolutionMode,
         types::{WildcardAllowed, WildcardDisallowedContext},
     },
     hir::{
@@ -373,7 +374,7 @@ impl Elaborator<'_> {
 
         // Resolve return type
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
-        let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
+        let return_type = Box::new(self.resolve_return_type(func.return_type(), wildcard_allowed));
 
         let is_crate_root = self.is_at_crate_root();
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
@@ -509,6 +510,40 @@ impl Elaborator<'_> {
         func.is_entry_point(in_contract, is_crate_root)
     }
 
+    /// A function's return type. A whole `impl Trait` resolves to the type it stands for; anywhere
+    /// else in the type it is an error.
+    fn resolve_return_type(
+        &mut self,
+        typ: UnresolvedType,
+        wildcard_allowed: WildcardAllowed,
+    ) -> Type {
+        match self.whole_impl_trait(typ) {
+            Ok((path, args)) => {
+                let path = self.validate_path(path);
+                self.resolve_trait_as_type(path, args, PathResolutionMode::MarkAsUsed)
+            }
+            Err(typ) => self.use_type(typ, wildcard_allowed),
+        }
+    }
+
+    /// The trait and arguments of `typ` when it is a whole `impl Trait`, also in parentheses or
+    /// spliced in by comptime code; otherwise `typ` itself.
+    fn whole_impl_trait(
+        &self,
+        typ: UnresolvedType,
+    ) -> Result<(Path, GenericTypeArgs), UnresolvedType> {
+        let location = typ.location;
+        match typ.typ {
+            UnresolvedTypeData::TraitAsType(path, args) => Ok((path, args)),
+            UnresolvedTypeData::Parenthesized(typ) => self.whole_impl_trait(*typ),
+            UnresolvedTypeData::Interned(id) => {
+                let typ = self.interner.get_unresolved_type_data(id).clone();
+                self.whole_impl_trait(UnresolvedType { typ, location })
+            }
+            typ => Err(UnresolvedType { typ, location }),
+        }
+    }
+
     /// Resolves function parameters and validates their types for entry points.
     ///
     /// Returns (parameters, `parameter_types`, `parameter_idents`) where generics and
@@ -565,13 +600,13 @@ impl Elaborator<'_> {
                 .map(Into::into)
             });
             let type_location = typ.location;
-            let typ = match typ.typ {
-                UnresolvedTypeData::TraitAsType(path, args) => {
+            let typ = match self.whole_impl_trait(typ) {
+                Ok((path, args)) => {
                     self.use_unstable_feature(UnstableFeature::TraitAsType, path.location);
                     self.desugar_impl_trait_arg(path, args, generics, trait_constraints)
                 }
                 // Function parameters have Kind::Normal
-                _ => self.resolve_type_with_kind(typ, &Kind::Normal, wildcard_allowed),
+                Err(typ) => self.resolve_type_with_kind(typ, &Kind::Normal, wildcard_allowed),
             };
 
             let output = false;

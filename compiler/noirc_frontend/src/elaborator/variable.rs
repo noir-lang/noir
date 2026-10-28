@@ -278,6 +278,7 @@ impl Elaborator<'_> {
 
         let definition_kind = self.interner.definition(definition_id).kind.clone();
         let mut bindings = TypeBindings::default();
+        let mut impl_where_clause = Vec::new();
         let generics = if let DefinitionKind::Function(func_id) = &definition_kind {
             self.usage_tracker.mark_impl_function_as_used(func_id);
 
@@ -345,6 +346,7 @@ impl Elaborator<'_> {
                     &mut bindings,
                     location,
                 );
+                impl_where_clause = self.interner.get_where_clause_for_impl(*impl_id).to_vec();
             }
 
             if is_enum_variant_global {
@@ -368,6 +370,12 @@ impl Elaborator<'_> {
 
         let id =
             self.intern_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()), location);
+        // Using an impl's associated constant requires the impl's where clause, which also
+        // decides the associated items it names (`where T: Foo` with `T::K` in the value).
+        for mut constraint in impl_where_clause {
+            constraint.apply_instantiation_bindings(&bindings);
+            self.push_where_clause_constraint(constraint, *id, None);
+        }
         let typ = self.type_check_variable_with_bindings(hir_ident, &id, generics, bindings);
         let id = self.intern_expr_type(id, typ.clone());
         (id, typ)
@@ -964,7 +972,7 @@ impl Elaborator<'_> {
             PathResolutionItem::TypeTraitFunction(self_type, _trait_id, _func_id) => {
                 ItemTypeBinding::SelfGeneric(self_type)
             }
-            PathResolutionItem::TraitConstant(_, self_type, _, _) => {
+            PathResolutionItem::TraitConstant(self_type, _, _) => {
                 ItemTypeBinding::ConcreteSelfType(self_type)
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
