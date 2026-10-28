@@ -1809,23 +1809,35 @@ fn associated_type_fixed_to_one_type_by_two_parents_is_that_type() {
     assert_no_errors(src);
 }
 
-/// Two parents fixing an associated type to different types make `Self::Item` ambiguous, as in
-/// rustc (E0284).
+/// No type implements a trait whose parents fix an associated type to different types, which is
+/// an error on the trait, as in rustc (E0284).
 #[test]
-fn associated_type_fixed_to_different_types_by_two_parents_is_ambiguous() {
+fn associated_type_fixed_to_different_types_by_two_parents_is_an_error() {
     let src = r#"
     pub trait Grand { type Item; }
     pub trait P1: Grand<Item = u8> {}
     pub trait P2: Grand<Item = Field> {}
-    pub trait Child: P1 + P2 {
-        fn f(self, x: Self::Item) -> Self::Item { let _ = self; x }
-                      ^^^^^^^^^^ Multiple applicable items in scope
-                      ~~~~~~~~~~ Multiple traits which provide `Item` are implemented and in scope: `Grand<Item = Field>`, `Grand<Item = u8>`
-                                     ^^^^^^^^^^ Multiple applicable items in scope
-                                     ~~~~~~~~~~ Multiple traits which provide `Item` are implemented and in scope: `Grand<Item = Field>`, `Grand<Item = u8>`
-    }
+    pub trait Child: P1 + P2 {}
+              ^^^^^ The parent traits fix `<Self as Grand>::Item` to different types: `u8`, `Field`
+              ~~~~~ No type can implement this trait
     fn main() {}
-    
+    "#;
+    check_errors(src);
+}
+
+/// The same with one parent fixing it through its own associated type
+/// (`P1: Grand<Item = Self::Out>`): only implementors with `Out = Field` could satisfy both, and
+/// rustc rejects the trait too (E0284).
+#[test]
+fn associated_type_fixed_through_a_parents_own_and_to_a_type_is_an_error() {
+    let src = r#"
+    pub trait Grand { type Item; }
+    pub trait P1: Grand<Item = Self::Out> { type Out; }
+    pub trait P2: Grand<Item = Field> {}
+    pub trait Child: P2 + P1 {}
+              ^^^^^ The parent traits fix `<Self as Grand>::Item` to different types: `Field`, `Self::Out`
+              ~~~~~ No type can implement this trait
+    fn main() {}
     "#;
     check_errors(src);
 }
@@ -2000,15 +2012,15 @@ fn associated_type_a_parent_fixes_is_ambiguous_with_a_grandparents_of_the_same_n
     pub trait Child: P1<Item = Field> {
         fn f(self, x: Self::Item) -> Field { let _ = self; x }
                       ^^^^^^^^^^ Multiple applicable items in scope
-                      ~~~~~~~~~~ Multiple traits which provide `Item` are implemented and in scope: `Grand`, `P1<Item = Field>`
+                      ~~~~~~~~~~ Multiple traits which provide `Item` are implemented and in scope: `Grand`, `P1`
     }
     fn main() {}
     "#;
     check_errors(src);
 }
 
-/// Each type an associated type is fixed to is listed once in the ambiguity error, however many
-/// parents fix it to that type.
+/// Each type an associated type is fixed to is listed once in the error, however many parents
+/// fix it to that type.
 #[test]
 fn associated_type_fixed_to_one_type_by_two_of_three_parents_is_listed_once() {
     let src = r#"
@@ -2016,11 +2028,9 @@ fn associated_type_fixed_to_one_type_by_two_of_three_parents_is_listed_once() {
     pub trait P1: Grand<Item = u8> {}
     pub trait P2: Grand<Item = Field> {}
     pub trait P3: Grand<Item = Field> {}
-    pub trait Child: P1 + P2 + P3 {
-        fn f(self, x: Self::Item) -> Field { let _ = self; x }
-                      ^^^^^^^^^^ Multiple applicable items in scope
-                      ~~~~~~~~~~ Multiple traits which provide `Item` are implemented and in scope: `Grand<Item = Field>`, `Grand<Item = u8>`
-    }
+    pub trait Child: P1 + P2 + P3 {}
+              ^^^^^ The parent traits fix `<Self as Grand>::Item` to different types: `u8`, `Field`
+              ~~~~~ No type can implement this trait
     fn main() {}
     "#;
     check_errors(src);

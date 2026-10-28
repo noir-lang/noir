@@ -386,16 +386,10 @@ impl Elaborator<'_> {
                     1 => return Some(found.remove(0).1),
                     _ => {
                         let location = path.location;
-                        // A trait that a parent bound fixes the type for is shown with it
-                        // (`Grand<Item = u8>`), so that two such parents can be told apart.
-                        let trait_names = vecmap(&found, |(id, typ)| {
-                            let trait_name = self.interner.get_trait(*id).name.to_string();
-                            if self.is_own_associated_type(*id, name, typ) {
-                                trait_name
-                            } else {
-                                format!("{trait_name}<{name} = {typ}>")
-                            }
-                        });
+                        let trait_names: Vec<_> = found
+                            .iter()
+                            .map(|(id, _)| self.interner.get_trait(*id).name.to_string())
+                            .collect();
                         let ident = Ident::new(name.to_string(), location);
                         self.push_err(PathResolutionError::MultipleTraitsInScope {
                             ident,
@@ -491,24 +485,17 @@ impl Elaborator<'_> {
             );
 
             // A parent bound that fixes the associated type (`trait Foo: Bar<Out = Field>`)
-            // decides it for every implementor, so it replaces the parent's own one.
+            // decides it for every implementor, so it replaces the parent's own one. Two bounds
+            // fixing it to different types are reported on the trait declaration.
             let named = bound.trait_generics.named.iter().find(|named| named.name.as_str() == name);
             let Some(typ) = named.map(|named| named.typ.clone()) else {
                 continue;
             };
-            if self.is_own_associated_type(parent_id, name, &typ)
-                || found.iter().any(|(id, earlier)| *id == parent_id && *earlier == typ)
-            {
-                continue;
-            }
             let own = found.iter_mut().find(|(id, earlier)| {
                 *id == parent_id && self.is_own_associated_type(parent_id, name, earlier)
             });
-            match own {
-                Some((_, own)) => *own = typ,
-                // No implementor can satisfy two bounds fixing it to different types, so both
-                // are kept, to be reported as ambiguous.
-                None => found.push((parent_id, typ)),
+            if let Some((_, own)) = own {
+                *own = typ;
             }
         }
     }

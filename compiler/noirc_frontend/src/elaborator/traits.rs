@@ -208,6 +208,16 @@ use super::{
     item_context::{GenericsContext, ImplContext, ItemContext, ModuleContext},
 };
 
+/// An associated item of a parent constraint, shared by every path to that parent.
+struct ParentItemSlot {
+    /// The index of the parent constraint.
+    constraint: usize,
+    name: String,
+    slot: TypeVariable,
+    /// The different types the paths fix the item to.
+    fixed: Vec<Type>,
+}
+
 impl Elaborator<'_> {
     /// Runs `f` in a context of its own for the trait: the trait's module, the trait as the
     /// current one and its self type variable as `Self`. Whatever `f` adds to the context, such
@@ -379,6 +389,7 @@ impl Elaborator<'_> {
                     .generics
                     .set_params(this.interner.get_trait(*trait_id).all_generics.clone());
 
+                this.check_parent_associated_types_agree(*trait_id);
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
@@ -942,67 +953,8 @@ impl Elaborator<'_> {
         &mut self,
         constraint: &TraitConstraint,
     ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
-        let mut new_constraints = Vec::new();
-        let mut fixes = Vec::new();
-        self.collect_parent_associated_types(
-            &constraint.typ,
-            &constraint.trait_bound,
-            &mut new_constraints,
-            &mut fixes,
-            &mut rustc_hash::FxHashSet::default(),
-        );
-
-        // Every path has been seen. Each item is the one type the paths fix it to, or a fresh
-        // generic if none does. No implementor satisfies two paths fixing it to different
-        // types, which is reported as ambiguous, as rustc does (E0284).
-        let slots: Vec<_> = new_constraints
-            .iter()
-            .flat_map(|parent_constraint| {
-                parent_constraint.trait_bound.trait_generics.named.iter().map(move |named| {
-                    let Type::TypeVariable(slot) = &named.typ else {
-                        unreachable!("every item of a parent constraint is a slot")
-                    };
-                    (parent_constraint, named.name.as_str(), slot.clone())
-                })
-            })
-            .collect();
-        let mut ambiguous = Vec::new();
-        let decided = vecmap(&slots, |(parent_constraint, name, slot)| {
-            let mut fixed: Vec<&Type> = Vec::new();
-            for (_, typ) in fixes.iter().filter(|(id, _)| *id == slot.id()) {
-                if !fixed.contains(&typ) {
-                    fixed.push(typ);
-                }
-            }
-            if fixed.len() > 1 {
-                let trait_name = self
-                    .interner
-                    .get_trait(parent_constraint.trait_bound.trait_id)
-                    .name
-                    .to_string();
-                let traits = vecmap(&fixed, |typ| format!("{trait_name}<{name} = {typ}>"));
-                let ident = Ident::new(name.to_string(), constraint.trait_bound.location);
-                ambiguous.push(
-                    crate::hir::resolution::import::PathResolutionError::MultipleTraitsInScope {
-                        ident,
-                        traits,
-                    },
-                );
-            }
-            fixed.first().map(|typ| (*typ).clone())
-        });
-        for error in ambiguous {
-            self.push_err(error);
-        }
-        let mut new_generics = Vec::new();
-        for ((parent_constraint, name, slot), fixed) in slots.iter().zip(decided) {
-            let typ = fixed.unwrap_or_else(|| {
-                let trait_bound = &parent_constraint.trait_bound;
-                let object_type = &parent_constraint.typ;
-                self.left_out_parent_item(object_type, trait_bound, name, &mut new_generics)
-            });
-            slot.bind(typ);
-        }
+        let (mut new_constraints, slots) = self.parent_associated_type_slots(constraint);
+        let new_generics = self.bind_parent_item_slots(&new_constraints, &slots);
         for parent_constraint in &mut new_constraints {
             let generics = &mut parent_constraint.trait_bound.trait_generics;
             *generics = generics.map(Type::follow_bindings);
@@ -1015,6 +967,81 @@ impl Elaborator<'_> {
             );
         }
         (new_generics, new_constraints)
+    }
+
+    /// The constraints `constraint` implies on its parents with associated types, one for each
+    /// parent and arguments, with a slot for each of their items. Every path to a parent shares
+    /// its slots, and each slot lists the different types the paths fix it to.
+    fn parent_associated_type_slots(
+        &mut self,
+        constraint: &TraitConstraint,
+    ) -> (Vec<TraitConstraint>, Vec<ParentItemSlot>) {
+        let mut new_constraints = Vec::new();
+        let mut fixes = Vec::new();
+        self.collect_parent_associated_types(
+            &constraint.typ,
+            &constraint.trait_bound,
+            &mut new_constraints,
+            &mut fixes,
+            &mut rustc_hash::FxHashSet::default(),
+        );
+
+        let mut slots = Vec::new();
+        for (index, parent_constraint) in new_constraints.iter().enumerate() {
+            for named in &parent_constraint.trait_bound.trait_generics.named {
+                let Type::TypeVariable(slot) = &named.typ else {
+                    unreachable!("every item of a parent constraint is a slot")
+                };
+                let mut fixed = Vec::new();
+                for (_, typ) in fixes.iter().filter(|(id, _)| *id == slot.id()) {
+                    if !fixed.contains(typ) {
+                        fixed.push(typ.clone());
+                    }
+                }
+                let name = named.name.to_string();
+                slots.push(ParentItemSlot { constraint: index, name, slot: slot.clone(), fixed });
+            }
+        }
+        (new_constraints, slots)
+    }
+
+    /// Binds each slot to the one type the paths fix it to, or to a fresh generic if none does,
+    /// and returns those generics. No implementor satisfies two paths fixing it to different
+    /// types: the trait declaration reports those, and the first is kept here.
+    fn bind_parent_item_slots(
+        &self,
+        constraints: &[TraitConstraint],
+        slots: &[ParentItemSlot],
+    ) -> Vec<TypeVariable> {
+        let mut new_generics = Vec::new();
+        for slot in slots {
+            let typ = slot.fixed.first().cloned().unwrap_or_else(|| {
+                let parent_constraint = &constraints[slot.constraint];
+                let trait_bound = &parent_constraint.trait_bound;
+                let object_type = &parent_constraint.typ;
+                self.left_out_parent_item(object_type, trait_bound, &slot.name, &mut new_generics)
+            });
+            slot.slot.bind(typ);
+        }
+        new_generics
+    }
+
+    /// Reports an associated type that two paths through the trait's parents fix to different
+    /// types (`P1: Grand<Item = u8>`, `P2: Grand<Item = Field>`): no type implements the trait.
+    fn check_parent_associated_types_agree(&mut self, trait_id: TraitId) {
+        let the_trait = self.interner.get_trait(trait_id);
+        let location = the_trait.name.location();
+        let constraint = the_trait.as_constraint(location);
+        let (constraints, slots) = self.parent_associated_type_slots(&constraint);
+        // Inside the declaration, an item no path fixes is the parent's own.
+        self.bind_parent_item_slots(&constraints, &slots);
+        for slot in slots.into_iter().filter(|slot| slot.fixed.len() > 1) {
+            let parent_id = constraints[slot.constraint].trait_bound.trait_id;
+            let parent = self.interner.get_trait(parent_id).name.to_string();
+            let item = format!("<Self as {parent}>::{}", slot.name);
+            let types = vecmap(&slot.fixed, ToString::to_string);
+            self.push_err(ResolverError::ConflictingParentAssociatedType { item, types, location });
+        }
     }
 
     /// Recursively walk parent trait hierarchies, collecting one constraint for each parent with
@@ -1048,24 +1075,14 @@ impl Elaborator<'_> {
                 placeholder
             });
             let ordered = &instantiated.trait_generics.ordered;
-            if let Some(in_scope) =
-                self.item.generics.find_bound(object_type, instantiated.trait_id, ordered)
-            {
-                let in_scope = in_scope.trait_bound.clone();
+            // A parent already in scope keeps its items, and one without items has none to slot.
+            let in_scope =
+                self.item.generics.find_bound(object_type, instantiated.trait_id, ordered);
+            if in_scope.is_some() || instantiated.trait_generics.named.is_empty() {
+                let bound = in_scope.map_or(instantiated, |in_scope| in_scope.trait_bound.clone());
                 self.collect_parent_associated_types(
                     object_type,
-                    &in_scope,
-                    new_constraints,
-                    fixes,
-                    visited,
-                );
-                continue;
-            }
-
-            if instantiated.trait_generics.named.is_empty() {
-                self.collect_parent_associated_types(
-                    object_type,
-                    &instantiated,
+                    &bound,
                     new_constraints,
                     fixes,
                     visited,
