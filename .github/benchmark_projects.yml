@@ -117,7 +117,7 @@ projects:
     brillig-compilation-timeout: 4
     brillig-execution-timeout: 0.01
     compilation-memory-limit: 600
-    execution-memory-limit: 450
+    execution-memory-limit: 575
   rollup-root:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
@@ -129,7 +129,7 @@ projects:
     brillig-compilation-timeout: 5
     brillig-execution-timeout: 0.6
     compilation-memory-limit: 600
-    execution-memory-limit: 450
+    execution-memory-limit: 575
   rollup-tx-base-private:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
