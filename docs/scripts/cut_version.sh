@@ -22,7 +22,9 @@ yarn docusaurus docs:version $VERSION
 # require re-cutting docs that were already deleted.
 VERSIONS_TO_KEEP=8
 
-ls -1 versioned_docs | sort -rV | tail -n +$((VERSIONS_TO_KEEP + 1)) | while read -r dir; do
+# `sort -V` ranks `1.0.0` below `1.0.0-rc.N`, whereas `~` sorts before the end of a version,
+# so the prerelease separator is swapped for `~` while sorting to give semver precedence.
+ls -1 versioned_docs | sed 's/-\(alpha\|beta\|rc\)/~\1/' | sort -rV | sed 's/~/-/' | tail -n +$((VERSIONS_TO_KEEP + 1)) | while read -r dir; do
   echo "Pruning docs snapshot that is no longer served: $dir"
   rm -rf "versioned_docs/$dir" "versioned_sidebars/${dir}-sidebars.json"
 done
