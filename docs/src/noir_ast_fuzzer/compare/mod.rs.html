@@ -123,21 +123,21 @@
 <a href=#123 id=123 data-nosnippet>123</a>            }
 <a href=#124 id=124 data-nosnippet>124</a>            CompareResult::LeftFailed(e, <span class="kw">_</span>) =&gt; {
 <a href=#125 id=125 data-nosnippet>125</a>                <span class="kw">let </span>e = <span class="kw-2">&amp;</span>e.error;
-<a href=#126 id=126 data-nosnippet>126</a>                <span class="macro">bail!</span>(<span class="string">"first program failed: {e}\n\n{e:?}"</span>)
+<a href=#126 id=126 data-nosnippet>126</a>                <span class="macro">bail!</span>(<span class="string">"first program failed: {e}\n\n{e:?}"</span>);
 <a href=#127 id=127 data-nosnippet>127</a>            }
 <a href=#128 id=128 data-nosnippet>128</a>            CompareResult::RightFailed(<span class="kw">_</span>, e) =&gt; {
 <a href=#129 id=129 data-nosnippet>129</a>                <span class="kw">let </span>e = <span class="kw-2">&amp;</span>e.error;
-<a href=#130 id=130 data-nosnippet>130</a>                <span class="macro">bail!</span>(<span class="string">"second program failed: {e}\n\n{e:?}"</span>)
+<a href=#130 id=130 data-nosnippet>130</a>                <span class="macro">bail!</span>(<span class="string">"second program failed: {e}\n\n{e:?}"</span>);
 <a href=#131 id=131 data-nosnippet>131</a>            }
 <a href=#132 id=132 data-nosnippet>132</a>            CompareResult::BothPassed(o1, o2) =&gt; <span class="kw">match </span>(<span class="kw-2">&amp;</span>o1.return_value, <span class="kw-2">&amp;</span>o2.return_value) {
 <a href=#133 id=133 data-nosnippet>133</a>                (<span class="prelude-val">Some</span>(r1), <span class="prelude-val">Some</span>(r2)) <span class="kw">if </span>!Comparable::equivalent(r1, r2) =&gt; {
-<a href=#134 id=134 data-nosnippet>134</a>                    <span class="macro">bail!</span>(<span class="string">"programs disagree on return value:\n{r1:?}\n!=\n{r2:?}"</span>,)
+<a href=#134 id=134 data-nosnippet>134</a>                    <span class="macro">bail!</span>(<span class="string">"programs disagree on return value:\n{r1:?}\n!=\n{r2:?}"</span>);
 <a href=#135 id=135 data-nosnippet>135</a>                }
 <a href=#136 id=136 data-nosnippet>136</a>                (<span class="prelude-val">Some</span>(r1), <span class="prelude-val">None</span>) =&gt; {
-<a href=#137 id=137 data-nosnippet>137</a>                    <span class="macro">bail!</span>(<span class="string">"only the first program returned a value: {r1:?}"</span>,)
+<a href=#137 id=137 data-nosnippet>137</a>                    <span class="macro">bail!</span>(<span class="string">"only the first program returned a value: {r1:?}"</span>);
 <a href=#138 id=138 data-nosnippet>138</a>                }
 <a href=#139 id=139 data-nosnippet>139</a>                (<span class="prelude-val">None</span>, <span class="prelude-val">Some</span>(r2)) =&gt; {
-<a href=#140 id=140 data-nosnippet>140</a>                    <span class="macro">bail!</span>(<span class="string">"only the second program returned a value: {r2:?}"</span>,)
+<a href=#140 id=140 data-nosnippet>140</a>                    <span class="macro">bail!</span>(<span class="string">"only the second program returned a value: {r2:?}"</span>);
 <a href=#141 id=141 data-nosnippet>141</a>                }
 <a href=#142 id=142 data-nosnippet>142</a>                (r1, <span class="kw">_</span>) =&gt; {
 <a href=#143 id=143 data-nosnippet>143</a>                    <span class="kw">let </span>p1 = <span class="kw-2">&amp;</span>o1.print_output;
@@ -145,7 +145,7 @@
 <a href=#145 id=145 data-nosnippet>145</a>                    <span class="kw">if </span>p1 != p2 {
 <a href=#146 id=146 data-nosnippet>146</a>                        <span class="macro">bail!</span>(
 <a href=#147 id=147 data-nosnippet>147</a>                            <span class="string">"both programs passed, but disagree on printed output:\n---\n{p1}\n--- != ---\n{p2}\n---"</span>,
-<a href=#148 id=148 data-nosnippet>148</a>                        )
+<a href=#148 id=148 data-nosnippet>148</a>                        );
 <a href=#149 id=149 data-nosnippet>149</a>                    }
 <a href=#150 id=150 data-nosnippet>150</a>                    <span class="prelude-val">Ok</span>(r1.as_ref())
 <a href=#151 id=151 data-nosnippet>151</a>                }

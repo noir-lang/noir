@@ -598,10 +598,10 @@
 <a href=#598 id=598 data-nosnippet>598</a>                // If we were to set a specific type for index signatures here, such as `Field`, we will error in
 <a href=#599 id=599 data-nosnippet>599</a>                // type checking if we attempt to index with a different type such as `u8`.
 <a href=#600 id=600 data-nosnippet>600</a>                </span><span class="kw">let </span>indices =
-<a href=#601 id=601 data-nosnippet>601</a>                    (<span class="number">0</span>..n).map(|i| <span class="macro">format!</span>[<span class="string">"Index{i}"</span>]).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+<a href=#601 id=601 data-nosnippet>601</a>                    (<span class="number">0</span>..n).map(|i| <span class="macro">format!</span>(<span class="string">"Index{i}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
 <a href=#602 id=602 data-nosnippet>602</a>                <span class="kw">let </span>var_sig =
-<a href=#603 id=603 data-nosnippet>603</a>                    (<span class="number">0</span>..n).map(|i| <span class="macro">format!</span>[<span class="string">"_v{i}: Index{i}"</span>]).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
-<a href=#604 id=604 data-nosnippet>604</a>                <span class="kw">let </span>vars = (<span class="number">0</span>..n).map(|i| <span class="macro">format!</span>[<span class="string">"_v{i}"</span>]).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+<a href=#603 id=603 data-nosnippet>603</a>                    (<span class="number">0</span>..n).map(|i| <span class="macro">format!</span>(<span class="string">"_v{i}: Index{i}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
+<a href=#604 id=604 data-nosnippet>604</a>                <span class="kw">let </span>vars = (<span class="number">0</span>..n).map(|i| <span class="macro">format!</span>(<span class="string">"_v{i}"</span>)).collect::&lt;Vec&lt;String&gt;&gt;().join(<span class="string">", "</span>);
 <a href=#605 id=605 data-nosnippet>605</a>                <span class="macro">format!</span>(
 <a href=#606 id=606 data-nosnippet>606</a>                    <span class="string">r#"
 <a href=#607 id=607 data-nosnippet>607</a>                #[oracle(__debug_member_assign_{n})]
@@ -681,7 +681,7 @@
 <a href=#681 id=681 data-nosnippet>681</a>    <span class="kw">let </span>kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
 <a href=#682 id=682 data-nosnippet>682</a>        func: Box::new(ast::Expression {
 <a href=#683 id=683 data-nosnippet>683</a>            kind: ast::ExpressionKind::Variable(debug_fn_path(
-<a href=#684 id=684 data-nosnippet>684</a>                <span class="kw-2">&amp;</span><span class="macro">format!</span>[<span class="string">"__debug_member_assign_{arity}"</span>],
+<a href=#684 id=684 data-nosnippet>684</a>                <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"__debug_member_assign_{arity}"</span>),
 <a href=#685 id=685 data-nosnippet>685</a>                location,
 <a href=#686 id=686 data-nosnippet>686</a>            )),
 <a href=#687 id=687 data-nosnippet>687</a>            location,
@@ -701,7 +701,7 @@
 <a href=#701 id=701 data-nosnippet>701</a>    <span class="kw">let </span>kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
 <a href=#702 id=702 data-nosnippet>702</a>        func: Box::new(ast::Expression {
 <a href=#703 id=703 data-nosnippet>703</a>            kind: ast::ExpressionKind::Variable(debug_fn_path(
-<a href=#704 id=704 data-nosnippet>704</a>                <span class="kw-2">&amp;</span><span class="macro">format!</span>[<span class="string">"__debug_fn_{fname}"</span>],
+<a href=#704 id=704 data-nosnippet>704</a>                <span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"__debug_fn_{fname}"</span>),
 <a href=#705 id=705 data-nosnippet>705</a>                location,
 <a href=#706 id=706 data-nosnippet>706</a>            )),
 <a href=#707 id=707 data-nosnippet>707</a>            location,
