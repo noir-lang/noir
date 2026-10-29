@@ -85,11 +85,15 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
             let result_as_string = vecmap(&result, ToString::to_string).join(", ");
             bail!(
                 "Interpreter produced an unexpected result.\nExpected result: {return_value_as_string}\nActual result: {result_as_string}"
-            )
+            );
         }
     }
 
-    if is_ok { Ok(()) } else { bail!("The interpreter encountered an error.") }
+    if is_ok {
+        Ok(())
+    } else {
+        bail!("The interpreter encountered an error.");
+    }
 }
 
 /// Derive an ABI description from the SSA parameters.

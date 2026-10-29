@@ -23,18 +23,12 @@ impl NodeFinder<'_> {
                 && name_matches(func.name, prefix)
             {
                 let description = Some(func.description.to_string());
-                let label;
-                let insert_text;
-                match function_completion_kind {
-                    FunctionCompletionKind::Name => {
-                        label = func.name.to_string();
-                        insert_text = func.name.to_string();
-                    }
+                let (label, insert_text) = match function_completion_kind {
+                    FunctionCompletionKind::Name => (func.name.to_string(), func.name.to_string()),
                     FunctionCompletionKind::NameAndParameters => {
-                        label = format!("{}(…)", func.name);
-                        insert_text = format!("{}({})", func.name, func.parameters);
+                        (format!("{}(…)", func.name), format!("{}({})", func.name, func.parameters))
                     }
-                }
+                };
 
                 self.completion_items.push(completion_item_with_trigger_parameter_hints_command(
                     snippet_completion_item(
