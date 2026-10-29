@@ -3,7 +3,8 @@ const path = require('path');
 const axios = require('axios');
 
 const GITHUB_PAGES = 3;
-const IGNORE_VERSIONS = ['0.16.0'];
+// Releases without a cut docs snapshot in `versioned_docs`; Docusaurus fails the build if one is listed.
+const IGNORE_VERSIONS = ['0.16.0', '1.0.0-rc.6'];
 const NUMBER_OF_VERSIONS_TO_SHOW = 4;
 
 const MAX_RETRIES = 3;
