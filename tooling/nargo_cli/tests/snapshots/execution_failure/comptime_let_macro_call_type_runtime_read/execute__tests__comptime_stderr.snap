@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: call to assert_max_bit_size: 0x03e8 has 10 bits which do not fit in 8 bits
+   ┌─ std/field/mod.nr:32:9
+   │
+32 │         __assert_max_bit_size(self, BIT_SIZE);
+   │         ------------------------------------- Assertion failed
+   │
+   = Call stack:
+     1: ?
+             at src/main.nr:26:4
+     2: main
+             at src/main.nr:32:15
+     3: <impl FromWitness for u8>::from_witness
+             at src/main.nr:15:9
+     4: Field::assert_max_bit_size
+             at std/field/mod.nr:32:9
+
+Error interpreting main function
