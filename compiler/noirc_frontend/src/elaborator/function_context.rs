@@ -39,6 +39,9 @@ pub(super) struct FunctionContext {
     /// case of checking generic arguments)
     trait_constraints: Vec<LocalTraitConstraint>,
 
+    /// The indexes in `trait_constraints` of the constraints no impl has been selected for yet.
+    unsolved_trait_constraints: Vec<usize>,
+
     /// All `ExprId` in a function that correspond to integer literals.
     /// At the end, if they don't fit in their type's min/max range, we'll produce an error.
     integer_literal_expr_ids: Vec<ExprId>,
@@ -89,8 +92,8 @@ enum Progress {
     /// Tried while the impl to use was undecided. The type variables it was waiting on, so it is
     /// only tried again once one of them is bound.
     Stalled(Vec<TypeVariable>),
-    /// An impl was selected and its bindings applied.
-    Selected,
+    /// An impl was selected and its bindings applied, with the impl's instantiation bindings.
+    Selected(TraitImplKind, TypeBindings),
 }
 
 impl Progress {
@@ -102,7 +105,7 @@ impl Progress {
             Progress::Stalled(waiting_on) => {
                 waiting_on.iter().any(|var| !var.binding().is_unbound())
             }
-            Progress::Selected => false,
+            Progress::Selected(..) => false,
         }
     }
 }
@@ -180,7 +183,9 @@ impl Elaborator<'_> {
         select_impl: bool,
         declared_bound: Option<TraitConstraint>,
     ) {
-        self.get_function_context_mut().trait_constraints.push(LocalTraitConstraint {
+        let context = self.get_function_context_mut();
+        context.unsolved_trait_constraints.push(context.trait_constraints.len());
+        context.trait_constraints.push(LocalTraitConstraint {
             constraint,
             expr,
             select_impl,
@@ -206,13 +211,25 @@ impl Elaborator<'_> {
     /// constraint whose impl still depends on an unknown type is left alone, and only tried
     /// again once one of its types has changed.
     pub(super) fn select_where_possible(&mut self) {
+        // Selecting an impl binds variables other constraints wait on, so this repeats until a
+        // pass selects nothing.
+        while self.select_where_possible_once() {}
+    }
+
+    /// One pass of [`Self::select_where_possible`]. Returns whether it selected an impl.
+    fn select_where_possible_once(&mut self) -> bool {
         let context = self.function_context.last_mut().expect("no function context");
         let mut to_try = Vec::new();
-        for (index, local) in context.trait_constraints.iter().enumerate() {
+        for index in &context.unsolved_trait_constraints {
+            let local = &context.trait_constraints[*index];
             if local.progress.may_advance() {
-                to_try.push((index, local.constraint.clone()));
+                to_try.push((*index, local.constraint.clone()));
             }
         }
+        if to_try.is_empty() {
+            return false;
+        }
+        let mut selected = false;
         for (index, constraint) in to_try {
             let bound = &constraint.trait_bound;
             let progress = match self.interner.try_lookup_trait_implementation(
@@ -222,9 +239,10 @@ impl Elaborator<'_> {
                 &bound.trait_generics.named,
                 TraitLookupMode::Default,
             ) {
-                Ok((_, bindings, _)) => {
+                Ok((impl_kind, bindings, instantiation_bindings)) => {
                     Type::apply_type_bindings(bindings);
-                    Progress::Selected
+                    selected = true;
+                    Progress::Selected(impl_kind, instantiation_bindings)
                 }
                 // Errors are reported by the check at the end of the function. A constraint whose
                 // types can't change any more is never tried again.
@@ -232,6 +250,12 @@ impl Elaborator<'_> {
             };
             self.get_function_context_mut().trait_constraints[index].progress = progress;
         }
+        let context = self.get_function_context_mut();
+        let constraints = &context.trait_constraints;
+        context
+            .unsolved_trait_constraints
+            .retain(|index| !matches!(constraints[*index].progress, Progress::Selected(..)));
+        selected
     }
 
     /// Push an `ExprId` that corresponds to an integer literal.
@@ -256,6 +280,7 @@ impl Elaborator<'_> {
     /// all still-unsolved trait constraints in this context.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_and_pop_function_context(&mut self) {
+        self.select_where_possible();
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
         self.bind_type_variables_from_trait_constraints(&context.trait_constraints);
         self.check_defaultable_type_variables(context.defaultable_type_variables);
@@ -284,7 +309,9 @@ impl Elaborator<'_> {
     ) {
         let current_trait_self = self.item.impl_context.trait_self_type();
         for local in trait_constraints {
-            let _ = local.constraint.find_impl(self.interner, current_trait_self.as_ref());
+            if !matches!(local.progress, Progress::Selected(..)) {
+                let _ = local.constraint.find_impl(self.interner, current_trait_self.as_ref());
+            }
         }
     }
 
@@ -311,13 +338,20 @@ impl Elaborator<'_> {
         let current_trait_self = self.item.impl_context.trait_self_type();
 
         for local in trait_constraints {
-            match local.constraint.find_impl(self.interner, current_trait_self.as_ref()) {
+            let selected = match local.progress {
+                Progress::Selected(impl_kind, instantiation_bindings) => {
+                    Ok((impl_kind, instantiation_bindings))
+                }
+                _ => local.constraint.find_impl(self.interner, current_trait_self.as_ref()),
+            };
+            match selected {
                 Ok((impl_kind, instantiation_bindings)) => {
                     if local.select_impl {
                         self.select_impl(local.expr, impl_kind, instantiation_bindings);
                     }
                 }
                 Err(_) if self.reported_at_declaration(local.declared_bound.as_ref()) => (),
+                Err(error) if self.where_clause_failure_reported_at_declaration(&error) => (),
                 Err(error) => {
                     let location = self.interner.expr_location(&local.expr);
                     self.push_trait_constraint_error(&local.constraint.typ, error, location);
@@ -331,6 +365,27 @@ impl Elaborator<'_> {
     fn reported_at_declaration(&self, declared_bound: Option<&TraitConstraint>) -> bool {
         declared_bound
             .is_some_and(|bound| self.where_clause_bound_without_generics_error(bound).is_some())
+    }
+
+    /// Whether `error` fails because of an impl's where-clause bound without generics that is
+    /// reported as failing where it is declared (see
+    /// [`Elaborator::check_where_clauses_without_generics`]), so the failure isn't reported again.
+    fn where_clause_failure_reported_at_declaration(&self, error: &ImplSearchErrorKind) -> bool {
+        let (ImplSearchErrorKind::NoImplFound(constraints)
+        | ImplSearchErrorKind::NoMatching(constraints)) = error
+        else {
+            return false;
+        };
+        // The last constraint is the one searched for; the ones before it are the where-clause
+        // bounds that failed on the way.
+        let Some((_, where_clause_bounds)) = constraints.split_last() else { return false };
+        where_clause_bounds.iter().any(|bound| {
+            let location = bound.trait_bound.location;
+            self.interner.declared_impl_where_clause_bound(location).is_some_and(|declared| {
+                super::traits::is_checkable_bound(declared)
+                    && self.where_clause_bound_without_generics_error(declared).is_some()
+            })
+        })
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

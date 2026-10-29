@@ -97,6 +97,18 @@ impl Type {
 
     /// `unify` with a type, and returns an error if unification failed
     /// Do not commit anything.
+    /// Whether a method receiver of type `receiver`, or the type it references (a method call
+    /// dereferences its receiver), unifies with `self`, recording the bindings in `bindings`.
+    pub(crate) fn try_unify_receiver(&self, receiver: &Type, bindings: &mut TypeBindings) -> bool {
+        let mut direct = bindings.clone();
+        if receiver.try_unify(self, &mut direct).is_ok() {
+            *bindings = direct;
+            return true;
+        }
+        matches!(receiver.follow_bindings(), Type::Reference(element, _)
+            if element.try_unify(self, bindings).is_ok())
+    }
+
     pub fn try_unify_with_default_bindings(&self, other: &Type) -> Result<(), UnificationError> {
         let mut bindings = TypeBindings::default();
         self.try_unify(other, &mut bindings)
@@ -286,6 +298,21 @@ impl Type {
                         Err(UnificationError)
                     }
                 } else if let InfixExpr(lhs, op, rhs, _) = other {
+                    // `4 = a + a` is `4 = a * 2`, so `a = 4 / 2`.
+                    if op == BinaryTypeOperator::Addition
+                        && lhs == rhs
+                        && let Some(two) = crate::hir::comptime::Integer::try_from_type(
+                            2u32.into(),
+                            &value.get_type(),
+                        )
+                    {
+                        let half = Self::exact_quotient(
+                            Box::new(Constant(*value)),
+                            Box::new(Constant(two)),
+                        )?;
+                        let flags = UnificationFlags::DoNotMoveConstants;
+                        return half.try_unify_with_flags(&lhs, flags, bindings);
+                    }
                     if let Some(inverse) = op.approx_inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
                         let new_type = if inverse == BinaryTypeOperator::Division {
@@ -293,6 +320,14 @@ impl Type {
                         } else {
                             Type::inverted_infix_expr(Box::new(Constant(*value)), inverse, rhs)
                         };
+                        // A value out of the kind's range (`0 = a + 1` gives `a = 0 - 1`) is no
+                        // solution.
+                        let solved = new_type.substitute(bindings);
+                        if let Err(error) = solved.evaluate_to_integer(&kind, dummy_location)
+                            && !matches!(error, TypeCheckError::NonConstantEvaluated { .. })
+                        {
+                            return Err(UnificationError);
+                        }
 
                         // Use DoNotMoveConstants to prevent try_unify_by_moving_single_constant_term
                         // from undoing this rewrite, which would cause infinite recursion when
@@ -642,11 +677,11 @@ impl Type {
             return;
         }
 
-        if self.try_array_to_vector_coercion(expected, expression, elaborator.interner) {
+        if self.try_array_to_vector_coercion(expected, expression, elaborator) {
             return;
         }
 
-        if self.try_string_to_ctstring_coercion(expected, expression, elaborator.interner) {
+        if self.try_string_to_ctstring_coercion(expected, expression, elaborator) {
             return;
         }
 
@@ -714,7 +749,7 @@ impl Type {
         &self,
         target: &Type,
         expression: ExprId,
-        interner: &mut NodeInterner,
+        elaborator: &mut Elaborator,
     ) -> bool {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
@@ -722,7 +757,11 @@ impl Type {
         if let (Type::Array(element1, _size), Type::Vector(element2)) = (&this, &target) {
             // We can only do the coercion if the `as_vector` method exists.
             // This is usually true, but some tests don't have access to the standard library.
-            if let Some(as_vector) = interner.lookup_direct_method(&this, "as_vector", true) {
+            let check_self_param = true;
+            if let Some(as_vector) =
+                elaborator.lookup_direct_method(&this, "as_vector", check_self_param)
+            {
+                let interner = &mut *elaborator.interner;
                 // Still have to ensure the element types match.
                 // Don't need to issue an error here if not, it will be done in unify_with_coercions
                 let mut bindings = TypeBindings::default();
@@ -740,7 +779,7 @@ impl Type {
         &self,
         target: &Type,
         expression: ExprId,
-        interner: &mut NodeInterner,
+        elaborator: &mut Elaborator,
     ) -> bool {
         let this = self.follow_bindings();
         let target = target.follow_bindings();
@@ -752,9 +791,11 @@ impl Type {
         match &this {
             Type::String(..) | Type::FmtString(..) => {
                 // as_ctstring is defined as a trait method
-                for (func_id, trait_id, _) in
-                    interner.lookup_trait_methods(&this, "as_ctstring", true)
-                {
+                let check_self_param = true;
+                let methods =
+                    elaborator.lookup_trait_methods(&this, "as_ctstring", check_self_param);
+                let interner = &mut *elaborator.interner;
+                for (func_id, trait_id, _) in methods {
                     // Look up the one that's in the standard library.
                     let trait_ = interner.get_trait(trait_id);
                     if trait_.crate_id.is_stdlib() && trait_.name.as_str() == "AsCtString" {

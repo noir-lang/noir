@@ -42,6 +42,14 @@ pub struct NamedType {
     pub typ: Type,
 }
 
+impl NamedType {
+    /// Whether the bound this belongs to fixes the associated type (`Bar<Out = Field>`). An item
+    /// the bound leaves out (`Bar`) is a placeholder: a bare type variable.
+    fn is_fixed(&self) -> bool {
+        !matches!(self.typ, Type::TypeVariable(_))
+    }
+}
+
 impl std::fmt::Display for NamedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} = {}", self.name, self.typ)
@@ -324,6 +332,12 @@ impl ParentBound {
         self.0.trait_id
     }
 
+    /// The names of the associated items the bound fixes (`Out` in `Bar<Out = Field>`).
+    pub fn fixed_items(&self) -> impl Iterator<Item = &str> {
+        let named = self.0.trait_generics.named.iter();
+        named.filter(|named| named.is_fixed()).map(|named| named.name.as_str())
+    }
+
     /// The bound for one use of the declaring trait. `bindings` maps the declaring trait's
     /// `Self`, generics and associated types to that use's (see [`Trait::bound_bindings`]).
     ///
@@ -337,8 +351,29 @@ impl ParentBound {
     ) -> ResolvedTraitBound {
         let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
         for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
-            if let Type::TypeVariable(placeholder) = &declared.typ {
-                named.typ = fresh_placeholder(placeholder.kind().into_owned());
+            if !declared.is_fixed() {
+                named.typ = fresh_placeholder(declared.typ.kind().into_owned());
+            }
+        }
+        ResolvedTraitBound { trait_generics, ..self.0 }
+    }
+
+    /// The bound where the declaring trait reaches it through its parent bounds, inside that
+    /// declaration. `bindings` is as in [`ParentBound::instantiate`]. An associated item the bound
+    /// leaves out stays the parent's own (`<Self as Bar>::Out`): every implementor has one, which
+    /// the declaration may only treat as unknown.
+    pub fn instantiate_in_declaration(
+        &self,
+        bindings: &TypeBindings,
+        parent: &Trait,
+    ) -> ResolvedTraitBound {
+        let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
+        for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
+            if !declared.is_fixed()
+                && let Some(own) = parent.get_associated_type(named.name.as_str())
+            {
+                let parent_name = parent.name.as_str();
+                named.typ = own.clone().into_named_generic(Some((SELF_TYPE_NAME, parent_name)));
             }
         }
         ResolvedTraitBound { trait_generics, ..self.0 }
@@ -502,6 +537,20 @@ impl Trait {
         TraitGenerics { ordered, named }
     }
 
+    /// The trait's generics and associated types as fresh unknowns, for one use of the trait
+    /// (`<_ as Trait<_>>`).
+    pub fn fresh_generics(&self, interner: &NodeInterner, location: Location) -> TraitGenerics {
+        let fresh = |generic: &ResolvedGeneric| {
+            interner.next_type_variable_with_kind(generic.kind().into_owned())
+        };
+        let ordered = vecmap(&self.generics, fresh);
+        let named = vecmap(&self.associated_types, |generic| NamedType {
+            name: Ident::new(generic.name.to_string(), location),
+            typ: fresh(generic),
+        });
+        TraitGenerics { ordered, named }
+    }
+
     /// Returns a `TraitConstraint` for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     ///
@@ -609,10 +658,17 @@ fn bind_named_generics(
 /// Binds the type variable in a [`ResolvedGeneric`], e.g. a generic parameter of a trait,
 /// to a [Type], which itself can be an unbound type variable.
 ///
-/// If the type variable itself appears in the type, then it does nothing.
+/// Binding the parameter to itself does nothing.
 fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
-    // Avoid binding t = t
-    if !arg.occurs(param.type_var.id()) {
+    // Avoid binding t = t. An argument that only contains the parameter (`[T; 2]` for `T`, in a
+    // trait's own method) is a binding like any other: instantiation replaces `T` once.
+    let is_param = match arg {
+        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+            var.id() == param.type_var.id()
+        }
+        _ => false,
+    };
+    if !is_param {
         bindings.insert(
             param.type_var.id(),
             (param.type_var.clone(), param.kind().into_owned(), arg.clone()),

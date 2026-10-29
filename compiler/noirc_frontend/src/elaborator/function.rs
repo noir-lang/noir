@@ -45,6 +45,7 @@ use crate::{
 use super::{
     Elaborator,
     item_context::{GenericsContext, ImplContext, ItemContext, ModuleContext},
+    types::ImplTraitPosition,
 };
 
 type ResolvedParametersInfo = (Vec<(HirPattern, Type, Visibility)>, Vec<Type>, Vec<HirIdent>);
@@ -373,7 +374,10 @@ impl Elaborator<'_> {
 
         // Resolve return type
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::FunctionReturn);
+        let previous_impl_trait_position =
+            std::mem::replace(&mut self.item.impl_trait_position, ImplTraitPosition::ReturnType);
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
+        self.item.impl_trait_position = previous_impl_trait_position;
 
         let is_crate_root = self.is_at_crate_root();
         let is_entry_point = func.is_entry_point(self.is_function_in_contract(), is_crate_root);
@@ -862,7 +866,7 @@ fn is_identifier_pattern(pattern: &HirPattern) -> bool {
 /// Whether the trait, self type or where clause of `trait_impl` contains a projection
 /// (`<S as C>::T`). The where clause holds the generics' inline bounds too.
 fn header_has_projection(trait_impl: &UnresolvedTraitImpl) -> bool {
-    let mut finder = ProjectionFinder::new(&trait_impl.generics);
+    let mut finder = ProjectionFinder::new(Some(&trait_impl.generics));
     trait_impl.r#trait.accept(&mut finder);
     trait_impl.object_type.accept(&mut finder);
     for constraint in &trait_impl.where_clause {

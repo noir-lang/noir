@@ -100,10 +100,11 @@ enum PathPrefixKind {
     /// a data type): the last segment resolves like `Type::method`
     /// ([`Elaborator::resolve_self_as_concrete_type`]).
     SelfInImpl,
-    /// A generic parameter with `: Trait` bound(s) in scope (e.g. `T` in `T::method`); the carried
-    /// constraints are the matched bounds. The last segment is a method or associated constant
-    /// reached through one of them.
-    BoundedGeneric(Vec<TraitConstraint>),
+    /// A generic parameter (e.g. `T` in `T::method`), or an associated type of one. The last
+    /// segment is a method or associated constant reached through one of the bounds on it in scope
+    /// or the carried ones (an associated type's declared bounds), or else a method of an impl for
+    /// all types.
+    BoundedGeneric(Type, Vec<TraitConstraint>),
     /// A trait (e.g. `Trait` in `Trait::method` / `Trait::CONST`). The last segment is a trait
     /// static method or an associated constant.
     Trait { trait_id: TraitId, resolution: PathResolution },
@@ -278,6 +279,7 @@ impl Elaborator<'_> {
 
         let definition_kind = self.interner.definition(definition_id).kind.clone();
         let mut bindings = TypeBindings::default();
+        let mut impl_where_clause = Vec::new();
         let generics = if let DefinitionKind::Function(func_id) = &definition_kind {
             self.usage_tracker.mark_impl_function_as_used(func_id);
 
@@ -345,6 +347,7 @@ impl Elaborator<'_> {
                     &mut bindings,
                     location,
                 );
+                impl_where_clause = self.interner.get_where_clause_for_impl(*impl_id).to_vec();
             }
 
             if is_enum_variant_global {
@@ -368,6 +371,12 @@ impl Elaborator<'_> {
 
         let id =
             self.intern_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()), location);
+        // Using an impl's associated constant requires the impl's where clause, which also
+        // decides the associated items it names (`where T: Foo` with `T::K` in the value).
+        for mut constraint in impl_where_clause {
+            constraint.apply_instantiation_bindings(&bindings);
+            self.push_where_clause_constraint(constraint, *id, None);
+        }
         let typ = self.type_check_variable_with_bindings(hir_ident, &id, generics, bindings);
         let id = self.intern_expr_type(id, typ.clone());
         (id, typ)
@@ -536,7 +545,7 @@ impl Elaborator<'_> {
     /// the caller never needs a further fallback. [`Self::resolve_path_prefix`] classifies the
     /// prefix once; the last segment is resolved against that classification directly in the
     /// already-resolved prefix (a module value via [`Self::resolve_value_in_module`], an enum
-    /// variant or associated constant on a type via [`Self::resolve_value_in_type`]).
+    /// variant or associated constant on a type via [`Self::lookup_path_as_value_in_type`]).
     ///
     /// Returns `None` only when an error has already been reported (an ambiguous trait method, or
     /// an unresolved name), so the caller should produce an error expression rather than retry.
@@ -562,9 +571,13 @@ impl Elaborator<'_> {
             PathPrefixKind::SelfInImpl => {
                 self.resolve_self_as_concrete_type(path, last_segment, turbofish)
             }
-            PathPrefixKind::BoundedGeneric(bounds) => {
-                self.resolve_bounded_generic_item(bounds, &last_segment, turbofish, path.location)
-            }
+            PathPrefixKind::BoundedGeneric(typ, bounds) => self.resolve_bounded_generic_item(
+                typ,
+                bounds,
+                &last_segment,
+                turbofish,
+                path.location,
+            ),
             PathPrefixKind::Type { resolution } => {
                 let is_self_prefix = false;
                 self.resolve_method_on_type_prefix(
@@ -627,7 +640,11 @@ impl Elaborator<'_> {
         // `Self` and a generic parameter are only meaningful as a plain path: `crate::Self` /
         // `super::T` name an item in another module, not the contextual `Self` or an in-scope
         // generic, so they must not be classified as such.
-        let kind = if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
+        let kind = if let Some((typ, bounds)) = self.bounds_on_abstract_associated_type(&prefix) {
+            // `T::A::item`, or `Self::A::item` in a trait: `A` is an associated type the item is
+            // reached through the bounds of.
+            PathPrefixKind::BoundedGeneric(typ, bounds)
+        } else if path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name() {
             // `Self` is contextual; which kind it is depends only on where we are (a trait impl, a
             // trait definition, somewhere `Self` is a plain type, or nowhere at all), so it is
             // classified here and the matching arm resolves the last segment.
@@ -644,11 +661,12 @@ impl Elaborator<'_> {
                 PathPrefixKind::SelfNotInScope
             }
         } else if path.kind == PathKind::Plain
-            && let Some(bounds) = self.matching_generic_bounds(path)
+            && path.segments.len() == 2
+            && let Some(generic) = self.item.generics.find(path.segments[0].ident.as_str())
         {
-            // A generic parameter (e.g. `T`) with a `T: Trait` bound in scope. A generic is not in
-            // the module namespace, so this is recognized from the in-scope bounds, not resolution.
-            PathPrefixKind::BoundedGeneric(bounds)
+            // A generic parameter (e.g. `T`). A generic is not in the module namespace, so this is
+            // recognized from the generics in scope, not resolution.
+            PathPrefixKind::BoundedGeneric(generic.clone().into_named_generic(None), Vec::new())
         } else {
             // Otherwise the prefix is resolved as a type to distinguish trait/type/module.
             let prefix_last_ident = prefix.last_segment().ident;
@@ -690,24 +708,49 @@ impl Elaborator<'_> {
         ResolvedPrefix { last_segment, turbofish, kind }
     }
 
-    /// If the path's first segment names a generic parameter with `: Trait` bound(s) in scope,
-    /// return those matching bounds (so `Head::item` can be resolved through them). Only meaningful
-    /// for a two-segment path; a generic is not in the module namespace, so this scans the in-scope
-    /// bounds rather than resolving.
-    pub(super) fn matching_generic_bounds(&self, path: &TypedPath) -> Option<Vec<TraitConstraint>> {
-        if path.segments.len() != 2 {
+    /// For a prefix `T::A` on a generic, or `Self::A` in a trait's declaration, that associated
+    /// type, with the bounds the trait declares on it. A generic shadows any module of its name,
+    /// so such a prefix is never a module path.
+    fn bounds_on_abstract_associated_type(
+        &mut self,
+        prefix: &TypedPath,
+    ) -> Option<(Type, Vec<TraitConstraint>)> {
+        if prefix.kind != PathKind::Plain || prefix.segments.len() != 2 {
             return None;
         }
-        let head = path.segments[0].ident.as_str();
-        let bounds: Vec<_> = self.item.generics.bounds_on_generic(head).cloned().collect();
-        (!bounds.is_empty()).then_some(bounds)
+        let head = &prefix.segments[0].ident;
+        let in_trait_declaration = self.item.impl_context.current_trait_impl().is_none()
+            && self.item.impl_context.current_trait().is_some();
+        let is_abstract = if head.is_self_type_name() {
+            in_trait_declaration
+        } else {
+            self.item.generics.find(head.as_str()).is_some()
+        };
+        if !is_abstract {
+            return None;
+        }
+        let typ = self.lookup_generic_or_associated_type(prefix, &GenericTypeArgs::default())?;
+        // In a trait's declaration, the bounds declared on its own associated type
+        // (`type A: Mk`).
+        let declared_bounds = match self.item.impl_context.current_trait() {
+            Some(trait_id) if head.is_self_type_name() => {
+                let the_trait = self.interner.get_trait(trait_id);
+                let declared = the_trait.associated_type_bounds.get(prefix.last_name());
+                vecmap(declared.into_iter().flatten(), |trait_bound| TraitConstraint {
+                    typ: typ.clone(),
+                    trait_bound: trait_bound.clone(),
+                })
+            }
+            _ => Vec::new(),
+        };
+        Some((typ, declared_bounds))
     }
 
     /// Resolve an unprefixed (single-segment) path to a local variable, or to a value item it
     /// names (global, function, enum-variant global, numeric type alias). The counterpart to
     /// [`Self::resolve_prefixed_variable`], which resolves a prefixed path's last segment directly
     /// in the already-resolved prefix ([`Self::resolve_value_in_module`] /
-    /// [`Self::resolve_value_in_type`]) and never looks for a local variable.
+    /// [`Self::lookup_path_as_value_in_type`]) and never looks for a local variable.
     fn resolve_unprefixed_variable(&mut self, path: TypedPath) -> Option<VariableResolution> {
         // The location of variables or definitions we register (for LSP) must be that of the
         // path's last segment, as intermediate segments solve to other definitions.
@@ -723,7 +766,7 @@ impl Elaborator<'_> {
 
     /// Resolve a module-prefixed path's last segment as a value item, looked up directly in the
     /// already-resolved prefix `module_id`, avoiding re-resolving the whole path now that the prefix
-    /// is known to be a module. The module counterpart of [`Self::resolve_value_in_type`].
+    /// is known to be a module. The module counterpart of [`Self::lookup_path_as_value_in_type`].
     fn resolve_value_in_module(
         &mut self,
         module_id: ModuleId,
@@ -734,23 +777,9 @@ impl Elaborator<'_> {
         self.variable_resolution_from_value_item(ident, location)
     }
 
-    /// Resolve a type-prefixed path's last segment as a value member (an enum variant or associated
-    /// constant) of the already-resolved type `typ`. The type-prefix counterpart of
-    /// [`Self::resolve_value_in_module`], avoiding re-resolving the whole path.
-    pub(super) fn resolve_value_in_type(
-        &mut self,
-        last_segment: &TypedPathSegment,
-        typ: &Type,
-        turbofish: Option<Turbofish>,
-    ) -> Option<VariableResolution> {
-        let location = last_segment.ident.location();
-        let ident = self.lookup_path_as_value_in_type(last_segment, typ, turbofish);
-        self.variable_resolution_from_value_item(ident, location)
-    }
-
     /// Finish resolving a value item: build the [`VariableResolution`] it denotes, or report the
     /// error if it could not be resolved as a value.
-    fn variable_resolution_from_value_item(
+    pub(super) fn variable_resolution_from_value_item(
         &mut self,
         ident: Result<PathValue, ResolverError>,
         location: Location,
@@ -964,7 +993,7 @@ impl Elaborator<'_> {
             PathResolutionItem::TypeTraitFunction(self_type, _trait_id, _func_id) => {
                 ItemTypeBinding::SelfGeneric(self_type)
             }
-            PathResolutionItem::TraitConstant(_, self_type, _, _) => {
+            PathResolutionItem::TraitConstant(self_type, _, _) => {
                 ItemTypeBinding::ConcreteSelfType(self_type)
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
@@ -1139,9 +1168,12 @@ impl Elaborator<'_> {
                 trait_generics,
                 assumed: _,
             }) => {
-                let mut constraint =
-                    self.interner.get_trait(trait_id).as_constraint(ident_location);
-                constraint.trait_bound.trait_generics = trait_generics;
+                let trait_bound = crate::hir_def::traits::ResolvedTraitBound {
+                    trait_id,
+                    trait_generics,
+                    location: ident_location,
+                };
+                let constraint = TraitConstraint { typ: typ.clone(), trait_bound };
                 ImplKind::TraitItem(TraitItem { definition, constraint, assumed: false })
             }
         };
@@ -1270,6 +1302,18 @@ impl Elaborator<'_> {
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
         if let ImplKind::TraitItem(method) = &ident.impl_kind {
+            // Arguments given for the trait's generics (`Trait::<u32>::method`) are the
+            // constraint's.
+            let the_trait = self.interner.get_trait(method.constraint.trait_bound.trait_id);
+            let given = the_trait
+                .generics
+                .iter()
+                .zip(&method.constraint.trait_bound.trait_generics.ordered);
+            for (generic, argument) in given {
+                if let Some((_, _, typ)) = bindings.get(&generic.type_var.id()) {
+                    let _ = argument.unify(typ);
+                }
+            }
             self.bind_generics_from_trait_constraint(
                 &method.constraint,
                 method.assumed,
@@ -1338,8 +1382,7 @@ impl Elaborator<'_> {
         let (typ, bindings) =
             self.instantiate(t, bindings, generics, &direct_generic_ids, location);
 
-        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
-            method.constraint.apply_instantiation_bindings(&bindings);
+        if let ImplKind::TraitItem(method) = ident.impl_kind {
             if method.assumed {
                 let trait_generics = method.constraint.trait_bound.trait_generics.clone();
                 let object_type = method.constraint.typ;

@@ -194,7 +194,7 @@ use crate::{
     },
     hir_def::{
         function::FuncMeta,
-        traits::{NamedType, ResolvedTraitBound, TraitConstraint, TraitFunction},
+        traits::{NamedType, ParentBound, ResolvedTraitBound, TraitConstraint, TraitFunction},
         types::ResolvedGenerics,
     },
     node_interner::{
@@ -207,6 +207,44 @@ use super::{
     function::UnresolvedFunctionMeta,
     item_context::{GenericsContext, ImplContext, ItemContext, ModuleContext},
 };
+
+/// An associated item of a parent constraint, shared by every path to that parent.
+struct ParentItemSlot {
+    /// The index of the parent constraint.
+    constraint: usize,
+    name: String,
+    slot: TypeVariable,
+    /// The types the paths fix the item to, each with the depth of the bound that fixes it: 1
+    /// for the starting trait's own parent bounds, 2 for those of its parents, and so on.
+    fixes: Vec<(Type, usize)>,
+}
+
+impl ParentItemSlot {
+    /// The different types the item is fixed to, if a bound at most two levels up from the
+    /// starting trait fixes it to one type and another bound to another. A fix that failed to
+    /// resolve (`Type::Error`) is already reported, so it is left out.
+    ///
+    /// This is where rustc reports a conflict (E0284): proving the starting trait's parent
+    /// bounds and theirs needs each of their fixes, which can't hold next to a different one.
+    /// A conflict further up belongs to a parent, which reports it.
+    fn conflicting_types(&self) -> Option<Vec<Type>> {
+        let fixes = vecmap(&self.fixes, |(typ, depth)| (typ.follow_bindings(), *depth));
+        let fixes: Vec<_> = fixes.into_iter().filter(|(typ, _)| *typ != Type::Error).collect();
+        let conflict = fixes
+            .iter()
+            .any(|(typ, depth)| *depth <= 2 && fixes.iter().any(|(other, _)| typ != other));
+        if !conflict {
+            return None;
+        }
+        let mut types = Vec::new();
+        for (typ, _) in fixes {
+            if !types.contains(&typ) {
+                types.push(typ);
+            }
+        }
+        Some(types)
+    }
+}
 
 impl Elaborator<'_> {
     /// Runs `f` in a context of its own for the trait: the trait's module, the trait as the
@@ -379,6 +417,7 @@ impl Elaborator<'_> {
                     .generics
                     .set_params(this.interner.get_trait(*trait_id).all_generics.clone());
 
+                this.check_parent_associated_types_agree(*trait_id);
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
                 this.interner.update_trait(*trait_id, |trait_def| {
@@ -927,14 +966,13 @@ impl Elaborator<'_> {
     }
 
     /// Adds the constraints for the parent traits that `constraint` implies and that have
-    /// associated types. This creates fresh type variables for the parent associated types
-    /// so that `M::Key` syntax can be resolved via the bounds in scope.
+    /// associated types, so that `M::Key` syntax can be resolved via the bounds in scope.
     ///
-    /// The parent trait bounds are obtained from `Trait::parent_bounds` (already resolved
-    /// during `collect_traits` with associated type variables) and instantiated via
-    /// `instantiate_parent_trait_bound` to substitute the child trait's bindings. The
-    /// named (associated) types are then replaced with fresh per-function type variables
-    /// so they can be wrapped in `Type::Forall` and freshened at each call site.
+    /// The parent trait bounds are obtained from `Trait::parent_bounds` and instantiated for
+    /// `constraint`. An associated type that some path to a parent fixes (`P2: Grand<Item = u8>`)
+    /// is that type on every path to it, whatever the order of the parents. One that no path
+    /// fixes is a fresh per-function type variable, so that it can be wrapped in `Type::Forall`
+    /// and freshened at each call site.
     ///
     /// Returns (`new_generics`, `new_constraints`) to be added to the function's generics
     /// and trait constraints respectively.
@@ -943,28 +981,119 @@ impl Elaborator<'_> {
         &mut self,
         constraint: &TraitConstraint,
     ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
-        let mut new_generics = Vec::new();
-        let mut new_constraints = Vec::new();
-        self.collect_parent_associated_types(
-            &constraint.typ,
-            &constraint.trait_bound,
-            &mut new_generics,
-            &mut new_constraints,
-            &mut rustc_hash::FxHashSet::default(),
-        );
+        let (mut new_constraints, slots) = self.parent_associated_type_slots(constraint);
+        let new_generics = self.bind_parent_item_slots(&new_constraints, &slots);
+        for parent_constraint in &mut new_constraints {
+            let generics = &mut parent_constraint.trait_bound.trait_generics;
+            *generics = generics.map(Type::follow_bindings);
+            self.item.generics.add_bound(parent_constraint.clone());
+            let trait_bound = &parent_constraint.trait_bound;
+            self.add_implied_trait_bound_to_scope(
+                trait_bound.location,
+                &parent_constraint.typ,
+                trait_bound,
+            );
+        }
         (new_generics, new_constraints)
     }
 
-    /// Recursively walk parent trait hierarchies and create fresh type variables
-    /// for any associated types found on parent traits. The new constraints are
-    /// added to the bounds in scope and returned via the output parameters.
+    /// The constraints `constraint` implies on its parents with associated types, one for each
+    /// parent and arguments, with a slot for each of their items. Every path to a parent shares
+    /// its slots.
+    fn parent_associated_type_slots(
+        &mut self,
+        constraint: &TraitConstraint,
+    ) -> (Vec<TraitConstraint>, Vec<ParentItemSlot>) {
+        let mut new_constraints = Vec::new();
+        let mut slots = Vec::new();
+        let object_type = &constraint.typ;
+        let trait_bound = &constraint.trait_bound;
+        let Some(the_trait) = self.interner.try_get_trait(trait_bound.trait_id) else {
+            return (new_constraints, slots);
+        };
+        let bindings = the_trait.bound_bindings(object_type, &trait_bound.trait_generics);
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
+        for parent_bound in &parent_bounds {
+            // Each parent is walked in full, so that every fix is seen at the depth it has under
+            // each parent, whatever their order.
+            let mut visited = rustc_hash::FxHashSet::from_iter([trait_bound.trait_id]);
+            self.collect_parent_bound(
+                object_type,
+                &bindings,
+                parent_bound,
+                1,
+                &mut new_constraints,
+                &mut slots,
+                &mut visited,
+            );
+        }
+        (new_constraints, slots)
+    }
+
+    /// Binds each slot to the first type the paths fix it to, or to a fresh generic if none
+    /// does, and returns those generics. No implementor satisfies two paths fixing it to
+    /// different types: the trait declaration reports those.
+    fn bind_parent_item_slots(
+        &self,
+        constraints: &[TraitConstraint],
+        slots: &[ParentItemSlot],
+    ) -> Vec<TypeVariable> {
+        let mut new_generics = Vec::new();
+        for slot in slots {
+            let typ = match slot.fixes.first() {
+                Some((typ, _)) => typ.clone(),
+                None => {
+                    let parent_constraint = &constraints[slot.constraint];
+                    let trait_bound = &parent_constraint.trait_bound;
+                    let object_type = &parent_constraint.typ;
+                    self.left_out_parent_item(
+                        object_type,
+                        trait_bound,
+                        &slot.name,
+                        &mut new_generics,
+                    )
+                }
+            };
+            slot.slot.bind(typ);
+        }
+        new_generics
+    }
+
+    /// Reports an associated type that the trait's parents fix to different types
+    /// (`P1: Grand<Item = u8>`, `P2: Grand<Item = Field>`): no type implements the trait. See
+    /// [`ParentItemSlot::conflicting_types`].
+    fn check_parent_associated_types_agree(&mut self, trait_id: TraitId) {
+        let the_trait = self.interner.get_trait(trait_id);
+        let location = the_trait.name.location();
+        let constraint = the_trait.as_constraint(location);
+        let (constraints, slots) = self.parent_associated_type_slots(&constraint);
+        // Fixed types are compared once every slot is bound, since one can mention another
+        // (`Grand<Item = Self::Out>` next to `P1<Out = Field>`). Inside the declaration, an item
+        // no path fixes is the parent's own.
+        self.bind_parent_item_slots(&constraints, &slots);
+        for slot in slots {
+            let Some(types) = slot.conflicting_types() else {
+                continue;
+            };
+            let types = vecmap(types, |typ| typ.to_string());
+            let parent_bound = &constraints[slot.constraint].trait_bound;
+            let parent_name = self
+                .projection_trait_name(parent_bound.trait_id, &parent_bound.trait_generics.ordered);
+            let item = format!("<Self as {parent_name}>::{}", slot.name);
+            self.push_err(ResolverError::ConflictingParentAssociatedType { item, types, location });
+        }
+    }
+
+    /// Recursively walk the parents of `trait_bound`, whose own parent bounds are at `depth`. See
+    /// [`Self::collect_parent_bound`].
     #[tracing::instrument(level = "trace", skip_all)]
     fn collect_parent_associated_types(
         &mut self,
         object_type: &Type,
         trait_bound: &ResolvedTraitBound,
-        new_generics: &mut Vec<TypeVariable>,
+        depth: usize,
         new_constraints: &mut Vec<TraitConstraint>,
+        slots: &mut Vec<ParentItemSlot>,
         visited: &mut rustc_hash::FxHashSet<TraitId>,
     ) {
         let trait_id = trait_bound.trait_id;
@@ -972,114 +1101,136 @@ impl Elaborator<'_> {
             return;
         }
 
-        let parent_bounds: Vec<_> = self
-            .interner
-            .try_get_trait(trait_id)
-            .map(|t| t.parent_bounds().collect())
-            .unwrap_or_default();
-
+        let Some(the_trait) = self.interner.try_get_trait(trait_id) else {
+            return;
+        };
+        let bindings = the_trait.bound_bindings(object_type, &trait_bound.trait_generics);
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
         for parent_bound in &parent_bounds {
-            // Substitute the child trait's bindings into the parent bound.
-            let instantiated =
-                self.instantiate_parent_trait_bound(object_type, trait_bound, parent_bound);
-
-            // Skip if there are no associated types on this parent trait, or if we already have a
-            // constraint for this type and parent trait with these arguments.
-            let has_named = !instantiated.trait_generics.named.is_empty();
-            let ordered = &instantiated.trait_generics.ordered;
-            let already_has = self
-                .item
-                .generics
-                .find_bound(object_type, instantiated.trait_id, ordered)
-                .is_some();
-
-            if has_named && !already_has {
-                // Replace the named (associated) type variables with fresh per-function
-                // ones so they can be included in Type::Forall and freshened at call sites.
-                let parent_trait_name = self.projection_trait_name(
-                    instantiated.trait_id,
-                    &instantiated.trait_generics.ordered,
-                );
-                let parent_trait = self.interner.get_trait(instantiated.trait_id);
-                let object_name = object_type.to_string();
-                let object_is_own_self = self.is_own_self(object_type)
-                    && self.declaration_implies(instantiated.trait_id, ordered);
-
-                let named = vecmap(&instantiated.trait_generics.named, |named_type| {
-                    // An item the parent bound fixes (`Foo<Assoc = u8>`) keeps its value; only
-                    // the ones it leaves out, which instantiation makes fresh unknowns, are named.
-                    if !matches!(named_type.typ, Type::TypeVariable(_)) {
-                        return named_type.clone();
-                    }
-
-                    // See `add_missing_named_generics`.
-                    if object_is_own_self {
-                        let item = parent_trait
-                            .get_associated_type(named_type.name.as_str())
-                            .expect("ICE - cannot find associated type");
-                        let typ = item
-                            .clone()
-                            .into_named_generic(Some((SELF_TYPE_NAME, parent_trait_name.as_str())));
-                        let name = Ident::new(named_type.name.to_string(), instantiated.location);
-                        return NamedType { name, typ };
-                    }
-
-                    let fresh_id = self.interner.next_type_variable_id();
-                    let kind = parent_trait
-                        .get_associated_type(named_type.name.as_str())
-                        .expect("ICE - cannot find associated type")
-                        .kind();
-                    let type_var = TypeVariable::unbound(fresh_id, kind.into_owned());
-
-                    let assoc_type_id = parent_trait
-                        .associated_types
-                        .iter()
-                        .find(|a| a.name.as_ref() == named_type.name.as_str())
-                        .expect("ICE - cannot find associated type")
-                        .type_var
-                        .id();
-
-                    let fresh_type = type_var.clone().into_implicit_named_generic(
-                        &Rc::new(named_type.name.to_string()),
-                        Some((object_name.as_str(), parent_trait_name.as_str())),
-                        assoc_type_id,
-                    );
-
-                    new_generics.push(type_var);
-                    NamedType {
-                        name: Ident::new(named_type.name.to_string(), instantiated.location),
-                        typ: fresh_type,
-                    }
-                });
-
-                let trait_generics =
-                    TraitGenerics { ordered: instantiated.trait_generics.ordered.clone(), named };
-                let parent_constraint = TraitConstraint {
-                    typ: object_type.clone(),
-                    trait_bound: ResolvedTraitBound {
-                        trait_id: instantiated.trait_id,
-                        trait_generics,
-                        location: instantiated.location,
-                    },
-                };
-                self.item.generics.add_bound(parent_constraint.clone());
-                self.add_implied_trait_bound_to_scope(
-                    instantiated.location,
-                    object_type,
-                    &parent_constraint.trait_bound,
-                );
-                new_constraints.push(parent_constraint);
-            }
-
-            // Recurse for grandparent traits
-            self.collect_parent_associated_types(
+            self.collect_parent_bound(
                 object_type,
-                &instantiated,
-                new_generics,
+                &bindings,
+                parent_bound,
+                depth,
                 new_constraints,
+                slots,
                 visited,
             );
         }
+    }
+
+    /// Collects the constraint for one parent bound at `depth`, if the parent has associated
+    /// types, with a slot for each of its items, the same for every path to that parent, and
+    /// the items this bound fixes. Then walks the parent's own parents.
+    #[allow(clippy::too_many_arguments)]
+    fn collect_parent_bound(
+        &mut self,
+        object_type: &Type,
+        bindings: &TypeBindings,
+        parent_bound: &ParentBound,
+        depth: usize,
+        new_constraints: &mut Vec<TraitConstraint>,
+        slots: &mut Vec<ParentItemSlot>,
+        visited: &mut rustc_hash::FxHashSet<TraitId>,
+    ) {
+        let instantiated = parent_bound
+            .instantiate(bindings, |kind| self.interner.next_type_variable_with_kind(kind));
+        let ordered = &instantiated.trait_generics.ordered;
+        // A parent already in scope keeps its items, and one without items has none to slot.
+        let in_scope = self.item.generics.find_bound(object_type, instantiated.trait_id, ordered);
+        if in_scope.is_some() || instantiated.trait_generics.named.is_empty() {
+            let bound = in_scope.map_or(instantiated, |in_scope| in_scope.trait_bound.clone());
+            self.collect_parent_associated_types(
+                object_type,
+                &bound,
+                depth + 1,
+                new_constraints,
+                slots,
+                visited,
+            );
+            return;
+        }
+
+        // Every constraint the walk adds is on `object_type`.
+        let earlier = new_constraints.iter().position(|earlier| {
+            earlier.trait_bound.trait_id == instantiated.trait_id
+                && earlier.trait_bound.trait_generics.ordered == *ordered
+        });
+        let constraint = earlier.unwrap_or_else(|| {
+            let mut trait_bound = instantiated.clone();
+            for named in &mut trait_bound.trait_generics.named {
+                let id = self.interner.next_type_variable_id();
+                let slot = TypeVariable::unbound(id, named.typ.kind().into_owned());
+                named.typ = Type::TypeVariable(slot.clone());
+                let name = named.name.to_string();
+                let constraint = new_constraints.len();
+                slots.push(ParentItemSlot { constraint, name, slot, fixes: Vec::new() });
+            }
+            new_constraints.push(TraitConstraint { typ: object_type.clone(), trait_bound });
+            new_constraints.len() - 1
+        });
+
+        for name in parent_bound.fixed_items() {
+            let fixed = instantiated.trait_generics.named.iter();
+            let fixed = fixed.clone().find(|named| named.name.as_str() == name);
+            let fixed = fixed.expect("ICE: a fixed item is one of the bound's items");
+            let slot = slots
+                .iter_mut()
+                .find(|slot| slot.constraint == constraint && slot.name == name)
+                .expect("ICE: every item of a parent constraint has a slot");
+            // A fix that mentions its own slot (`Grand<Item = Self::Item>`) says nothing, and
+            // binding the slot to it would make the slot contain itself.
+            if !fixed.typ.occurs(slot.slot.id()) {
+                slot.fixes.push((fixed.typ.clone(), depth));
+            }
+        }
+
+        let slot_bound = new_constraints[constraint].trait_bound.clone();
+        self.collect_parent_associated_types(
+            object_type,
+            &slot_bound,
+            depth + 1,
+            new_constraints,
+            slots,
+            visited,
+        );
+    }
+
+    /// The type of the associated type `name` of `object_type: trait_bound` that no parent bound
+    /// fixes: the trait's own `<Self as Parent>::Item` when `object_type` is the `Self` of a trait
+    /// that implies the bound, and a fresh per-function type variable, added to `new_generics`,
+    /// otherwise.
+    fn left_out_parent_item(
+        &self,
+        object_type: &Type,
+        trait_bound: &ResolvedTraitBound,
+        name: &str,
+        new_generics: &mut Vec<TypeVariable>,
+    ) -> Type {
+        let ordered = &trait_bound.trait_generics.ordered;
+        let parent_trait_name = self.projection_trait_name(trait_bound.trait_id, ordered);
+        let object_is_own_self = self.is_own_self(object_type)
+            && self.declaration_implies(trait_bound.trait_id, ordered);
+        let parent_trait = self.interner.get_trait(trait_bound.trait_id);
+        let item =
+            parent_trait.get_associated_type(name).expect("ICE - cannot find associated type");
+
+        // See `add_missing_named_generics`.
+        if object_is_own_self {
+            return item
+                .clone()
+                .into_named_generic(Some((SELF_TYPE_NAME, parent_trait_name.as_str())));
+        }
+
+        let fresh_id = self.interner.next_type_variable_id();
+        let type_var = TypeVariable::unbound(fresh_id, item.kind().into_owned());
+        let fresh_type = type_var.clone().into_implicit_named_generic(
+            &Rc::new(name.to_string()),
+            Some((object_type.to_string().as_str(), parent_trait_name.as_str())),
+            item.type_var.id(),
+        );
+        new_generics.push(type_var);
+        fresh_type
     }
 
     /// The bounds `constraints` imply on the associated types they name; see
@@ -1687,6 +1838,18 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
     // issue an error for it here.
     if let Some(trait_fn_id) = trait_info.method_ids.get(method_name) {
         let trait_fn_meta = interner.function_meta(trait_fn_id);
+
+        // A `comptime` trait method only exists at compile time, so its impls must too. A
+        // `comptime` impl of a runtime method is allowed: a type that only exists at compile time
+        // (`Quoted`) implements runtime traits (`Eq`) that way.
+        if interner.function_modifiers(trait_fn_id).is_comptime
+            && !interner.function_modifiers(&function).is_comptime
+        {
+            errors.push(TypeCheckError::ComptimeMismatch {
+                item: method_name.to_string(),
+                location: meta.name.location,
+            });
+        }
 
         if trait_fn_meta.direct_generics.len() != meta.direct_generics.len() {
             let expected = trait_fn_meta.direct_generics.len();
