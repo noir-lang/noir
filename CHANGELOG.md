@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.0](https://github.com/noir-lang/noir/compare/v1.0.0-rc.7...v1.0.0) (2026-10-29)
+
+
+### Miscellaneous Chores
+
+* Trigger release-please to open 1.0.0 release PR ([#14119](https://github.com/noir-lang/noir/issues/14119)) ([f0afe48](https://github.com/noir-lang/noir/commit/f0afe4804f4df9834db03d54de1c1b596d4b7b00))
+
 ## [1.0.0-rc.7](https://github.com/noir-lang/noir/compare/v1.0.0-rc.6...v1.0.0-rc.7) (2026-10-28)
 
 
