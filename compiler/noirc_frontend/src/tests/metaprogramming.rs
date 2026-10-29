@@ -1903,6 +1903,158 @@ fn macro_call_type_in_closure_body_is_solved_again_on_each_loop_iteration() {
     check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
 }
 
+#[test]
+fn macro_call_type_of_comptime_let_is_visible_in_a_later_comptime_block() {
+    let src = r#"
+    struct S { a: u8 }
+    comptime fn make_s() -> Quoted { quote { S { a: 1 } } }
+    fn main() {
+        comptime let v = make_s!();
+        comptime {
+            assert(type_of([v]).eq(quote { [S; 1] }.as_type()));
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
+}
+
+#[test]
+fn macro_call_type_of_comptime_let_is_visible_in_a_later_comptime_let() {
+    let src = r#"
+    struct S { a: u8 }
+    comptime fn make_s() -> Quoted { quote { S { a: 1 } } }
+    fn main() {
+        comptime let v = make_s!();
+        comptime let is_s = type_of([v]).eq(quote { [S; 1] }.as_type());
+        comptime {
+            assert(is_s);
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
+}
+
+#[test]
+fn macro_call_type_of_comptime_let_is_visible_to_a_later_method_call() {
+    let src = r#"
+    comptime fn unquote(code: Quoted) -> Quoted {
+        code
+    }
+
+    struct Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> {
+        fn len(_self: Self) -> u32 {
+            N
+        }
+    }
+
+    fn main() -> pub u32 {
+        comptime let foo = unquote!(quote { Foo::<10> {} });
+        comptime { foo.len() }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Source shared by the tests below: `f` is the identity function, and a macro call passed to it
+/// fixes its parameter type to `u8`.
+const SOLVED_BY_MACRO_CALL: &str = r#"
+    comptime fn make_u8() -> Quoted { quote { 7 as u8 } }
+    fn id<T>(a: T) -> T { a }
+"#;
+
+#[test]
+fn type_solved_in_comptime_let_initializer_is_seen_by_a_runtime_read() {
+    let src = r#"
+    fn main() {
+        comptime let f = { let f = id; let _ = f(make_u8!()); f };
+        let g = f;
+        let _: Field = g(1);
+                       ^^^^ Expected type Field, found type u8
+    }
+    "#;
+    check_errors_with_stdlib(src, [SOLVED_BY_MACRO_CALL]);
+}
+
+#[test]
+fn type_solved_in_a_later_comptime_block_is_seen_by_a_runtime_read() {
+    let src = r#"
+    fn main() {
+        comptime let f = id;
+        comptime { let _ = f(make_u8!()); };
+        let g = f;
+        let _: Field = g(1);
+                       ^^^^ Expected type Field, found type u8
+    }
+    "#;
+    check_errors_with_stdlib(src, [SOLVED_BY_MACRO_CALL]);
+}
+
+#[test]
+fn type_solved_in_a_later_comptime_block_expression_is_seen_by_a_runtime_read() {
+    let src = r#"
+    fn main() {
+        comptime let f = id;
+        let _u = comptime { f(make_u8!()) };
+        let g = f;
+        let _: Field = g(1);
+                       ^^^^ Expected type Field, found type u8
+    }
+    "#;
+    check_errors_with_stdlib(src, [SOLVED_BY_MACRO_CALL]);
+}
+
+#[test]
+fn type_solved_in_a_later_comptime_let_is_seen_by_a_runtime_read() {
+    let src = r#"
+    fn main() {
+        comptime let f = id;
+        comptime let _u = f(make_u8!());
+        let g = f;
+        let _: Field = g(1);
+                       ^^^^ Expected type Field, found type u8
+    }
+    "#;
+    check_errors_with_stdlib(src, [SOLVED_BY_MACRO_CALL]);
+}
+
+#[test]
+fn type_solved_in_comptime_let_initializer_is_seen_through_a_comptime_block() {
+    let src = r#"
+    fn main() {
+        comptime let f = { let f = id; let _ = f(make_u8!()); f };
+        let g = comptime { f };
+        let _: Field = g(1);
+                       ^^^^ Expected type Field, found type u8
+    }
+    "#;
+    check_errors_with_stdlib(src, [SOLVED_BY_MACRO_CALL]);
+}
+
+#[test]
+fn macro_call_type_in_top_level_comptime_loop_is_solved_again_on_each_iteration() {
+    let src = r#"
+    struct S { a: u8 }
+    comptime fn make(n: u32) -> Quoted {
+        if n == 0 { quote { S { a: 1 } } } else { quote { 1_u8 } }
+    }
+    fn main() {
+        comptime {
+            for i in 0..2 {
+                let x = make!(i);
+                if i == 0 {
+                    assert(type_of([x]).eq(quote { [S; 1] }.as_type()));
+                } else {
+                    assert(type_of([x]).eq(quote { [u8; 1] }.as_type()));
+                }
+            }
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
+}
+
 // Regression test for https://github.com/noir-lang/noir/issues/11575
 #[test]
 fn path_inside_module_attribute() {

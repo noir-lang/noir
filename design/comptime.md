@@ -71,9 +71,9 @@ code compiles identically across platforms.
 
 # Types solved while interpreting
 
-The interpreter does not bind type variables. Each call frame has a substitution: the call's
-instantiation and impl bindings, plus the types the frame solves while it runs (a macro call's
-result type, or a call's result type that only its value reveals). A value keeps the types it
+While it runs, the interpreter does not bind type variables. Each call frame has a substitution:
+the call's instantiation and impl bindings, plus the types the frame solves while it runs (a macro
+call's result type, or a call's result type that only its value reveals). A value keeps the types it
 was built with, so a value built before one of its types was solved still mentions the
 unsolved variable. It resolves only against a substitution that holds the solution.
 
@@ -94,6 +94,16 @@ Two rules make a solution visible wherever such a value can go:
 
 A `comptime` block's value is resolved before its interpreter is dropped, because a struct is
 inlined into the runtime code with the type stored on it.
+
+What an interpreter solved in its outermost frame is committed to the type variables themselves
+when the interpreter is dropped. The outermost frame runs code the elaborator hands over exactly
+once — a `comptime` statement or block of a function body, a global's initializer, a macro call's
+arguments — so those solutions are final, and the variables are the elaborated program's own:
+`comptime let v = make!();` gives `v` a variable that the next statement is type-checked against
+and that a value stored for `v` keeps. A new interpreter runs each statement, and the
+elaborator's type checking never consults an interpreter's substitution, so a solution left in
+the frame would be lost to both. Inside one interpreter the rules above still apply: a call
+evaluated again in a loop re-solves its variables, and only the last solution is committed.
 
 Builtins read the types stored on their arguments directly, so their arguments are resolved
 under the builtin's frame.
