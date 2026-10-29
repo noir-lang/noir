@@ -489,21 +489,20 @@ impl<'context> Elaborator<'context> {
     ) -> Result<(), CompilationError> {
         // Arguments must be resolved relative to the module where the attribute happens
         self.in_local_module(attribute_context.attribute_module, |this| {
-            let result = {
-                let mut interpreter = this.setup_interpreter();
+            let mut interpreter = this.setup_interpreter();
 
-                let mut arguments = Self::handle_attribute_arguments(
-                    &mut interpreter,
-                    &item,
-                    function,
-                    arguments,
-                    location,
-                )?;
+            let mut arguments = Self::handle_attribute_arguments(
+                &mut interpreter,
+                &item,
+                function,
+                arguments,
+                location,
+            )?;
 
-                arguments.insert(0, (item, location));
+            arguments.insert(0, (item, location));
 
-                interpreter.call_function(function, arguments, TypeBindings::default(), location)
-            };
+            let result =
+                interpreter.call_function(function, arguments, TypeBindings::default(), location);
 
             let value = result.map_err(CompilationError::from)?;
 

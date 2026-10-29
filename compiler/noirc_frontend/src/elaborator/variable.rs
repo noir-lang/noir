@@ -132,7 +132,8 @@ impl Elaborator<'_> {
         // Only check has_errors when we need to call the interpreter
         // If this variable is a comptime local variable, use its current value as the final expression
         if is_comptime_local {
-            let value = self.setup_interpreter().evaluate(id);
+            let mut interpreter = self.setup_interpreter();
+            let value = interpreter.evaluate(id);
             // If the value is an error it means the variable already had an error, so don't report it here again
             // (the error will make no sense, it will say that a non-comptime variable was referenced at runtime
             // but that's not true)
