@@ -1075,7 +1075,8 @@ impl Elaborator<'_> {
         });
 
         // Run the interpreter - it will check if execution has been halted
-        let value = self.setup_interpreter().evaluate_statement(hir_statement);
+        let mut interpreter = self.setup_interpreter();
+        let value = interpreter.evaluate_statement(hir_statement);
 
         let from_macro_call = false;
         let (expr, typ) = self.inline_comptime_value(value, location, from_macro_call);

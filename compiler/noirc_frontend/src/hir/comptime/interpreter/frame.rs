@@ -1,6 +1,6 @@
 use rustc_hash::FxHashSet as HashSet;
 
-use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
+use crate::{Kind, Type, TypeBinding, TypeBindings, TypeVariable, TypeVariableId};
 
 /// The types the function being interpreted sees: the bindings of its generics (a call's
 /// instantiation and impl bindings, or the ones a closure was created under) plus the types
@@ -46,12 +46,23 @@ impl Frame {
 
     /// This frame (the caller's) extended into the frame of a call to a closure created in
     /// `created_in`, whose bindings take precedence.
+    ///
+    /// A type solved in `created_in` can have been bound on its variable since the closure was
+    /// created (see `Interpreter::commit_final_solves`). The binding is then what every type
+    /// sees, and a frame never also holds a replacement for a bound variable, so those solves are
+    /// left out.
     pub(crate) fn for_closure(mut self, created_in: Frame) -> Frame {
-        for var_id in created_in.bindings.keys() {
-            self.runtime_solves.remove(var_id);
+        for (var_id, binding) in created_in.bindings {
+            let is_runtime_solve = created_in.runtime_solves.contains(&var_id);
+            if is_runtime_solve && matches!(binding.0.binding(), TypeBinding::Bound(_)) {
+                continue;
+            }
+            self.runtime_solves.remove(&var_id);
+            if is_runtime_solve {
+                self.runtime_solves.insert(var_id);
+            }
+            self.bindings.insert(var_id, binding);
         }
-        self.bindings.extend(created_in.bindings);
-        self.runtime_solves.extend(created_in.runtime_solves);
         self
     }
 
@@ -70,16 +81,21 @@ impl Frame {
         }
     }
 
-    /// The type variables solved while interpreting, each with its solution resolved against
-    /// this frame.
-    pub(crate) fn runtime_solutions(&self) -> Vec<(TypeVariable, Kind, Type)> {
-        self.runtime_solves
+    /// Removes the type variables solved while interpreting from this frame, returning each with
+    /// its solution resolved against the frame.
+    pub(crate) fn take_runtime_solutions(&mut self) -> Vec<(TypeVariable, Kind, Type)> {
+        let solutions: Vec<_> = self
+            .runtime_solves
             .iter()
             .map(|var_id| {
                 let (var, kind, typ) = &self.bindings[var_id];
                 (var.clone(), kind.clone(), self.substitute(typ))
             })
-            .collect()
+            .collect();
+        for var_id in self.runtime_solves.drain() {
+            self.bindings.remove(&var_id);
+        }
+        solutions
     }
 
     /// Copies into this frame each type variable `callee` solved that occurs in one of `visible`,
@@ -139,6 +155,18 @@ mod tests {
         frame.forget(&[TypeVariableId(0)]);
         assert!(!frame.has_runtime_solves());
         assert_eq!(frame.bindings().len(), 1);
+    }
+
+    #[test]
+    fn a_closure_frame_leaves_out_solves_bound_since_it_was_created() {
+        let solved = binding(0, Type::Bool);
+        let mut created_in = Frame::default();
+        created_in.solve(solved.clone());
+        solved[&TypeVariableId(0)].0.bind(Type::Bool);
+
+        let frame = Frame::default().for_closure(created_in);
+        assert!(!frame.has_runtime_solves());
+        assert!(frame.bindings().is_empty());
     }
 
     #[test]

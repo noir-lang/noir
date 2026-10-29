@@ -179,28 +179,24 @@ impl Elaborator<'_> {
             // own.
             let enclosing_scopes = std::mem::take(self.comptime_scopes_mut());
 
+            let mut interpreter = self.setup_interpreter();
+
             // Evaluate the global's initializer expression at compile time using the interpreter.
-            // Once it has run, look the constant value up to store it in the interner for use
-            // during compilation.
-            let value = {
-                let mut interpreter = self.setup_interpreter();
-                interpreter.evaluate_let(let_statement).map(|_| {
-                    interpreter
-                        .lookup_id(definition_id, location)
-                        .expect("The global should be defined since evaluate_let did not error")
-                })
-            };
+            if let Err(error) = interpreter.evaluate_let(let_statement) {
+                self.push_err(error);
+            } else {
+                // The interpreter has now computed the constant value. Look it up and store it
+                // in the interner for use during compilation.
+                let value = interpreter
+                    .lookup_id(definition_id, location)
+                    .expect("The global should be defined since evaluate_let did not error");
 
-            match value {
-                Err(error) => self.push_err(error),
-                Ok(value) => {
-                    self.debug_comptime(location, |interner, file_manager| {
-                        value.display(interner, file_manager).to_string()
-                    });
+                self.debug_comptime(location, |interner, file_manager| {
+                    value.display(interner, file_manager).to_string()
+                });
 
-                    // Store the resolved value so it can be used later
-                    self.interner.resolve_global(global_id, value, comptime, self.files);
-                }
+                // Store the resolved value so it can be used later
+                self.interner.resolve_global(global_id, value, comptime, self.files);
             }
 
             *self.comptime_scopes_mut() = enclosing_scopes;

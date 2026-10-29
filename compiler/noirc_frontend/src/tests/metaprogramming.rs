@@ -1957,6 +1957,21 @@ fn macro_call_type_of_comptime_let_is_visible_to_a_later_method_call() {
     assert_no_errors(src);
 }
 
+#[test]
+fn macro_call_type_solved_before_a_closure_is_created_is_seen_when_a_later_statement_calls_it() {
+    let src = r#"
+    struct S { a: u8 }
+    comptime fn make_s() -> Quoted { quote { S { a: 1 } } }
+    fn main() {
+        comptime let c = { let v = make_s!(); || [v] };
+        comptime {
+            assert(type_of(c()).eq(quote { [S; 1] }.as_type()));
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
+}
+
 /// Source shared by the tests below: `f` is the identity function, and a macro call passed to it
 /// fixes its parameter type to `u8`.
 const SOLVED_BY_MACRO_CALL: &str = r#"

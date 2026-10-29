@@ -1884,10 +1884,9 @@ impl Elaborator<'_> {
             block
         });
 
-        let value = {
-            let mut interpreter = self.setup_interpreter();
-            interpreter.evaluate_block(block).map(|value| interpreter.apply_runtime_solves(value))
-        };
+        let mut interpreter = self.setup_interpreter();
+        let value =
+            interpreter.evaluate_block(block).map(|value| interpreter.apply_runtime_solves(value));
 
         let from_macro_call = false;
         let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
@@ -1998,24 +1997,22 @@ impl Elaborator<'_> {
     ) -> Option<(HirExpression, Type)> {
         let function = self.validate_macro_call(func, &return_type, location)?;
 
+        let mut interpreter = self.setup_interpreter();
+        let mut comptime_args = Vec::new();
         let mut errors: Vec<CompilationError> = Vec::new();
-        let result = {
-            let mut interpreter = self.setup_interpreter();
-            let mut comptime_args = Vec::new();
 
-            for argument in arguments {
-                match interpreter.evaluate(argument) {
-                    Ok(arg) => {
-                        let location = interpreter.elaborator.interner.expr_location(&argument);
-                        comptime_args.push((arg, location));
-                    }
-                    Err(error) => errors.push(error.into()),
+        for argument in arguments {
+            match interpreter.evaluate(argument) {
+                Ok(arg) => {
+                    let location = interpreter.elaborator.interner.expr_location(&argument);
+                    comptime_args.push((arg, location));
                 }
+                Err(error) => errors.push(error.into()),
             }
+        }
 
-            let bindings = interpreter.elaborator.interner.get_instantiation_bindings(func).clone();
-            interpreter.call_function(function, comptime_args, bindings, location)
-        };
+        let bindings = interpreter.elaborator.interner.get_instantiation_bindings(func).clone();
+        let result = interpreter.call_function(function, comptime_args, bindings, location);
 
         if !errors.is_empty() {
             self.push_errors(errors);
