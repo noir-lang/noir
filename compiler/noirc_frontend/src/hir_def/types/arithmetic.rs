@@ -1211,12 +1211,10 @@ mod proptests {
             assert_eq!(typ, expr_type);
 
             let current_function = None;
-            let mut interpreter = Interpreter::new(
+            let result_value = Interpreter::new(
                 &mut elaborator,
                 current_function,
-            );
-
-            let result_value = interpreter.evaluate(expr_id);
+            ).evaluate(expr_id);
             assert_eq!(elaborator.errors.as_ref(), vec![]);
 
             let result_type = match result_value {

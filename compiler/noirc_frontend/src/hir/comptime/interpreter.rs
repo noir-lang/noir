@@ -57,7 +57,7 @@ use crate::node_interner::GlobalValue;
 use crate::shared::{Builtin, ForeignCall, Signedness};
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
-    Type, TypeBindings,
+    Type, TypeBinding, TypeBindings,
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
@@ -140,6 +140,12 @@ pub struct Interpreter<'local, 'interner> {
     in_unconstrained: bool,
 }
 
+impl Drop for Interpreter<'_, '_> {
+    fn drop(&mut self) {
+        self.commit_runtime_solves();
+    }
+}
+
 impl<'local, 'interner> Interpreter<'local, 'interner> {
     pub(crate) fn new(
         elaborator: &'local mut Elaborator<'interner>,
@@ -199,6 +205,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// its caller). This is [`Self::value`], skipped while nothing has been solved at runtime.
     pub(crate) fn apply_runtime_solves(&self, value: Value) -> Value {
         if self.frame.has_runtime_solves() { self.value(value) } else { value }
+    }
+
+    /// Binds each type variable this interpreter solved in its outermost frame to its solution.
+    ///
+    /// The outermost frame interprets code the elaborator hands over once (a `comptime` statement
+    /// or block, a global's initializer, a macro call's arguments) and never again, so what it
+    /// solved there is final. Those variables belong to the program being elaborated: later
+    /// statements are type-checked against them and later interpreters read values holding them.
+    /// Both only see what is bound on the variable itself, so the solutions are committed there.
+    fn commit_runtime_solves(&self) {
+        for (var, kind, typ) in self.frame.runtime_solutions() {
+            if let TypeBinding::Unbound(..) = var.binding() {
+                // The solution unified with the variable while interpreting, so this only fails
+                // when an error was already reported for it.
+                let _ = var.try_bind(typ, &kind, Location::dummy());
+            }
+        }
     }
 
     /// Call the given function with the given arguments and return the result.

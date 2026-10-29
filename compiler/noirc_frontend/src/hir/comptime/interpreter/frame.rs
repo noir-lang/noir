@@ -1,6 +1,6 @@
 use rustc_hash::FxHashSet as HashSet;
 
-use crate::{Type, TypeBindings, TypeVariableId};
+use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 
 /// The types the function being interpreted sees: the bindings of its generics (a call's
 /// instantiation and impl bindings, or the ones a closure was created under) plus the types
@@ -68,6 +68,18 @@ impl Frame {
                 self.bindings.remove(var_id);
             }
         }
+    }
+
+    /// The type variables solved while interpreting, each with its solution resolved against
+    /// this frame.
+    pub(crate) fn runtime_solutions(&self) -> Vec<(TypeVariable, Kind, Type)> {
+        self.runtime_solves
+            .iter()
+            .map(|var_id| {
+                let (var, kind, typ) = &self.bindings[var_id];
+                (var.clone(), kind.clone(), self.substitute(typ))
+            })
+            .collect()
     }
 
     /// Copies into this frame each type variable `callee` solved that occurs in one of `visible`,
