@@ -2,6 +2,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
+use crate::GitReference;
 use crate::errors::GitError;
 use crate::flock::FileLock;
 
@@ -49,14 +50,14 @@ fn collect_cached_git_dependencies(cache_root: &Path) -> BTreeSet<PathBuf> {
     found
 }
 
-/// Creates a unique folder name for a git repository by using its URL and tag.
+/// Creates a unique folder name for a git repository by using its URL and reference.
 ///
 /// The host (a domain like `github.com`, or an IP for a self-hosted server) is used as-is, so
 /// repositories on the same host share a parent directory in the cache.
-fn resolve_folder_name(base: &url::Url, tag: &str) -> Result<PathBuf, GitError> {
+fn resolve_folder_name(base: &url::Url, reference: &str) -> Result<PathBuf, GitError> {
     let host = base.host_str().ok_or_else(|| GitError::MissingHost { url: base.to_string() })?;
     let mut folder = PathBuf::from("");
-    for part in [host, base.path(), tag] {
+    for part in [host, base.path(), reference] {
         folder.push(part.trim_start_matches('/'));
     }
     Ok(folder)
@@ -84,27 +85,30 @@ pub(crate) fn lock_git_deps() -> Result<FileLock, GitError> {
 /// github-rs looks promising, however it seems to require an API token
 ///
 /// One advantage of using "git clone" is that there is effectively no rate limit
-pub(crate) fn clone_git_repo(url: &str, tag: &str) -> Result<PathBuf, GitError> {
-    clone_git_repo_into(&nargo_crates(), url, tag)
+pub(crate) fn clone_git_repo(url: &str, reference: &GitReference) -> Result<PathBuf, GitError> {
+    clone_git_repo_into(&nargo_crates(), url, reference)
 }
 
-fn clone_git_repo_into(cache_root: &Path, url: &str, tag: &str) -> Result<PathBuf, GitError> {
+fn clone_git_repo_into(
+    cache_root: &Path,
+    url: &str,
+    reference: &GitReference,
+) -> Result<PathBuf, GitError> {
     let base = url::Url::parse(url)
         .map_err(|source| GitError::InvalidUrl { url: url.to_string(), source })?;
-    let loc = cache_root.join(resolve_folder_name(&base, tag)?);
+    let loc = cache_root.join(resolve_folder_name(&base, reference.as_str())?);
     if loc.exists() {
         return Ok(loc);
     }
 
-    let output = Command::new("git")
-        .arg("-c")
-        .arg("advice.detachedHead=false")
-        .arg("clone")
-        .arg("--quiet")
-        .arg("--depth")
-        .arg("1")
-        .arg("--branch")
-        .arg(tag)
+    // `git clone --branch` accepts a branch or tag name but not a commit hash, so a `rev` is
+    // cloned in full and then checked out below.
+    let mut command = Command::new("git");
+    command.arg("-c").arg("advice.detachedHead=false").arg("clone").arg("--quiet");
+    if let GitReference::Tag(tag) = reference {
+        command.arg("--depth").arg("1").arg("--branch").arg(tag);
+    }
+    let output = command
         .arg(base.as_str())
         .arg(&loc)
         // stdin and stdout are the JSON-RPC channel when running as a language server, so git must
@@ -113,25 +117,57 @@ fn clone_git_repo_into(cache_root: &Path, url: &str, tag: &str) -> Result<PathBu
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .output()
-        .map_err(|source| {
-            let (url, tag) = (url.to_string(), tag.to_string());
-            if source.kind() == std::io::ErrorKind::NotFound {
-                GitError::GitNotFound { url, tag }
-            } else {
-                GitError::SpawnFailed { url, tag, source }
-            }
-        })?;
+        .map_err(|source| spawn_error(url, reference, source))?;
 
     if !output.status.success() {
         return Err(GitError::CloneFailed {
             url: url.to_string(),
-            tag: tag.to_string(),
+            reference: reference.as_str().to_string(),
             status: output.status,
             stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
         });
     }
 
+    // A `rev` is neither a branch nor a tag name, so it is checked out after the clone.
+    if let GitReference::Rev(rev) = reference {
+        let output = Command::new("git")
+            .arg("-c")
+            .arg("advice.detachedHead=false")
+            .arg("-C")
+            .arg(&loc)
+            .arg("checkout")
+            .arg("--quiet")
+            .arg(rev)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::piped())
+            .output()
+            .map_err(|source| spawn_error(url, reference, source))?;
+
+        if !output.status.success() {
+            // The clone succeeded but the reference could not be checked out. Remove the partial
+            // clone so that it is not mistaken for a valid cache entry on the next run.
+            let _ = std::fs::remove_dir_all(&loc);
+            return Err(GitError::CheckoutFailed {
+                url: url.to_string(),
+                reference: rev.clone(),
+                status: output.status,
+                stderr: String::from_utf8_lossy(&output.stderr).trim().to_string(),
+            });
+        }
+    }
+
     Ok(loc)
+}
+
+/// Builds the [`GitError`] reported when the `git` process itself cannot be launched.
+fn spawn_error(url: &str, reference: &GitReference, source: std::io::Error) -> GitError {
+    let (url, reference) = (url.to_string(), reference.as_str().to_string());
+    if source.kind() == std::io::ErrorKind::NotFound {
+        GitError::GitNotFound { url, reference }
+    } else {
+        GitError::SpawnFailed { url, reference, source }
+    }
 }
 
 #[cfg(test)]
@@ -145,6 +181,7 @@ mod tests {
     use url::Url;
 
     use super::{clone_git_repo_into, collect_cached_git_dependencies, resolve_folder_name};
+    use crate::GitReference;
     use crate::errors::GitError;
 
     #[test_case("https://github.com/noir-lang/noir-bignum/"; "with slash")]
@@ -235,10 +272,10 @@ mod tests {
         assert!(status.success(), "git {args:?} failed");
     }
 
-    /// Creates a repository under `dir` with a single commit tagged `v1.0.0`, returning a URL for
-    /// it. Dependency URLs must have a host, so the URL names one; git ignores it for `file://`.
-    /// (`localhost` would not do, as URL parsing drops it from `file://` URLs.)
-    fn make_repository(dir: &Path) -> String {
+    /// Creates a repository under `dir` with a single commit tagged `v1.0.0`, returning its path
+    /// and a URL for it. Dependency URLs must have a host, so the URL names one; git ignores it
+    /// for `file://`. (`localhost` would not do, as URL parsing drops it from `file://` URLs.)
+    fn make_repository(dir: &Path) -> (PathBuf, String) {
         let repo = dir.join("repo");
         fs::create_dir(&repo).unwrap();
         git(&repo, &["init", "--quiet"]);
@@ -246,30 +283,70 @@ mod tests {
         git(&repo, &["add", "Nargo.toml"]);
         git(&repo, &["commit", "--quiet", "-m", "initial"]);
         git(&repo, &["tag", "v1.0.0"]);
-        format!("file://127.0.0.1{}", repo.display())
+        let url = format!("file://127.0.0.1{}", repo.display());
+        (repo, url)
+    }
+
+    /// Commits `contents` to the repository's `Nargo.toml` and returns the new commit hash.
+    fn commit_manifest(repo: &Path, contents: &str) -> String {
+        fs::write(repo.join("Nargo.toml"), contents).unwrap();
+        git(repo, &["add", "Nargo.toml"]);
+        git(repo, &["commit", "--quiet", "-m", "second"]);
+        let output = Command::new("git").arg("-C").arg(repo).args(["rev-parse", "HEAD"]).output();
+        String::from_utf8(output.unwrap().stdout).unwrap().trim().to_string()
     }
 
     #[test]
     fn clones_a_tag_into_the_cache() {
         let dir = tempfile::tempdir().unwrap();
-        let url = make_repository(dir.path());
+        let (_repo, url) = make_repository(dir.path());
         let cache_root = dir.path().join("cache");
+        let tag = GitReference::Tag("v1.0.0".to_string());
 
-        let loc = clone_git_repo_into(&cache_root, &url, "v1.0.0").unwrap();
+        let loc = clone_git_repo_into(&cache_root, &url, &tag).unwrap();
 
         assert!(loc.starts_with(&cache_root));
         assert!(loc.join("Nargo.toml").exists());
         // A second call is served from the cache.
-        assert_eq!(clone_git_repo_into(&cache_root, &url, "v1.0.0").unwrap(), loc);
+        assert_eq!(clone_git_repo_into(&cache_root, &url, &tag).unwrap(), loc);
+    }
+
+    #[test]
+    fn clones_a_rev_into_the_cache() {
+        let dir = tempfile::tempdir().unwrap();
+        let (repo, url) = make_repository(dir.path());
+        let cache_root = dir.path().join("cache");
+
+        // A second, untagged commit so that the `rev` differs from the `v1.0.0` tag.
+        let rev = commit_manifest(&repo, "name = \"second\"\n");
+
+        let tag_loc =
+            clone_git_repo_into(&cache_root, &url, &GitReference::Tag("v1.0.0".to_string()))
+                .unwrap();
+        let rev_loc =
+            clone_git_repo_into(&cache_root, &url, &GitReference::Rev(rev.clone())).unwrap();
+
+        // The two references are cached separately...
+        assert_ne!(tag_loc, rev_loc);
+        // ...and the `rev` checkout holds the second commit's contents, not the tag's.
+        assert_eq!(fs::read_to_string(rev_loc.join("Nargo.toml")).unwrap(), "name = \"second\"\n");
+        assert_eq!(fs::read_to_string(tag_loc.join("Nargo.toml")).unwrap(), "");
+        // The second call is served from the cache.
+        assert_eq!(
+            clone_git_repo_into(&cache_root, &url, &GitReference::Rev(rev)).unwrap(),
+            rev_loc
+        );
     }
 
     #[test]
     fn failed_clone_reports_the_dependency_and_git_output() {
         let dir = tempfile::tempdir().unwrap();
-        let url = make_repository(dir.path());
+        let (_repo, url) = make_repository(dir.path());
         let cache_root = dir.path().join("cache");
 
-        let error = clone_git_repo_into(&cache_root, &url, "v9.9.9").unwrap_err();
+        let error =
+            clone_git_repo_into(&cache_root, &url, &GitReference::Tag("v9.9.9".to_string()))
+                .unwrap_err();
 
         assert!(matches!(error, GitError::CloneFailed { .. }), "{error:?}");
         let message = error.to_string();
@@ -280,10 +357,33 @@ mod tests {
     }
 
     #[test]
+    fn failed_checkout_of_a_rev_reports_the_reference() {
+        let dir = tempfile::tempdir().unwrap();
+        let (_repo, url) = make_repository(dir.path());
+        let cache_root = dir.path().join("cache");
+
+        // A well-formed but non-existent commit hash: the clone succeeds, the checkout fails.
+        let missing = "0".repeat(40);
+        let error = clone_git_repo_into(&cache_root, &url, &GitReference::Rev(missing.clone()))
+            .unwrap_err();
+
+        assert!(matches!(error, GitError::CheckoutFailed { .. }), "{error:?}");
+        let message = error.to_string();
+        assert!(message.contains(&missing), "{message}");
+        // The partial clone is removed rather than cached.
+        assert!(collect_cached_git_dependencies(&cache_root).is_empty());
+    }
+
+    #[test]
     fn rejects_urls_without_a_host() {
         let dir = tempfile::tempdir().unwrap();
 
-        let error = clone_git_repo_into(dir.path(), "file:///owner/name", "v1.0.0").unwrap_err();
+        let error = clone_git_repo_into(
+            dir.path(),
+            "file:///owner/name",
+            &GitReference::Tag("v1.0.0".to_string()),
+        )
+        .unwrap_err();
 
         assert!(matches!(error, GitError::MissingHost { .. }), "{error:?}");
     }
