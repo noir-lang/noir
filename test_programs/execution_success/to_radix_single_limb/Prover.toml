@@ -1,0 +1,9 @@
+# x fits in one byte, b in one bit; y = 0x1234 needs two bytes (and is the
+# non-fitting input for the predicated single-limb decomposition, disabled by
+# `cond = false`).
+x = 250
+b = 1
+y = 4660
+cond = false
+expected_byte = 250
+expected_bit = true
