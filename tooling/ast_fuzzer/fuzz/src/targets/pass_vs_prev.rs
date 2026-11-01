@@ -27,7 +27,15 @@ use noirc_evaluator::ssa::ssa_gen::Ssa;
 use noirc_evaluator::ssa::{SsaPass, primary_passes, ssa_gen};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let config = Config { avoid_overflow: u.arbitrary()?, ..Config::default() };
+    // As in `valid_after_pass`, randomize `avoid_index_out_of_bounds` instead of leaving it
+    // at its default of `true`. An out-of-bounds index fails identically on both sides of the
+    // comparison, so it does not mask a difference; what it does do is keep indices that the
+    // pipeline cannot constant-fold in the generated programs.
+    let config = Config {
+        avoid_overflow: u.arbitrary()?,
+        avoid_index_out_of_bounds: u.ratio(3, 4)?,
+        ..Config::default()
+    };
 
     let inputs = CompareInterpreted::arb(u, config, |u, program| {
         let options = CompareOptions::arbitrary(u)?;
