@@ -5,11 +5,14 @@ use crate::{compare_results_compiled, compile_into_circuit_or_die, default_ssa_o
 use arbitrary::Arbitrary;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
+use noir_ast_fuzzer::Config;
 use noir_ast_fuzzer::compare::{CompareOptions, ComparePipelines};
 use noir_ast_fuzzer::rewrite::change_all_functions_into_unconstrained;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let config = default_config(u)?;
+    // This target asserts that the ACIR and Brillig builds of a program agree, which
+    // `#[no_predicates]` breaks by design: see [`Config::avoid_no_predicates`].
+    let config = Config { avoid_no_predicates: true, ..default_config(u)? };
 
     let inputs = ComparePipelines::arb(
         u,

@@ -95,6 +95,36 @@ pub struct Config {
     pub avoid_match: bool,
     /// Avoid using the vector type.
     pub avoid_vectors: bool,
+    /// Avoid calling a constrained function from another constrained function.
+    ///
+    /// `main` has the lowest function ID, and the rule that keeps the constrained call graph
+    /// acyclic only lets a function call lower IDs, so without an exception for `main` no
+    /// constrained function other than `main` is reachable and every one of them is deleted
+    /// as unreachable. Lifting that makes the whole constrained call graph — ACIR calling
+    /// ACIR, `#[fold]`, `#[no_predicates]` — reachable, which is a region of the compiler
+    /// nothing else exercises.
+    pub avoid_constrained_calls: bool,
+    /// Avoid marking functions with `#[fold]`.
+    ///
+    /// A `#[fold]` function is compiled into its own ACIR circuit, which is a backend path
+    /// reached through `Opcode::Call` with its own argument marshalling and predicate
+    /// handling at the boundary. It only means anything for a constrained function that is
+    /// actually called, so it depends on [`Config::avoid_constrained_calls`] being off.
+    pub avoid_fold: bool,
+    /// Avoid marking functions with `#[no_predicates]`.
+    ///
+    /// The attribute inlines the callee's body only after the flattening pass, so the body
+    /// runs unpredicated: a call sitting in an untaken branch really executes in ACIR while
+    /// in Brillig it does not, and it executes after flattening while it does not before.
+    /// That is the attribute's documented behavior, but it means any target that asserts
+    /// two executions of the same program agree — two builds (ACIR vs Brillig, or two
+    /// predicate structures the morph is entitled to change), or two points in the pass
+    /// pipeline that straddle flattening — reports a false positive for any program whose
+    /// `#[no_predicates]` function is fallible or side-effecting. Such targets set this
+    /// flag. `valid_after_pass` checks the shape of the SSA rather than what it prints,
+    /// so it keeps the attribute and remains the target that covers this part of
+    /// flattening.
+    pub avoid_no_predicates: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,
 }
@@ -167,6 +197,9 @@ impl Default for Config {
             avoid_constrain: false,
             avoid_match: false,
             avoid_vectors: false,
+            avoid_constrained_calls: false,
+            avoid_fold: false,
+            avoid_no_predicates: false,
             comptime_friendly: false,
         }
     }

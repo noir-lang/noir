@@ -77,6 +77,7 @@ pub(super) fn can_call(
     caller_returns_ref: bool,
     callee_id: FuncId,
     callee_decl: &FunctionDeclaration,
+    allow_constrained_calls: bool,
 ) -> bool {
     // Nobody should call `main`.
     if callee_id == Program::main_id() {
@@ -87,8 +88,10 @@ pub(super) fn can_call(
     // Since the `limit` module currently inserts an `if ctx_limit == 0`,
     // returning a literal, it would violate this if the return has `&mut`,
     // therefore we don't make recursive calls from such functions, so the
-    // limit strategy is not applied to them.
-    if caller_returns_ref && caller_unconstrained {
+    // limit strategy is not applied to them. This holds whichever runtime the
+    // caller is in: `limit` keys the rewrite off whether the body makes a call,
+    // not off `unconstrained`.
+    if caller_returns_ref {
         return false;
     }
 
@@ -108,6 +111,23 @@ pub(super) fn can_call(
     // recursion by only calling functions with lower IDs,
     // otherwise the inliner could get stuck.
     if !callee_decl.unconstrained {
+        // Flattening cannot keep a reference that crosses a constrained call boundary inside
+        // the `enable_side_effects` region it belongs to, and the SSA fails to validate after
+        // the pass. Vectors are excluded for the same reason they are between ACIR and
+        // Brillig: they are not a shape a constrained call passes cleanly.
+        if callee_decl.has_refs() || callee_decl.returns_vectors() {
+            return false;
+        }
+
+        // `main` is the exception to the ordering rule below: it has the lowest ID, so
+        // the rule would forbid it from calling any ACIR function, and since nothing can
+        // call `main` and Brillig cannot call ACIR, no constrained function other than
+        // `main` would be reachable — `remove_unreachable_functions` would delete the
+        // whole constrained call graph. Nothing ever calls `main`, so letting it call any
+        // ACIR function cannot close a cycle.
+        if caller_id == Program::main_id() {
+            return allow_constrained_calls;
+        }
         // Higher calls lower, so we can use this rule to pick function parameters
         // as we create the declarations: we can pass functions already declared.
         return callee_id < caller_id;
@@ -228,7 +248,14 @@ impl<'a> FunctionContext<'a> {
 
         // Consider calling any allowed global function.
         for (callee_id, callee_decl) in &ctx.function_declarations {
-            if !can_call(id, decl.unconstrained, decl.returns_refs(), *callee_id, callee_decl) {
+            if !can_call(
+                id,
+                decl.unconstrained,
+                decl.returns_refs(),
+                *callee_id,
+                callee_decl,
+                !ctx.config.avoid_constrained_calls,
+            ) {
                 continue;
             }
             let produces = types::types_produced(&callee_decl.return_type);
@@ -773,22 +800,13 @@ impl<'a> FunctionContext<'a> {
             //
             // The conversion returns a value that shares the string's storage, so the ownership
             // pass has to keep them apart; noir-claude#1201 was exactly a missing clone here.
-            (Type::String(len), Type::Array(tgt_len, item_type))
-                if *len == *tgt_len
-                    && matches!(
-                        item_type.as_ref(),
-                        Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)
-                    ) =>
-            {
-                let expr = self.call_str_as_bytes(src_expr, *len, tgt_type.clone());
-                Ok(Some((expr, src_dyn)))
-            }
-            // Reinterpret a string as its byte array with `str_as_bytes`.
             //
-            // The conversion returns a value that shares the string's storage, so the ownership
-            // pass has to keep them apart; noir-claude#1201 was exactly a missing clone here.
+            // It prints as the method call `s.as_bytes()`, which only resolves against the
+            // standard library, so it is not available to the comptime targets: those
+            // elaborate the printed snippet on its own.
             (Type::String(len), Type::Array(tgt_len, item_type))
                 if *len == *tgt_len
+                    && !self.config().comptime_friendly
                     && matches!(
                         item_type.as_ref(),
                         Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight)
@@ -801,8 +819,13 @@ impl<'a> FunctionContext<'a> {
             // becomes dynamically sized in real Noir, and it is what promotes the value into
             // the runtime memory-block representation that vector intrinsics and the
             // reference-counting machinery operate on.
+            //
+            // Like `str_as_bytes` it prints as a method call, so it is unavailable to the
+            // comptime targets.
             (Type::Array(_, item_type), Type::Vector(tgt_item))
-                if item_type == tgt_item && !self.in_no_dynamic =>
+                if item_type == tgt_item
+                    && !self.in_no_dynamic
+                    && !self.config().comptime_friendly =>
             {
                 let expr = self.call_as_vector(src_expr, src_type.clone(), tgt_type.clone());
                 Ok(Some((expr, src_dyn)))
@@ -1568,9 +1591,18 @@ impl<'a> FunctionContext<'a> {
             .current()
             .variables()
             .filter_map(|(id, (_, _, typ))| types::is_printable(typ).then_some((*id, typ.clone())))
-            // TODO(#10499): comptime function representations are at the moment just "(function)"
-            // (disable printing functions if comptime_friendly is on)
-            .filter(|(_, typ)| !types::is_function(typ) || !self.config().comptime_friendly)
+            .filter(|(_, typ)| {
+                !types::is_function(typ)
+                    // TODO(#10499): comptime function representations are at the moment
+                    // just "(function)".
+                    || (!self.config().comptime_friendly
+                        // Only unconstrained code may call the print oracle directly. A
+                        // constrained print is retargeted at a wrapper function by
+                        // `wrap_oracle_prints_in_functions`, which cannot wrap a function
+                        // value: it is passed as a tuple that flattens into several SSA
+                        // values, and those would not match the wrapper's one parameter.
+                        && self.unconstrained())
+            })
             .collect::<Vec<(LocalId, Type)>>();
 
         if opts.is_empty() {
@@ -2432,7 +2464,10 @@ impl<'a> FunctionContext<'a> {
             .iter()
             .skip(1) // Can't call main.
             .filter_map(|(func_id, func)| {
-                let matches = func.return_type == *return_type.as_ref()
+                // `#[fold]` functions are not eligible as function values; see the candidate
+                // filter in `Context::gen_function_decl`.
+                let matches = func.inline_type != InlineType::Fold
+                    && func.return_type == *return_type.as_ref()
                     && func.unconstrained == *unconstrained
                     && func.params.len() == param_types.len()
                     && func
