@@ -174,3 +174,48 @@ fn jmpif_else_destination_is_next_block_executes() {
     let result = execute_brillig_from_ssa(LOOP_EXIT_ON_THEN, vec![FieldElement::from(0u32)]);
     assert_eq!(result, vec![FieldElement::from(0u32)]);
 }
+
+const BRANCH_OVER_EMPTY_BLOCKS: &str = "
+    brillig(inline) fn main f0 {
+      b0(v0: u1, v1: u32):
+        jmpif v0 then: b1(), else: b4()
+      b1():
+        jmp b2()
+      b2():
+        jmp b3()
+      b3():
+        jmp b4()
+      b4():
+        v2 = add v1, u32 1
+        return v2
+    }
+    ";
+
+/// `b1`, `b2` and `b3` only jump onwards, so they emit no opcodes. Both of `b0`'s
+/// destinations then start at the next opcode, and neither jump is needed.
+#[test]
+fn branch_over_empty_blocks() {
+    let brillig = ssa_to_brillig_artifacts(BRANCH_OVER_EMPTY_BLOCKS);
+    let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    assert_artifact_snapshot!(main, @r"
+    fn main
+    0: sp[2] = const u32 1
+    1: sp[4] = u32 add sp[3], sp[2]
+    2: sp[5] = u32 lt_eq sp[3], sp[4]
+    3: jump if sp[5] to 0 // -> 5: f0/b4/1
+    4: call 0 // -> ErrorWithString
+    5: sp[2] = sp[4] // f0/b4/1
+    6: return
+    ");
+}
+
+#[test]
+fn branch_over_empty_blocks_executes() {
+    for condition in [0u32, 1] {
+        let result = execute_brillig_from_ssa(
+            BRANCH_OVER_EMPTY_BLOCKS,
+            vec![FieldElement::from(condition), FieldElement::from(41u32)],
+        );
+        assert_eq!(result, vec![FieldElement::from(42u32)], "condition = {condition}");
+    }
+}

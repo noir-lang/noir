@@ -277,12 +277,12 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     ///
     /// Entering a context resets the current section to 0 and the next section to 1.
     ///
-    /// An unconditional jump to `label` emitted as the last opcode is removed, as control
-    /// falls through into the new context. Whether a jump is redundant is therefore decided
-    /// from the emitted code, independently of the order in which blocks are compiled.
+    /// Trailing jumps to the new context are removed, as control falls through into it (see
+    /// [`BrilligArtifact::remove_trailing_jumps_to`]). Whether a jump is redundant is therefore
+    /// decided from the emitted code, independently of the order in which blocks are compiled.
     pub(crate) fn enter_context(&mut self, label: Label) {
         assert!(label.section.is_none(), "new context should have no section");
-        self.obj.remove_trailing_jump_to(&label);
+        self.obj.remove_trailing_jumps_to(&label);
         self.debug_show.enter_context(&label);
         self.context_label = label.clone();
         // Add a context label to the next opcode

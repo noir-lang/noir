@@ -1225,18 +1225,71 @@ pub(crate) mod tests {
         }
 
         #[test]
-        fn conditional_jump_to_the_next_context_is_kept() {
+        fn conditional_jump_to_the_next_context_is_removed() {
             let mut context = create_context(FunctionId::test_new(0));
-            let (destination, _) = mov();
+            let (destination, source) = mov();
             context.jump_if_instruction(destination, block_label(1));
             context.enter_context(block_label(1));
-            context.mov_instruction(destination, destination);
+            context.mov_instruction(destination, source);
 
             let byte_code = finish(context).byte_code;
             assert_eq!(
-                byte_code.first(),
-                Some(&BrilligOpcode::JumpIf { condition: destination, location: 1 }),
-                "{byte_code:?}"
+                byte_code,
+                vec![BrilligOpcode::Mov { destination, source }],
+                "a conditional jump to the next opcode goes there either way"
+            );
+        }
+
+        /// `b0` branches to `b1` or `b3`; `b1` and `b2` only jump onwards, so they emit nothing
+        /// and both of `b0`'s jumps end up targeting the next opcode.
+        #[test]
+        fn jumps_over_empty_contexts_are_removed() {
+            let mut context = create_context(FunctionId::test_new(0));
+            let (destination, source) = mov();
+            context.jump_if_instruction(destination, block_label(1));
+            context.jump_instruction(block_label(3));
+            context.enter_context(block_label(1));
+            context.jump_instruction(block_label(2));
+            context.enter_context(block_label(2));
+            context.jump_instruction(block_label(3));
+            context.enter_context(block_label(3));
+            context.mov_instruction(destination, source);
+
+            let byte_code = finish(context).byte_code;
+            assert_eq!(
+                byte_code,
+                vec![BrilligOpcode::Mov { destination, source }],
+                "every jump targets the next opcode once the empty contexts are skipped"
+            );
+        }
+
+        /// A label placed after a removed jump marks the next opcode, which is then at the
+        /// jump's position: a later jump to it must not skip the next context's first opcode.
+        #[test]
+        fn labels_placed_after_a_removed_jump_move_with_it() {
+            let mut context = create_context(FunctionId::test_new(0));
+            let (destination, source) = mov();
+            let other = MemoryAddress::relative(3);
+            context.mov_instruction(other, source);
+            context.jump_instruction(block_label(2));
+            context.enter_context(block_label(1));
+            context.jump_instruction(block_label(2));
+            context.enter_context(block_label(2));
+            context.mov_instruction(destination, source);
+            context.jump_if_instruction(destination, block_label(1));
+            context.enter_context(block_label(3));
+            context.mov_instruction(destination, source);
+
+            let byte_code = finish(context).byte_code;
+            assert_eq!(
+                byte_code,
+                vec![
+                    BrilligOpcode::Mov { destination: other, source },
+                    BrilligOpcode::Mov { destination, source },
+                    BrilligOpcode::JumpIf { condition: destination, location: 1 },
+                    BrilligOpcode::Mov { destination, source },
+                ],
+                "the label of the empty context `b1` must resolve to the first opcode of `b2`"
             );
         }
 

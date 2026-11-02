@@ -1112,12 +1112,10 @@ mod tests {
 
         assert_artifact_snapshot!(artifact, @r"
         fn main
-        0: jump if sp[2] to 0 // -> 2: f0/b1
-        1: jump to 0 // -> 2: f0/b4
-        2: sp[2] = const u32 1 // f0/b1, f0/b4
-        3: sp[4] = u32 add sp[3], sp[2]
-        4: sp[2] = sp[3]
-        5: return
+        0: sp[2] = const u32 1
+        1: sp[4] = u32 add sp[3], sp[2]
+        2: sp[2] = sp[3]
+        3: return
         ");
 
         assert!(
