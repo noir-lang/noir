@@ -10,8 +10,9 @@ use itertools::Itertools;
 use crate::ssa::ir::{
     basic_block::BasicBlockId,
     cfg::ControlFlowGraph,
+    dfg::DataFlowGraph,
     function::Function,
-    instruction::TerminatorInstruction,
+    instruction::{BinaryOp, Instruction, TerminatorInstruction},
     value::{Value, ValueId},
 };
 
@@ -29,6 +30,33 @@ fn can_coalesce_param_side(
     cfg: &ControlFlowGraph,
 ) -> bool {
     cfg.predecessors(*destination).count() == 1 && !dest_live_in.contains(arg)
+}
+
+/// Check whether the Brillig code generated for `instruction` is a single opcode, which
+/// reads all of its operands before writing its result. Such an instruction can write its
+/// result to the register of one of its operands.
+///
+/// This is a conservative allowlist. Instructions lowered to several opcodes are excluded,
+/// as one of the later opcodes may read an operand after the result has been written: for
+/// example the overflow check of a checked `add` compares the lhs with the result.
+fn reads_operands_before_writing_result(instruction: &Instruction, dfg: &DataFlowGraph) -> bool {
+    match instruction {
+        Instruction::Not(_) | Instruction::Cast(..) => true,
+        Instruction::Binary(binary) => {
+            let operand_type = dfg.type_of_value(binary.lhs).unwrap_numeric();
+            match binary.operator {
+                // Checked arithmetic on integers is followed by an overflow check.
+                BinaryOp::Add { unchecked }
+                | BinaryOp::Sub { unchecked }
+                | BinaryOp::Mul { unchecked } => unchecked || operand_type.is_field(),
+                BinaryOp::Eq | BinaryOp::And | BinaryOp::Or | BinaryOp::Xor => true,
+                // Signed comparison is lowered to several opcodes.
+                BinaryOp::Lt => !operand_type.is_signed(),
+                BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr => false,
+            }
+        }
+        _ => false,
+    }
 }
 
 /// Maps SSA `ValueIds` to partners whose register they should reuse.
@@ -127,16 +155,26 @@ impl CoalescingMap {
                                 continue;
                             }
 
-                            // Check if param is used in the defining instruction or any subsequent
-                            // instruction, or in the block terminator.
-                            let param_used_at_or_after = instructions[def_pos..]
+                            // The defining instruction may read param while writing to its
+                            // register only if it reads all of its operands before writing.
+                            let defining_instruction = &func.dfg[*defining_inst];
+                            let param_clobbered_in_definition = defining_instruction
+                                .any_value(|v| v == *param)
+                                && !reads_operands_before_writing_result(
+                                    defining_instruction,
+                                    &func.dfg,
+                                );
+
+                            // Any later use of param, including in the block terminator, would
+                            // read the value of arg.
+                            let param_used_after_definition = instructions[def_pos + 1..]
                                 .iter()
                                 .any(|inst_id| func.dfg[*inst_id].any_value(|v| v == *param))
                                 || func.dfg[block_id]
                                     .unwrap_terminator()
                                     .any_value(|v| v == *param);
 
-                            if !param_used_at_or_after {
+                            if !param_clobbered_in_definition && !param_used_after_definition {
                                 coalesced.insert(*arg, *param);
                             }
                         } else if can_coalesce_param_side(arg, destination, dest_live_in, cfg) {

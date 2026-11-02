@@ -372,14 +372,12 @@ fn coalescing_loop_increment_into_param_read_by_defining_instruction() {
      4: jump to 0 // -> 5: f0/b1
      5: sp[5] = u32 lt sp[3], sp[2] // f0/b1
      6: jump if sp[5] to 0 // -> 8: f0/b2
-     7: jump to 0 // -> 13: f0/b3
-     8: sp[5] = u32 add sp[4], sp[3] // f0/b2
-     9: sp[7] = u32 add sp[3], sp[6]
-    10: sp[3] = sp[7]
-    11: sp[4] = sp[5]
-    12: jump to 0 // -> 5: f0/b1
-    13: sp[2] = sp[4] // f0/b3
-    14: return
+     7: jump to 0 // -> 11: f0/b3
+     8: sp[4] = u32 add sp[4], sp[3] // f0/b2
+     9: sp[3] = u32 add sp[3], sp[6]
+    10: jump to 0 // -> 5: f0/b1
+    11: sp[2] = sp[4] // f0/b3
+    12: return
     ");
 
     // Sum of 0..10
