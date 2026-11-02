@@ -209,6 +209,7 @@ mod tests {
         BrilligBlock {
             function_context,
             block_id: Id::test_new(0),
+            next_block: None,
             brillig_context,
             variables,
             last_uses: Default::default(),

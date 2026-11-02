@@ -326,6 +326,7 @@ impl Brillig {
         let mut brillig_block = BrilligBlock {
             function_context: &mut function_context,
             block_id,
+            next_block: None,
             brillig_context: &mut brillig_context,
             variables: Default::default(),
             last_uses: HashMap::default(),

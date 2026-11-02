@@ -33,6 +33,9 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     pub(crate) function_context: &'block mut FunctionContext,
     /// The basic block that is being converted
     pub(crate) block_id: BasicBlockId,
+    /// The block whose code is emitted directly after this block's code, if any.
+    /// Control falls through into it, so a jump to it is redundant.
+    pub(crate) next_block: Option<BasicBlockId>,
     /// Context for creating brillig opcodes
     pub(crate) brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
     /// Tracks the available variable during the codegen of the block
@@ -56,10 +59,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     ///
     /// This method contains the necessary initial variable and register setup for compiling
     /// an SSA block by accessing the pre-computed liveness context.
+    ///
+    /// `next_block` must be the block whose code is emitted immediately after this one,
+    /// as jumps to it are omitted.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn compile_block(
         function_context: &'block mut FunctionContext,
         brillig_context: &'block mut BrilligContext<FieldElement, Registers>,
         block_id: BasicBlockId,
+        next_block: Option<BasicBlockId>,
         dfg: &DataFlowGraph,
         call_stacks: &mut CallStackHelper,
         globals: &'block HashMap<ValueId, BrilligVariable>,
@@ -92,6 +100,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let mut brillig_block = BrilligBlock {
             function_context,
             block_id,
+            next_block,
             brillig_context,
             variables,
             last_uses,
@@ -558,7 +567,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// * allocates the hoisted constants which are used by dominated blocks
     /// * for jumps:
     ///   * copies the arguments to the registers allocated in [`Self::convert_block_params`]
-    ///   * adds jump opcodes to the labels of the destination blocks
+    ///   * adds jump opcodes to the labels of the destination blocks, except for an
+    ///     unconditional jump to [`Self::next_block`], which control falls through into
     /// * for return it allocates registers for the return values and copies from variables.
     fn convert_ssa_terminator(
         &mut self,
@@ -621,8 +631,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             self.brillig_context.mov_instruction(*dst, *src);
         }
 
-        self.brillig_context
-            .jump_instruction(self.create_block_label_for_current_function(destination));
+        if self.next_block != Some(destination) {
+            self.brillig_context
+                .jump_instruction(self.create_block_label_for_current_function(destination));
+        }
     }
 
     /// Lower a jmp/jmpif's parameter passing into Brillig instructions.
