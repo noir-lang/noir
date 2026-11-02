@@ -1025,18 +1025,17 @@ mod tests {
          0: sp[4] = const u32 0
          1: sp[5] = const u32 1
          2: sp[3] = sp[4]
-         3: jump to 0 // -> 4: f0/b1
-         4: sp[4] = u32 lt sp[3], sp[2] // f0/b1
-         5: jump if sp[4] to 0 // -> 7: f0/b2
-         6: jump to 0 // -> 13: f0/b3
-         7: sp[4] = u32 add sp[3], sp[5] // f0/b2
-         8: sp[6] = u32 lt_eq sp[3], sp[4]
-         9: jump if sp[6] to 0 // -> 11: f0/b2/1
-        10: call 0 // -> ErrorWithString
-        11: sp[3] = sp[4] // f0/b2/1
-        12: jump to 0 // -> 4: f0/b1
-        13: sp[2] = sp[3] // f0/b3
-        14: return
+         3: sp[4] = u32 lt sp[3], sp[2] // f0/b1
+         4: jump if sp[4] to 0 // -> 6: f0/b2
+         5: jump to 0 // -> 12: f0/b3
+         6: sp[4] = u32 add sp[3], sp[5] // f0/b2
+         7: sp[6] = u32 lt_eq sp[3], sp[4]
+         8: jump if sp[6] to 0 // -> 10: f0/b2/1
+         9: call 0 // -> ErrorWithString
+        10: sp[3] = sp[4] // f0/b2/1
+        11: jump to 0 // -> 3: f0/b1
+        12: sp[2] = sp[3] // f0/b3
+        13: return
         ");
     }
 
@@ -1071,16 +1070,15 @@ mod tests {
         let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
         assert_artifact_snapshot!(main, @r"
         fn main
-         0: sp[4] = const field 42
-         1: jump if sp[2] to 0 // -> 3: f0/b1
-         2: jump to 0 // -> 6: f0/b2
-         3: sp[2] = const field 27 // f0/b1
-         4: sp[3] = field add sp[2], sp[4]
-         5: jump to 0 // -> 8: f0/b3
-         6: sp[3] = sp[4] // f0/b2
-         7: jump to 0 // -> 8: f0/b3
-         8: sp[2] = sp[3] // f0/b3
-         9: return
+        0: sp[4] = const field 42
+        1: jump if sp[2] to 0 // -> 3: f0/b1
+        2: jump to 0 // -> 6: f0/b2
+        3: sp[2] = const field 27 // f0/b1
+        4: sp[3] = field add sp[2], sp[4]
+        5: jump to 0 // -> 7: f0/b3
+        6: sp[3] = sp[4] // f0/b2
+        7: sp[2] = sp[3] // f0/b3
+        8: return
         ");
     }
 
@@ -1321,7 +1319,6 @@ mod tests {
         // SSA v3 (v2 * 3) → coalesced with v4 → writes directly to sp[2] (line 6)
         // SSA v4 (b1's parameter) → Brillig sp[2] (allocated in b0)
         // Line 6: sp[2] = mul sp[3], sp[1] writes directly to v4's register (coalesced)
-        // Line 7: jump to b1 (no mov needed — v3 already in sp[2])
         // Line 8 (b1): sp[1] = sp[2] prepares return
         let src = "
         brillig(inline) fn main f0 {
@@ -1344,9 +1341,8 @@ mod tests {
         3: sp[4] = field add sp[5], sp[2]
         4: sp[2] = const field 3
         5: sp[3] = field mul sp[4], sp[2]
-        6: jump to 0 // -> 7: f0/b1
-        7: sp[2] = sp[3] // f0/b1
-        8: return
+        6: sp[2] = sp[3]
+        7: return
         ");
     }
 
@@ -1557,23 +1553,21 @@ mod tests {
          0: sp[5] = const u32 0
          1: sp[6] = const u32 1
          2: sp[4] = sp[5]
-         3: jump to 0 // -> 4: f0/b1
-         4: sp[7] = u32 lt sp[4], sp[2] // f0/b1
-         5: jump if sp[7] to 0 // -> 7: f0/b2
-         6: jump to 0 // -> 18: f0/b5
-         7: sp[7] = sp[5] // f0/b2
-         8: jump to 0 // -> 9: f0/b3
-         9: sp[8] = u32 lt sp[7], sp[3] // f0/b3
-        10: jump if sp[8] to 0 // -> 12: f0/b4
-        11: jump to 0 // -> 15: f0/b6
-        12: sp[8] = u32 add sp[7], sp[6] // f0/b4
-        13: sp[7] = sp[8]
-        14: jump to 0 // -> 9: f0/b3
-        15: sp[7] = u32 add sp[4], sp[6] // f0/b6
-        16: sp[4] = sp[7]
-        17: jump to 0 // -> 4: f0/b1
-        18: sp[2] = sp[4] // f0/b5
-        19: return
+         3: sp[7] = u32 lt sp[4], sp[2] // f0/b1
+         4: jump if sp[7] to 0 // -> 6: f0/b2
+         5: jump to 0 // -> 16: f0/b5
+         6: sp[7] = sp[5] // f0/b2
+         7: sp[8] = u32 lt sp[7], sp[3] // f0/b3
+         8: jump if sp[8] to 0 // -> 10: f0/b4
+         9: jump to 0 // -> 13: f0/b6
+        10: sp[8] = u32 add sp[7], sp[6] // f0/b4
+        11: sp[7] = sp[8]
+        12: jump to 0 // -> 7: f0/b3
+        13: sp[7] = u32 add sp[4], sp[6] // f0/b6
+        14: sp[4] = sp[7]
+        15: jump to 0 // -> 3: f0/b1
+        16: sp[2] = sp[4] // f0/b5
+        17: return
         ");
     }
 
@@ -1607,12 +1601,11 @@ mod tests {
          3: jump to 0 // -> 7: f0/b2
          4: sp[2] = const field 2 // f0/b1
          5: sp[4] = field add sp[6], sp[2]
-         6: jump to 0 // -> 10: f0/b3
+         6: jump to 0 // -> 9: f0/b3
          7: sp[2] = const field 3 // f0/b2
          8: sp[4] = field mul sp[6], sp[2]
-         9: jump to 0 // -> 10: f0/b3
-        10: sp[2] = sp[4] // f0/b3
-        11: return
+         9: sp[2] = sp[4] // f0/b3
+        10: return
         ");
     }
 
@@ -1643,11 +1636,10 @@ mod tests {
         1: jump if sp[2] to 0 // -> 3: f0/b1
         2: jump to 0 // -> 5: f0/b2
         3: sp[4] = field add sp[3], sp[5] // f0/b1
-        4: jump to 0 // -> 7: f0/b3
+        4: jump to 0 // -> 6: f0/b3
         5: sp[4] = field mul sp[3], sp[5] // f0/b2
-        6: jump to 0 // -> 7: f0/b3
-        7: sp[2] = sp[4] // f0/b3
-        8: return
+        6: sp[2] = sp[4] // f0/b3
+        7: return
         ");
     }
 }

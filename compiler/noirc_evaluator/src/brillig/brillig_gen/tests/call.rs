@@ -50,14 +50,13 @@ fn brillig_check_max_stack_depth() {
     11: @0 = u32 add @0, sp[2]
     12: call 0 // -> 0: f0
     13: @0 = sp[0]
-    14: jump to 0 // -> 21: f0/b3
+    14: jump to 0 // -> 20: f0/b3
     15: sp[2] = const u32 3 // f0/b2
     16: sp[3] = @0
     17: @0 = u32 add @0, sp[2]
     18: call 0 // -> f1
     19: @0 = sp[0]
-    20: jump to 0 // -> 21: f0/b3
-    21: return // f0/b3
+    20: return // f0/b3
     ");
 
     let bar = &brillig.ssa_function_to_brillig[&Id::test_new(2)];

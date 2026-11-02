@@ -51,7 +51,8 @@ pub(crate) fn opcode_advisories<F: AcirField>(
     brillig_context: &BrilligContext<F, Stack>,
 ) -> OpcodeAdvisories {
     // Find where each block start and ends in the bytecode.
-    let block_opcode_ranges = block_opcode_ranges(brillig_context);
+    let block_opcode_ranges =
+        block_opcode_ranges(brillig_context, function_context.reverse_post_order());
 
     // Accumulate stack addresses read. These are all in the same function context,
     // so they should fit in one stack frame, which makes relative addresses comparable.
@@ -198,10 +199,14 @@ pub(crate) fn show_opcode_advisories<F: Display>(
 ///
 /// 1. All entries share a single `FunctionId` — the function this artifact
 ///    belongs to.
-/// 2. When sorted by opcode location, labels for one `block_id` form a
-///    contiguous run. Section markers (`Label { section: Some(n), .. }`) sit
-///    between a block's primary label and the next block's first label.
-///    A given `block_id` never reappears after another block's labels.
+/// 2. When sorted by opcode location, and then by the position of their block
+///    in `emission_order`, labels for one `block_id` form a contiguous run.
+///    Section markers (`Label { section: Some(n), .. }`) sit between a block's
+///    primary label and the next block's first label. A given `block_id` never
+///    reappears after another block's labels. A block that emits no opcodes
+///    (one that only jumps to the block emitted after it) and an empty trailing
+///    section share their location with the next block's label; ordering ties
+///    by `emission_order` gives such a block an empty range.
 /// 3. No `Procedure`, `GlobalInit`, or `Entrypoint` labels appear here.
 ///
 /// Function-entry labels (`Function(_, None)`) frequently share an opcode
@@ -217,8 +222,11 @@ pub(crate) fn show_opcode_advisories<F: Display>(
 /// overwrite an existing range.
 fn block_opcode_ranges<F, R: RegisterAllocator>(
     brillig_context: &BrilligContext<F, R>,
+    emission_order: impl Iterator<Item = BasicBlockId>,
 ) -> HashMap<BasicBlockId, Range<OpcodeLocation>> {
     let mut ranges = HashMap::new();
+    let emission_index: HashMap<BasicBlockId, usize> =
+        emission_order.enumerate().map(|(index, block_id)| (block_id, index)).collect();
 
     // Close out a block range. Debug-asserts that the block hasn't already
     // been closed: this is how invariant 2 (contiguity) is enforced — a
@@ -265,7 +273,7 @@ fn block_opcode_ranges<F, R: RegisterAllocator>(
             }
         })
         .collect();
-    block_labels.sort_by_key(|(_, location)| *location);
+    block_labels.sort_by_key(|(block_id, location)| (*location, emission_index[block_id]));
 
     let mut last_start: Option<(BasicBlockId, OpcodeLocation)> = None;
     for (block_id, location) in block_labels {
@@ -1077,6 +1085,42 @@ mod tests {
             "Add",
             |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::Add, .. }),
             |op| matches!(op, Opcode::BinaryIntOp { op: BinaryIntOp::LessThanEquals, .. }),
+        );
+    }
+
+    /// Blocks that only jump to the block emitted after them produce no opcodes,
+    /// so several block labels share one location. Each of those blocks gets an
+    /// empty opcode range, and the block after them owns the opcodes.
+    #[test]
+    fn advisories_with_empty_blocks() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            jmpif v0 then: b1(), else: b4()
+          b1():
+            jmp b2()
+          b2():
+            jmp b3()
+          b3():
+            jmp b4()
+          b4():
+            v2 = unchecked_add v1, u32 1
+            return v1
+        }
+        ";
+        let (artifact, advisories) = ssa_to_brillig_with_advisories(src);
+
+        assert_artifact_snapshot!(artifact, @r"
+        fn main
+        0: sp[2] = const u32 1
+        1: sp[4] = u32 add sp[3], sp[2]
+        2: sp[2] = sp[3]
+        3: return
+        ");
+
+        assert!(
+            has_never_read(&advisories),
+            "expected a NeverRead advisory for the dead `unchecked_add` destination, got: {advisories:?}"
         );
     }
 

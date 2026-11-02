@@ -353,6 +353,52 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         self.unresolved_jumps.push((self.index_of_next_opcode(), destination));
         self.push_opcode(jmp_instruction);
     }
+
+    /// Removes trailing jumps whose destination is the next opcode, given that `label` is
+    /// about to be placed there.
+    ///
+    /// A `Jump` or `JumpIf` to the next opcode continues there whichever way it goes, so it can
+    /// be dropped. Its destination is the next opcode if it is `label` itself, or a label that
+    /// is already placed at the next opcode (that of a context which emitted no opcodes).
+    /// Removing one jump can make the jump before it target the next opcode, so this repeats
+    /// until the last opcode is not such a jump.
+    pub(crate) fn remove_trailing_jumps_to(&mut self, label: &Label) {
+        while let Some(jump_position) = self.trailing_jump_to_next_opcode(label) {
+            self.remove_trailing_jump(jump_position);
+        }
+    }
+
+    /// The position of the last opcode, if it is a jump to `label` or to a label placed at the
+    /// next opcode.
+    fn trailing_jump_to_next_opcode(&self, label: &Label) -> Option<OpcodeLocation> {
+        let next_opcode = self.index_of_next_opcode();
+        let (jump_position, destination) = self.unresolved_jumps.last()?;
+        let is_last_opcode = *jump_position + 1 == next_opcode;
+        let targets_next_opcode =
+            destination == label || self.labels.get(destination) == Some(&next_opcode);
+        (is_last_opcode && targets_next_opcode).then_some(*jump_position)
+    }
+
+    /// Removes the jump at `jump_position`, which must be the last opcode, along with the
+    /// bookkeeping [`Self::add_unresolved_jump`] and [`Self::push_opcode`] recorded for it.
+    ///
+    /// Labels placed after the jump mark the next opcode, which is then at `jump_position`,
+    /// so they are moved there.
+    fn remove_trailing_jump(&mut self, jump_position: OpcodeLocation) {
+        let next_opcode = self.index_of_next_opcode();
+        assert_eq!(jump_position + 1, next_opcode, "only the last opcode can be removed");
+        assert!(Self::is_jmp_instruction(&self.byte_code[jump_position]));
+
+        self.unresolved_jumps.pop();
+        self.byte_code.pop();
+        self.locations.remove(&jump_position);
+        for position in self.labels.values_mut() {
+            if *position == next_opcode {
+                *position = jump_position;
+            }
+        }
+    }
+
     /// Adds a unresolved external call that will be fixed once linking has been done.
     pub(crate) fn add_unresolved_external_call(
         &mut self,
