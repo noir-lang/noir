@@ -7,6 +7,8 @@
 
 use acvm::{AcirField, FieldElement, acir::brillig::Opcode as BrilligOpcode};
 
+use crate::ssa::ssa_gen::Ssa;
+
 use crate::brillig::{
     BrilligOptions,
     brillig_gen::tests::{
@@ -165,7 +167,8 @@ fn truncate_result_used_in_later_block() {
     assert_eq!(result, vec![FieldElement::from(5u128), FieldElement::from(5u128)]);
 }
 
-/// A cast that does not directly follow the truncate gets the regular lowering.
+/// A cast that does not directly follow the truncate gets the regular lowering. The
+/// `brillig_truncate_casts` SSA pass moves such casts before code generation.
 #[test]
 fn truncate_and_cast_with_instruction_in_between() {
     let src = "
@@ -242,4 +245,114 @@ fn adjacent_truncate_then_cast_of_block_parameter() {
     let input = (1u128 << 64) + 7;
     let result = execute_brillig_from_ssa(src, vec![FieldElement::from(input)]);
     assert_eq!(result, vec![FieldElement::from(7u128)]);
+}
+
+/// Runs `src` and the output of the `brillig_truncate_casts` pass on it on the VM for all the
+/// inputs, checks they agree, and returns the number of cast opcodes after the pass.
+fn cast_opcodes_after_pass(src: &str, params: &str, inputs: &[Vec<FieldElement>]) -> usize {
+    let optimized = Ssa::from_str(src).unwrap().brillig_truncate_casts();
+    let optimized = optimized.print_without_locations().to_string();
+    for input in inputs {
+        assert_eq!(
+            execute_brillig_from_ssa(src, input.clone()),
+            execute_brillig_from_ssa(&optimized, input.clone()),
+            "pass changed the result for input {input:?}",
+        );
+    }
+    cast_opcodes_in_body(&optimized, params)
+}
+
+fn field_inputs() -> Vec<FieldElement> {
+    vec![
+        FieldElement::zero(),
+        FieldElement::one(),
+        -FieldElement::one(),
+        FieldElement::from(255u128),
+        FieldElement::from(u128::from(u32::MAX)),
+        FieldElement::from(u128::from(u32::MAX) + 1),
+        FieldElement::from(u128::from(u64::MAX)),
+        FieldElement::from(u128::MAX),
+        field_wider_than_u128(),
+    ]
+}
+
+/// A cast in another block costs the same as one right after the truncate.
+#[test]
+fn cast_in_a_branch_is_one_cast_after_pass() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field, v1: u1):
+        v2 = truncate v0 to 64 bits, max_bit_size: 254
+        jmpif v1 then: b1(), else: b2()
+      b1():
+        v3 = cast v2 as u64
+        jmp b3(v3)
+      b2():
+        v4 = cast v2 as u64
+        v5 = unchecked_add v4, u64 1
+        jmp b3(v5)
+      b3(v6: u64):
+        return v6
+    }
+    ";
+    let inputs: Vec<_> = field_inputs()
+        .into_iter()
+        .flat_map(|input| [vec![input, FieldElement::zero()], vec![input, FieldElement::one()]])
+        .collect();
+    assert_eq!(cast_opcodes_after_pass(src, "v0: Field, v1: u1", &inputs), 1);
+}
+
+/// `(x as u32) as u64` for a field `x` takes one cast for each integer type.
+#[test]
+fn cast_to_wider_integer_is_two_casts_after_pass() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = truncate v0 to 32 bits, max_bit_size: 254
+        v2 = cast v1 as u64
+        return v2
+    }
+    ";
+    let inputs: Vec<_> = field_inputs().into_iter().map(|input| vec![input]).collect();
+    assert_eq!(cast_opcodes_after_pass(src, "v0: Field", &inputs), 2);
+}
+
+/// Casts to both signednesses take one cast for each integer type.
+#[test]
+fn signed_and_unsigned_casts_are_two_casts_after_pass() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = truncate v0 to 32 bits, max_bit_size: 254
+        v2 = cast v1 as i32
+        v3 = cast v1 as u32
+        return v2, v3
+    }
+    ";
+    let inputs: Vec<_> = field_inputs().into_iter().map(|input| vec![input]).collect();
+    assert_eq!(cast_opcodes_after_pass(src, "v0: Field", &inputs), 2);
+}
+
+/// A truncate inside a loop whose cast comes after the loop.
+#[test]
+fn cast_after_loop_keeps_last_iteration_value_after_pass() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u128):
+        jmp b1(v0, u32 0)
+      b1(v1: u128, v2: u32):
+        v3 = truncate v1 to 8 bits, max_bit_size: 128
+        v4 = eq v2, u32 2
+        jmpif v4 then: b3(), else: b2()
+      b2():
+        v5 = unchecked_add v2, u32 1
+        v6 = unchecked_add v3, u128 300
+        jmp b1(v6, v5)
+      b3():
+        v7 = cast v3 as u8
+        return v7
+    }
+    ";
+    let inputs = vec![vec![FieldElement::from(1000u128)]];
+    assert_eq!(cast_opcodes_after_pass(src, "v0: u128", &inputs), 2);
 }
