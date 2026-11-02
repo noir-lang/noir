@@ -917,6 +917,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./test_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
