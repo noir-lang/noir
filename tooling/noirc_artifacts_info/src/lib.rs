@@ -24,17 +24,17 @@ impl From<ProgramInfo> for Vec<Row> {
     fn from(program_info: ProgramInfo) -> Self {
         let mut main = vecmap(program_info.functions, |function| {
             row![
-                Fm->format!("{}", program_info.package_name),
-                Fc->format!("{}", function.name),
+                Fm->program_info.package_name.clone(),
+                Fc->function.name.clone(),
                 Fc->format!("{}", function.opcodes),
                 Fc->format!("{}", program_info.unconstrained_functions_opcodes),
             ]
         });
         main.extend(vecmap(program_info.unconstrained_functions, |function| {
             row![
-                Fm->format!("{}", program_info.package_name),
-                Fc->format!("{}", function.name),
-                Fc->format!("N/A"),
+                Fm->program_info.package_name.clone(),
+                Fc->function.name.clone(),
+                Fc->"N/A".to_string(),
                 Fc->format!("{}", function.opcodes),
             ]
         }));

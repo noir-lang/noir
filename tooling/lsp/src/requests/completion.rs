@@ -308,16 +308,11 @@ impl<'a> NodeFinder<'a> {
             in_the_middle = true;
         }
 
-        let prefix;
-        let at_root;
-
-        if after_colons {
-            prefix = String::new();
-            at_root = false;
+        let (prefix, at_root) = if after_colons {
+            (String::new(), false)
         } else {
-            prefix = idents.pop().unwrap().to_string();
-            at_root = idents.is_empty();
-        }
+            (idents.pop().unwrap().to_string(), idents.is_empty())
+        };
 
         let prefix = prefix.to_case(Case::Snake);
 

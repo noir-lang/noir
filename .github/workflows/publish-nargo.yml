@@ -154,7 +154,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ./noir-${{ matrix.target }}.tar.gz
           asset_name: noir-${{ matrix.target }}.tar.gz
-          prerelease: true
+          prerelease: ${{ inputs.tag == '' }}
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
 

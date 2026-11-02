@@ -570,7 +570,7 @@ impl<'a> TestRunner<'a> {
     ) -> TestOutcome {
         let CachedContext { context, crate_id, tracker_after_elaboration, .. } = cached;
 
-        let pattern = FunctionNameMatch::Exact(vec![test.name.to_string()]);
+        let pattern = FunctionNameMatch::Exact(vec![test.name.clone()]);
         let test_functions = context.get_all_test_functions_in_crate_matching(crate_id, &pattern);
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 

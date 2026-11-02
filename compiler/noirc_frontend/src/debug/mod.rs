@@ -598,10 +598,10 @@ pub fn build_debug_crate_file() -> String {
                 // If we were to set a specific type for index signatures here, such as `Field`, we will error in
                 // type checking if we attempt to index with a different type such as `u8`.
                 let indices =
-                    (0..n).map(|i| format!["Index{i}"]).collect::<Vec<String>>().join(", ");
+                    (0..n).map(|i| format!("Index{i}")).collect::<Vec<String>>().join(", ");
                 let var_sig =
-                    (0..n).map(|i| format!["_v{i}: Index{i}"]).collect::<Vec<String>>().join(", ");
-                let vars = (0..n).map(|i| format!["_v{i}"]).collect::<Vec<String>>().join(", ");
+                    (0..n).map(|i| format!("_v{i}: Index{i}")).collect::<Vec<String>>().join(", ");
+                let vars = (0..n).map(|i| format!("_v{i}")).collect::<Vec<String>>().join(", ");
                 format!(
                     r#"
                 #[oracle(__debug_member_assign_{n})]
@@ -681,7 +681,7 @@ fn build_assign_member_stmt(
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
             kind: ast::ExpressionKind::Variable(debug_fn_path(
-                &format!["__debug_member_assign_{arity}"],
+                &format!("__debug_member_assign_{arity}"),
                 location,
             )),
             location,
@@ -701,7 +701,7 @@ fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, location: Location) -> a
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
             kind: ast::ExpressionKind::Variable(debug_fn_path(
-                &format!["__debug_fn_{fname}"],
+                &format!("__debug_fn_{fname}"),
                 location,
             )),
             location,

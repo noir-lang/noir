@@ -115,7 +115,7 @@ fn read_source(path: Option<PathBuf>) -> eyre::Result<String> {
         if stdin.is_terminal() {
             // If we are in terminal mode, we can type in the SSA, but that's unlikely
             // what we wanted to achieve, and I'm not sure how to even signal EOF.
-            bail!("The CLI is in terminal mode. Expected to read the SSA from a pipe.")
+            bail!("The CLI is in terminal mode. Expected to read the SSA from a pipe.");
         }
 
         let mut handle = stdin.lock();
@@ -153,7 +153,7 @@ fn parse_ssa(src: &str, mode: ValidationMode) -> eyre::Result<Ssa> {
         Ok(ssa) => ssa,
         Err(source_with_errors) => {
             println_to_stderr!("{source_with_errors:?}");
-            bail!("Failed to parse the SSA.")
+            bail!("Failed to parse the SSA.");
         }
     };
 

@@ -2,14 +2,11 @@
   "release-type": "simple",
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
-  "prerelease": true,
-  "prerelease-type": "rc",
   "pull-request-title-pattern": "chore: Release Noir(${version})",
   "group-pull-request-title-pattern": "chore: Release Noir(${version})",
   "packages": {
     ".": {
       "release-type": "simple",
-      "versioning": "prerelease",
       "component": "noir",
       "package-name": "noir",
       "include-component-in-tag": false,

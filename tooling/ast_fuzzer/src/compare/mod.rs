@@ -123,21 +123,21 @@ where
             }
             CompareResult::LeftFailed(e, _) => {
                 let e = &e.error;
-                bail!("first program failed: {e}\n\n{e:?}")
+                bail!("first program failed: {e}\n\n{e:?}");
             }
             CompareResult::RightFailed(_, e) => {
                 let e = &e.error;
-                bail!("second program failed: {e}\n\n{e:?}")
+                bail!("second program failed: {e}\n\n{e:?}");
             }
             CompareResult::BothPassed(o1, o2) => match (&o1.return_value, &o2.return_value) {
                 (Some(r1), Some(r2)) if !Comparable::equivalent(r1, r2) => {
-                    bail!("programs disagree on return value:\n{r1:?}\n!=\n{r2:?}",)
+                    bail!("programs disagree on return value:\n{r1:?}\n!=\n{r2:?}");
                 }
                 (Some(r1), None) => {
-                    bail!("only the first program returned a value: {r1:?}",)
+                    bail!("only the first program returned a value: {r1:?}");
                 }
                 (None, Some(r2)) => {
-                    bail!("only the second program returned a value: {r2:?}",)
+                    bail!("only the second program returned a value: {r2:?}");
                 }
                 (r1, _) => {
                     let p1 = &o1.print_output;
@@ -145,7 +145,7 @@ where
                     if p1 != p2 {
                         bail!(
                             "both programs passed, but disagree on printed output:\n---\n{p1}\n--- != ---\n{p2}\n---",
-                        )
+                        );
                     }
                     Ok(r1.as_ref())
                 }
