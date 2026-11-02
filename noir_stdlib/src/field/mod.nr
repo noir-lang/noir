@@ -140,16 +140,22 @@ impl Field {
             // Ensure that the byte decomposition does not overflow the modulus
             let p = modulus_le_bytes();
             assert(bytes.len() <= p.len());
-            let mut ok = bytes.len() != p.len();
-            for i in 0..N {
-                if !ok {
-                    if (bytes[N - 1 - i] != p[N - 1 - i]) {
-                        assert(bytes[N - 1 - i] < p[N - 1 - i]);
-                        ok = true;
+            if crate::compat::is_bn254() {
+                if bytes.len() == p.len() {
+                    assert_bytes_lt_bn254_modulus(bytes, false);
+                }
+            } else {
+                let mut ok = bytes.len() != p.len();
+                for i in 0..N {
+                    if !ok {
+                        if (bytes[N - 1 - i] != p[N - 1 - i]) {
+                            assert(bytes[N - 1 - i] < p[N - 1 - i]);
+                            ok = true;
+                        }
                     }
                 }
+                assert(ok);
             }
-            assert(ok);
         }
         bytes
     }
@@ -184,16 +190,22 @@ impl Field {
             // Ensure that the byte decomposition does not overflow the modulus
             let p = modulus_be_bytes();
             assert(bytes.len() <= p.len());
-            let mut ok = bytes.len() != p.len();
-            for i in 0..N {
-                if !ok {
-                    if (bytes[i] != p[i]) {
-                        assert(bytes[i] < p[i]);
-                        ok = true;
+            if crate::compat::is_bn254() {
+                if bytes.len() == p.len() {
+                    assert_bytes_lt_bn254_modulus(bytes, true);
+                }
+            } else {
+                let mut ok = bytes.len() != p.len();
+                for i in 0..N {
+                    if !ok {
+                        if (bytes[i] != p[i]) {
+                            assert(bytes[i] < p[i]);
+                            ok = true;
+                        }
                     }
                 }
+                assert(ok);
             }
-            assert(ok);
         }
         bytes
     }
@@ -547,10 +559,40 @@ fn lt_fallback(x: Field, y: Field) -> bool {
     }
 }
 
+/// Asserts that `bytes`, which must have length 32, encode an integer below the bn254 modulus.
+/// `big_endian` selects the byte order.
+///
+/// The bytes are recombined into two 128-bit limbs and compared against the limbs of the modulus,
+/// which costs two 128-bit range checks rather than a comparison per byte. Recombining is exact
+/// because every byte is below 256, so each limb is below `2^128` as `assert_gt_limbs` requires.
+fn assert_bytes_lt_bn254_modulus<let N: u32>(bytes: [u8; N], big_endian: bool) {
+    let mut lo: Field = 0;
+    let mut hi: Field = 0;
+    let mut power: Field = 1;
+    for i in 0..N {
+        if i == 16 {
+            power = 1;
+        }
+        let byte = if big_endian {
+            bytes[N - 1 - i]
+        } else {
+            bytes[i]
+        };
+        if i < 16 {
+            lo += byte as Field * power;
+        } else {
+            hi += byte as Field * power;
+        }
+        power *= 256;
+    }
+    bn254::assert_gt_limbs((bn254::PLO, bn254::PHI), (lo, hi));
+}
+
 mod tests {
     use crate::{panic::panic, runtime, static_assert};
     use super::{
-        field_less_than, modulus_be_bits, modulus_be_bytes, modulus_le_bits, modulus_le_bytes,
+        assert_bytes_lt_bn254_modulus, field_less_than, modulus_be_bits, modulus_be_bytes,
+        modulus_le_bits, modulus_le_bytes,
     };
 
     #[test]
@@ -1093,4 +1135,99 @@ mod tests {
         x.assert_max_bit_size::<16>();
     }
 
+    fn modulus_be_byte_array() -> [u8; 32] {
+        let p = modulus_be_bytes();
+        let mut bytes = [0; 32];
+        for i in 0..32 {
+            bytes[i] = p[i];
+        }
+        bytes
+    }
+
+    fn reversed(bytes: [u8; 32]) -> [u8; 32] {
+        let mut result = [0; 32];
+        for i in 0..32 {
+            result[i] = bytes[31 - i];
+        }
+        result
+    }
+
+    // Checks the big endian bytes in both byte orders.
+    fn assert_canonical(be_bytes: [u8; 32]) {
+        assert_bytes_lt_bn254_modulus(be_bytes, true);
+        assert_bytes_lt_bn254_modulus(reversed(be_bytes), false);
+    }
+
+    #[test]
+    fn bytes_lt_modulus_accepts_zero() {
+        assert_canonical([0; 32]);
+    }
+
+    #[test]
+    fn bytes_lt_modulus_accepts_modulus_minus_one() {
+        let mut bytes = modulus_be_byte_array();
+        bytes[31] -= 1;
+        assert_canonical(bytes);
+        assert_eq(bytes, (-1).to_be_bytes());
+    }
+
+    #[test]
+    fn bytes_lt_modulus_accepts_smaller_high_limb_with_maximal_low_limb() {
+        // Low limb above the modulus' low limb: needs a borrow from the high limb.
+        let mut bytes = [255; 32];
+        bytes[0] = modulus_be_byte_array()[0] - 1;
+        assert_canonical(bytes);
+    }
+
+    #[test]
+    fn bytes_lt_modulus_accepts_equal_high_limb_with_smaller_low_limb() {
+        let mut bytes = modulus_be_byte_array();
+        bytes[16] -= 1;
+        for i in 17..32 {
+            bytes[i] = 255;
+        }
+        assert_canonical(bytes);
+    }
+
+    #[test(should_fail)]
+    fn bytes_lt_modulus_rejects_modulus_be() {
+        assert_bytes_lt_bn254_modulus(modulus_be_byte_array(), true);
+    }
+
+    #[test(should_fail)]
+    fn bytes_lt_modulus_rejects_modulus_le() {
+        assert_bytes_lt_bn254_modulus(reversed(modulus_be_byte_array()), false);
+    }
+
+    #[test(should_fail)]
+    fn bytes_lt_modulus_rejects_modulus_plus_one() {
+        let mut bytes = modulus_be_byte_array();
+        bytes[31] += 1;
+        assert_bytes_lt_bn254_modulus(bytes, true);
+    }
+
+    #[test(should_fail)]
+    fn bytes_lt_modulus_rejects_equal_high_limb_with_larger_low_limb() {
+        let mut bytes = modulus_be_byte_array();
+        bytes[16] += 1;
+        for i in 17..32 {
+            bytes[i] = 0;
+        }
+        assert_bytes_lt_bn254_modulus(bytes, true);
+    }
+
+    #[test(should_fail)]
+    fn bytes_lt_modulus_rejects_larger_high_limb_with_zero_low_limb() {
+        let mut bytes = [0; 32];
+        bytes[15] = modulus_be_byte_array()[15] + 1;
+        for i in 0..15 {
+            bytes[i] = modulus_be_byte_array()[i];
+        }
+        assert_bytes_lt_bn254_modulus(bytes, true);
+    }
+
+    #[test(should_fail)]
+    fn bytes_lt_modulus_rejects_all_ones() {
+        assert_bytes_lt_bn254_modulus([255; 32], true);
+    }
 }

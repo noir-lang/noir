@@ -30,7 +30,7 @@ unconstrained fn lte_hint(x: Field, y: Field) -> bool {
 }
 
 // Assert that (alo > blo && ahi >= bhi) || (alo <= blo && ahi > bhi)
-fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
+pub(crate) fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
     let (alo, ahi) = a;
     let (blo, bhi) = b;
     // Safety: borrow is enforced to be boolean due to its type.
