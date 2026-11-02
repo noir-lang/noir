@@ -305,6 +305,87 @@ fn brillig_shr() {
     ");
 }
 
+// A constant shift amount below the bit size needs no runtime overflow check.
+#[test]
+fn brillig_shift_by_constant_in_range() {
+    let src = "
+    brillig(inline) fn foo f0 {
+      b0(v0: u128):
+        v1 = shl v0, u128 64
+        v2 = shr v0, u128 127
+        v3 = add v1, v2
+        return v3
+    }
+    ";
+
+    let brillig = ssa_to_brillig_artifacts(src);
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    assert_artifact_snapshot!(foo, @r"
+    fn foo
+    0: sp[3] = const u128 64
+    1: sp[4] = u128 shl sp[2], sp[3]
+    2: sp[3] = const u128 127
+    3: sp[5] = u128 shr sp[2], sp[3]
+    4: sp[2] = u128 add sp[4], sp[5]
+    5: sp[3] = u128 lt_eq sp[4], sp[2]
+    6: jump if sp[3] to 0 // -> 8: f0/b0/1
+    7: call 0 // -> ErrorWithString
+    8: return // f0/b0/1
+    ");
+}
+
+// A constant shift amount at or above the bit size keeps the runtime overflow check.
+#[test]
+fn brillig_shift_by_constant_out_of_range() {
+    let src = "
+    brillig(inline) fn foo f0 {
+      b0(v0: u32):
+        v1 = shl v0, u32 32
+        return v1
+    }
+    ";
+
+    let brillig = ssa_to_brillig_artifacts(src);
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    assert_artifact_snapshot!(foo, @r"
+    fn foo
+    0: sp[3] = const u32 32
+    1: sp[6] = const u32 32
+    2: sp[5] = u32 lt sp[3], sp[6]
+    3: jump if sp[5] to 0 // -> 5: f0/b0/1
+    4: call 0 // -> ErrorWithString
+    5: sp[4] = u32 shl sp[2], sp[3] // f0/b0/1
+    6: sp[2] = sp[4]
+    7: return
+    ");
+}
+
+// A negative signed constant shift amount keeps the runtime overflow check.
+#[test]
+fn brillig_shift_by_negative_signed_constant() {
+    let src = "
+    brillig(inline) fn foo f0 {
+      b0(v0: i8):
+        v1 = shl v0, i8 -1
+        return v1
+    }
+    ";
+
+    let brillig = ssa_to_brillig_artifacts(src);
+    let foo = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    assert_artifact_snapshot!(foo, @r"
+    fn foo
+    0: sp[3] = const u8 255
+    1: sp[6] = const u8 8
+    2: sp[5] = u8 lt sp[3], sp[6]
+    3: jump if sp[5] to 0 // -> 5: f0/b0/1
+    4: call 0 // -> ErrorWithString
+    5: sp[4] = u8 shl sp[2], sp[3] // f0/b0/1
+    6: sp[2] = sp[4]
+    7: return
+    ");
+}
+
 // Tests Brillig Field addition.
 #[test]
 fn brillig_add_field() {

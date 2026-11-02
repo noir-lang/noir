@@ -85,11 +85,11 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             BinaryOp::Or => BrilligBinaryOp::Or,
             BinaryOp::Xor => BrilligBinaryOp::Xor,
             BinaryOp::Shl => {
-                self.bit_shift_overflow(left, right);
+                self.bit_shift_overflow(left, right, binary.rhs, dfg);
                 BrilligBinaryOp::Shl
             }
             BinaryOp::Shr => {
-                self.bit_shift_overflow(left, right);
+                self.bit_shift_overflow(left, right, binary.rhs, dfg);
                 if is_signed {
                     self.convert_signed_shr(left, right, result_variable);
                     return;
@@ -144,7 +144,23 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.brillig_context.codegen_constrain(*right_is_nonzero, Some(msg));
     }
 
-    fn bit_shift_overflow(&mut self, left: SingleAddrVariable, right: SingleAddrVariable) {
+    fn bit_shift_overflow(
+        &mut self,
+        left: SingleAddrVariable,
+        right: SingleAddrVariable,
+        rhs: ValueId,
+        dfg: &DataFlowGraph,
+    ) {
+        // A constant shift amount below the bit size can never overflow, so no runtime check is needed.
+        // Negative signed constants are stored as their two's complement bit pattern, which is
+        // at least `2^(bit_size - 1)` and therefore still gets the runtime check.
+        if dfg
+            .get_numeric_constant(rhs)
+            .is_some_and(|rhs| rhs < FieldElement::from(u128::from(left.bit_size)))
+        {
+            return;
+        }
+
         // Check that right is less than the bit size of left
         // The constraint will fail also if rhs is negative, which is expected.
         let right_overflow = self.brillig_context.allocate_single_addr_bool();
