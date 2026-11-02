@@ -1142,4 +1142,140 @@ pub(crate) mod tests {
             "VM should finish successfully; v0 and v1 should be swapped after one iteration"
         );
     }
+
+    mod fallthrough {
+        use acvm::FieldElement;
+        use acvm::acir::brillig::{MemoryAddress, Opcode as BrilligOpcode};
+        use noirc_errors::call_stack::CallStackId;
+
+        use crate::brillig::brillig_ir::BrilligContext;
+        use crate::brillig::brillig_ir::artifact::{GeneratedBrillig, Label};
+        use crate::brillig::brillig_ir::registers::Stack;
+        use crate::ssa::ir::{basic_block::BasicBlockId, function::FunctionId};
+
+        use super::create_context;
+
+        fn block_label(block: u32) -> Label {
+            Label::block(FunctionId::test_new(0), BasicBlockId::test_new(block))
+        }
+
+        fn finish(context: BrilligContext<FieldElement, Stack>) -> GeneratedBrillig<FieldElement> {
+            context.into_artifact().finish()
+        }
+
+        fn mov() -> (MemoryAddress, MemoryAddress) {
+            (MemoryAddress::relative(1), MemoryAddress::relative(2))
+        }
+
+        #[test]
+        fn jump_to_the_next_context_is_removed() {
+            let mut context = create_context(FunctionId::test_new(0));
+            let (destination, source) = mov();
+            context.mov_instruction(destination, source);
+            context.jump_instruction(block_label(1));
+            context.enter_context(block_label(1));
+            context.stop_instruction(acvm::acir::brillig::HeapVector {
+                pointer: MemoryAddress::relative(0),
+                size: MemoryAddress::relative(0),
+            });
+
+            let byte_code = finish(context).byte_code;
+            assert!(
+                !byte_code.iter().any(|opcode| matches!(opcode, BrilligOpcode::Jump { .. })),
+                "a jump to the context entered right after it should be removed: {byte_code:?}"
+            );
+            assert_eq!(byte_code.len(), 2, "{byte_code:?}");
+        }
+
+        #[test]
+        fn jump_to_another_context_is_kept() {
+            let mut context = create_context(FunctionId::test_new(0));
+            let (destination, source) = mov();
+            context.jump_instruction(block_label(2));
+            context.enter_context(block_label(1));
+            context.mov_instruction(destination, source);
+            context.enter_context(block_label(2));
+            context.mov_instruction(destination, source);
+
+            let byte_code = finish(context).byte_code;
+            assert_eq!(
+                byte_code.first(),
+                Some(&BrilligOpcode::Jump { location: 2 }),
+                "{byte_code:?}"
+            );
+            assert_eq!(byte_code.len(), 3, "{byte_code:?}");
+        }
+
+        #[test]
+        fn jump_followed_by_other_opcodes_is_kept() {
+            let mut context = create_context(FunctionId::test_new(0));
+            let (destination, source) = mov();
+            context.jump_instruction(block_label(1));
+            context.mov_instruction(destination, source);
+            context.enter_context(block_label(1));
+            context.mov_instruction(destination, source);
+
+            let byte_code = finish(context).byte_code;
+            assert_eq!(
+                byte_code.first(),
+                Some(&BrilligOpcode::Jump { location: 2 }),
+                "{byte_code:?}"
+            );
+            assert_eq!(byte_code.len(), 3, "{byte_code:?}");
+        }
+
+        #[test]
+        fn conditional_jump_to_the_next_context_is_kept() {
+            let mut context = create_context(FunctionId::test_new(0));
+            let (destination, _) = mov();
+            context.jump_if_instruction(destination, block_label(1));
+            context.enter_context(block_label(1));
+            context.mov_instruction(destination, destination);
+
+            let byte_code = finish(context).byte_code;
+            assert_eq!(
+                byte_code.first(),
+                Some(&BrilligOpcode::JumpIf { condition: destination, location: 1 }),
+                "{byte_code:?}"
+            );
+        }
+
+        /// An empty block whose only opcode was the removed jump keeps its label, which then
+        /// marks the start of the next block: jumping to it lands where the removed jump went.
+        #[test]
+        fn label_of_the_removed_jump_resolves_to_the_next_context() {
+            let mut context = create_context(FunctionId::test_new(0));
+            let (destination, source) = mov();
+            context.jump_instruction(block_label(1));
+            context.enter_context(block_label(2));
+            context.mov_instruction(destination, source);
+            context.enter_context(block_label(1));
+            context.jump_instruction(block_label(3));
+            context.enter_context(block_label(3));
+            context.mov_instruction(destination, source);
+
+            let byte_code = finish(context).byte_code;
+            assert_eq!(byte_code.len(), 3, "{byte_code:?}");
+            assert_eq!(byte_code[0], BrilligOpcode::Jump { location: 2 }, "{byte_code:?}");
+        }
+
+        #[test]
+        fn removed_jump_does_not_leave_its_call_stack_on_the_next_opcode() {
+            let mut context = create_context(FunctionId::test_new(0));
+            let (destination, source) = mov();
+            context.set_call_stack(CallStackId::new(7));
+            context.jump_instruction(block_label(1));
+            context.set_call_stack(CallStackId::root());
+            context.enter_context(block_label(1));
+            context.mov_instruction(destination, source);
+
+            let generated = finish(context);
+            assert_eq!(generated.byte_code.len(), 1, "{:?}", generated.byte_code);
+            assert!(
+                generated.locations.is_empty(),
+                "the removed jump's call stack should not be attached to the next opcode: {:?}",
+                generated.locations
+            );
+        }
+    }
 }

@@ -174,13 +174,11 @@ impl Brillig {
             brillig_context.emit_unresolved_spill_prologue();
         }
 
-        let blocks = function_context.reverse_post_order().collect::<Vec<_>>();
-        for (index, block) in blocks.iter().enumerate() {
+        for block in function_context.reverse_post_order().collect::<Vec<_>>() {
             BrilligBlock::compile_block(
                 &mut function_context,
                 &mut brillig_context,
-                *block,
-                blocks.get(index + 1).copied(),
+                block,
                 &func.dfg,
                 &mut self.call_stacks,
                 globals,

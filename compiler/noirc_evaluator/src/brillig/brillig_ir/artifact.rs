@@ -353,6 +353,30 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
         self.unresolved_jumps.push((self.index_of_next_opcode(), destination));
         self.push_opcode(jmp_instruction);
     }
+
+    /// Removes the last opcode if it is an unconditional jump to `label`, along with the
+    /// bookkeeping [`Self::add_unresolved_jump`] and [`Self::push_opcode`] recorded for it.
+    ///
+    /// Meant to be called just before `label` is placed at the next opcode, where such a jump
+    /// would only move to the following opcode. Any label already placed at the jump's position
+    /// ends up at the same opcode the jump would have reached, so control flow is unchanged.
+    pub(crate) fn remove_trailing_jump_to(&mut self, label: &Label) {
+        let Some(BrilligOpcode::Jump { .. }) = self.byte_code.last() else {
+            return;
+        };
+        let jump_position = self.byte_code.len() - 1;
+        let Some((position, destination)) = self.unresolved_jumps.last() else {
+            return;
+        };
+        if *position != jump_position || destination != label {
+            return;
+        }
+
+        self.unresolved_jumps.pop();
+        self.byte_code.pop();
+        self.locations.remove(&jump_position);
+    }
+
     /// Adds a unresolved external call that will be fixed once linking has been done.
     pub(crate) fn add_unresolved_external_call(
         &mut self,
