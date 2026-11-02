@@ -54,6 +54,8 @@ jobs:
           tool: "cargo"
           output-file-path: ./acvm-bench.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
@@ -637,6 +639,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
@@ -685,6 +689,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
@@ -733,6 +739,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
@@ -781,6 +789,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./artifact_size.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
@@ -829,6 +839,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./num_opcodes.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "110%"
@@ -877,6 +889,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
@@ -925,6 +939,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
@@ -973,6 +989,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./artifact_size.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
@@ -1026,6 +1044,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./memory_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
@@ -1079,6 +1099,8 @@ jobs:
           tool: "customSmallerIsBetter"
           output-file-path: ./memory_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
+          gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           alert-threshold: "120%"
