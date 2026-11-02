@@ -9,7 +9,7 @@
 use acvm::{
     FieldElement,
     acir::brillig::Opcode as BrilligOpcode,
-    brillig_vm::{VM, VMStatus},
+    brillig_vm::{FailureReason, VM, VMStatus},
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 
@@ -55,6 +55,24 @@ pub(crate) fn execute_brillig_from_ssa_with_options(
     calldata: Vec<FieldElement>,
     options: &BrilligOptions,
 ) -> Vec<FieldElement> {
+    try_execute_brillig_from_ssa_with_options(src, calldata, options)
+        .unwrap_or_else(|reason| panic!("Brillig execution failed: {reason:?}"))
+}
+
+/// Compile SSA source to a fully linked entry point and execute it with the given calldata.
+/// Returns the return data from the VM, or the reason of the failure if execution failed.
+pub(crate) fn try_execute_brillig_from_ssa(
+    src: &str,
+    calldata: Vec<FieldElement>,
+) -> Result<Vec<FieldElement>, FailureReason> {
+    try_execute_brillig_from_ssa_with_options(src, calldata, &BrilligOptions::default())
+}
+
+fn try_execute_brillig_from_ssa_with_options(
+    src: &str,
+    calldata: Vec<FieldElement>,
+    options: &BrilligOptions,
+) -> Result<Vec<FieldElement>, FailureReason> {
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(options);
     let func = ssa.main();
@@ -73,25 +91,24 @@ pub(crate) fn execute_brillig_from_ssa_with_options(
 fn execute_bytecode(
     byte_code: &[BrilligOpcode<FieldElement>],
     calldata: Vec<FieldElement>,
-) -> Vec<FieldElement> {
+) -> Result<Vec<FieldElement>, FailureReason> {
     let solver = Bn254BlackBoxSolver;
     let mut vm = VM::new(calldata, byte_code, &solver, false, None);
     let status = vm.process_opcodes();
     match status {
         VMStatus::Finished { return_data_offset, return_data_size } => {
             let memory = vm.take_memory();
-            (return_data_offset as usize..return_data_offset as usize + return_data_size as usize)
+            Ok((return_data_offset as usize
+                ..return_data_offset as usize + return_data_size as usize)
                 .map(|i| {
                     memory.read(acvm::acir::brillig::MemoryAddress::direct(i as u32)).to_field()
                 })
-                .collect()
+                .collect())
         }
         VMStatus::ForeignCallWait { .. } => {
             panic!("Unexpected foreign call")
         }
-        VMStatus::Failure { reason, .. } => {
-            panic!("Brillig execution failed: {reason:?}")
-        }
+        VMStatus::Failure { reason, .. } => Err(reason),
         VMStatus::InProgress => {
             panic!("VM did not complete")
         }

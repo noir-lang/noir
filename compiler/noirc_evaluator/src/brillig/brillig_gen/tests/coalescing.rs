@@ -1,12 +1,16 @@
 use acvm::FieldElement;
+use acvm::brillig_vm::FailureReason;
 
+use crate::assert_artifact_snapshot;
 use crate::brillig::brillig_gen::tests::{
-    execute_brillig_from_ssa, execute_brillig_from_ssa_with_options,
+    execute_brillig_from_ssa, execute_brillig_from_ssa_with_options, ssa_to_brillig_artifacts,
+    try_execute_brillig_from_ssa,
 };
 use crate::brillig::{
     BrilligOptions,
     brillig_ir::{LayoutConfig, registers::MAX_SCRATCH_SPACE},
 };
+use crate::ssa::ir::map::Id;
 use crate::ssa::ir::value::ValueId;
 use crate::ssa::ssa_gen::Ssa;
 
@@ -336,4 +340,159 @@ fn coalescing_transitive_chain_no_double_dealloc() {
     let result =
         execute_brillig_from_ssa(src, vec![FieldElement::from(3u64), FieldElement::from(7u64)]);
     assert_eq!(result, vec![FieldElement::from(23u64)]);
+}
+/// A loop counter incremented with `unchecked_add` is written straight back to the loop
+/// parameter's register: the `add` reads the parameter before writing the result, so no
+/// `mov` is needed on the back-edge.
+#[test]
+fn coalescing_loop_increment_into_param_read_by_defining_instruction() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        jmp b1(u32 0, u32 0)
+      b1(v1: u32, v2: u32):
+        v3 = lt v1, v0
+        jmpif v3 then: b2(), else: b3()
+      b2():
+        v4 = unchecked_add v2, v1
+        v5 = unchecked_add v1, u32 1
+        jmp b1(v5, v4)
+      b3():
+        return v2
+    }
+    ";
+    let brillig = ssa_to_brillig_artifacts(src);
+    let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
+    assert_artifact_snapshot!(main, @r"
+    fn main
+     0: sp[5] = const u32 0
+     1: sp[6] = const u32 1
+     2: sp[3] = sp[5]
+     3: sp[4] = sp[5]
+     4: jump to 0 // -> 5: f0/b1
+     5: sp[5] = u32 lt sp[3], sp[2] // f0/b1
+     6: jump if sp[5] to 0 // -> 8: f0/b2
+     7: jump to 0 // -> 13: f0/b3
+     8: sp[5] = u32 add sp[4], sp[3] // f0/b2
+     9: sp[7] = u32 add sp[3], sp[6]
+    10: sp[3] = sp[7]
+    11: sp[4] = sp[5]
+    12: jump to 0 // -> 5: f0/b1
+    13: sp[2] = sp[4] // f0/b3
+    14: return
+    ");
+
+    // Sum of 0..10
+    let result = execute_brillig_from_ssa(src, vec![FieldElement::from(10u64)]);
+    assert_eq!(result, vec![FieldElement::from(45u64)]);
+}
+
+/// Both loop parameters are updated in place: `v5` is written to `v2`'s register and `v4` to
+/// `v1`'s register. `v5` also reads `v1`, which must still hold its old value at that point.
+#[test]
+fn coalescing_in_place_updates_of_two_loop_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        jmp b1(u32 1, u32 0, u32 0)
+      b1(v1: u32, v2: u32, v3: u32):
+        v6 = lt v3, v0
+        jmpif v6 then: b2(), else: b3()
+      b2():
+        v5 = unchecked_add v2, v1
+        v4 = unchecked_mul v1, u32 2
+        v7 = unchecked_add v3, u32 1
+        jmp b1(v4, v5, v7)
+      b3():
+        return v1, v2
+    }
+    ";
+    // Iterations of (v1, v2): (1, 0) -> (2, 1) -> (4, 3) -> (8, 7) -> (16, 15)
+    let result = execute_brillig_from_ssa(src, vec![FieldElement::from(4u64)]);
+    assert_eq!(result, vec![FieldElement::from(16u64), FieldElement::from(15u64)]);
+}
+
+/// The arguments of the back-edge rotate the loop parameters while the counter is updated in
+/// place. The parallel moves of the jmp must read the old values of the rotated parameters.
+#[test]
+fn coalescing_in_place_update_with_rotated_loop_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        jmp b1(u32 1, u32 2, u32 3, u32 0)
+      b1(v1: u32, v2: u32, v3: u32, v4: u32):
+        v5 = lt v4, v0
+        jmpif v5 then: b2(), else: b3()
+      b2():
+        v6 = unchecked_add v4, u32 1
+        jmp b1(v2, v3, v1, v6)
+      b3():
+        return v1, v2, v3
+    }
+    ";
+    // (1, 2, 3) -> (2, 3, 1) -> (3, 1, 2) -> (1, 2, 3) -> (2, 3, 1)
+    let result = execute_brillig_from_ssa(src, vec![FieldElement::from(4u64)]);
+    assert_eq!(
+        result,
+        vec![FieldElement::from(2u64), FieldElement::from(3u64), FieldElement::from(1u64)]
+    );
+}
+
+/// The overflow check of a checked `add` reads its lhs again after writing the result, so the
+/// result must not share a register with the loop parameter it reads. The loop overflows on its
+/// third iteration (0 -> 100 -> 200 -> 300), which must be reported.
+#[test]
+fn coalescing_checked_add_of_loop_param_reports_overflow() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        jmp b1(u8 0, u32 0)
+      b1(v1: u8, v2: u32):
+        v3 = lt v2, v0
+        jmpif v3 then: b2(), else: b3()
+      b2():
+        v4 = add v1, u8 100
+        v5 = unchecked_add v2, u32 1
+        jmp b1(v4, v5)
+      b3():
+        return v1
+    }
+    ";
+    let result = try_execute_brillig_from_ssa(src, vec![FieldElement::from(2u64)]);
+    assert_eq!(result, Ok(vec![FieldElement::from(200u64)]));
+
+    let result = try_execute_brillig_from_ssa(src, vec![FieldElement::from(3u64)]);
+    assert!(
+        matches!(result, Err(FailureReason::Trap { .. })),
+        "expected an overflow trap, got {result:?}"
+    );
+}
+
+/// The underflow check of a checked `sub` reads both operands again after writing the result.
+/// The loop underflows on its third iteration (250 -> 150 -> 50 -> -50), which must be reported.
+#[test]
+fn coalescing_checked_sub_of_loop_param_reports_underflow() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32):
+        jmp b1(u8 250, u32 0)
+      b1(v1: u8, v2: u32):
+        v3 = lt v2, v0
+        jmpif v3 then: b2(), else: b3()
+      b2():
+        v4 = sub v1, u8 100
+        v5 = unchecked_add v2, u32 1
+        jmp b1(v4, v5)
+      b3():
+        return v1
+    }
+    ";
+    let result = try_execute_brillig_from_ssa(src, vec![FieldElement::from(2u64)]);
+    assert_eq!(result, Ok(vec![FieldElement::from(50u64)]));
+
+    let result = try_execute_brillig_from_ssa(src, vec![FieldElement::from(3u64)]);
+    assert!(
+        matches!(result, Err(FailureReason::Trap { .. })),
+        "expected an underflow trap, got {result:?}"
+    );
 }

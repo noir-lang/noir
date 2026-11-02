@@ -274,9 +274,10 @@ mod tests {
 
     #[test]
     fn does_not_coalesce_when_param_live_and_used() {
-        // Loop: v1 is a block parameter of b1 and is used in the `add` that defines v3.
-        // Since v1 is an operand of v3's defining instruction, coalescing v3 -> v1 would
-        // clobber v1 before the add reads it. Must reject.
+        // Loop: v1 is a block parameter of b1 and is used in the checked `add` that defines v3.
+        // The overflow check of a checked add re-reads the lhs (v1) after the sum has been
+        // written, so coalescing v3 -> v1 would make the check compare the sum against itself.
+        // Must reject.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32):
@@ -298,6 +299,127 @@ mod tests {
         assert!(!coalescing.is_coalesced(&arg));
         assert!(!coalescing.is_coalesced(&param));
         assert_eq!(coalescing.len(), 0);
+    }
+
+    /// Build a loop whose back-edge argument `v3` is defined by `defining_instruction`,
+    /// which may read the loop parameter `v1` (of type `typ`), and report whether `v3`
+    /// was coalesced with `v1`.
+    fn loop_increment_is_coalesced(typ: &str, defining_instruction: &str) -> bool {
+        let src = format!(
+            "
+        brillig(inline) fn main f0 {{
+          b0(v0: {typ}, v10: u32):
+            jmp b1(v0, u32 0)
+          b1(v1: {typ}, v2: u32):
+            v4 = lt v2, v10
+            jmpif v4 then: b2(), else: b3()
+          b2():
+            v3 = {defining_instruction}
+            v5 = unchecked_add v2, u32 1
+            jmp b1(v3, v5)
+          b3():
+            return v1
+        }}
+        "
+        );
+        let (coalescing, ssa) = build_coalescing(&src);
+        let func = ssa.main();
+        let (arg, param) = get_jmp_pair(func, 2, 0);
+        match coalescing.get_coalesced(&arg) {
+            Some(coalesced) => {
+                assert_eq!(coalesced, param);
+                true
+            }
+            None => false,
+        }
+    }
+
+    #[test]
+    fn coalesces_when_param_is_only_read_by_single_opcode_defining_instruction() {
+        // Each of these instructions is lowered to a single Brillig opcode which reads all of
+        // its operands before writing its result, so the result can be written to the register
+        // of the loop parameter it reads.
+        let cases = [
+            ("u32", "unchecked_add v1, u32 1"),
+            ("u32", "unchecked_add u32 1, v1"),
+            ("u32", "unchecked_sub v1, u32 1"),
+            ("u32", "unchecked_mul v1, u32 3"),
+            ("u32", "unchecked_mul v1, v1"),
+            ("i32", "unchecked_add v1, i32 1"),
+            ("Field", "add v1, Field 1"),
+            ("Field", "sub v1, Field 1"),
+            ("Field", "mul v1, Field 3"),
+            ("u32", "and v1, u32 7"),
+            ("u32", "or v1, u32 7"),
+            ("u32", "xor v1, u32 7"),
+            ("u1", "eq v1, u1 0"),
+            ("u1", "lt v1, u1 1"),
+            ("u1", "not v1"),
+            ("u32", "not v1"),
+            ("u32", "cast v1 as u32"),
+        ];
+        for (typ, instruction) in cases {
+            assert!(
+                loop_increment_is_coalesced(typ, instruction),
+                "`v3 = {instruction}` ({typ}) should be coalesced with v1"
+            );
+        }
+    }
+
+    #[test]
+    fn does_not_coalesce_when_param_is_read_by_multi_opcode_defining_instruction() {
+        // None of these instructions is known to be lowered to a single Brillig opcode, so an
+        // opcode emitted after the result is written may read the parameter again. For example
+        // the overflow check of a checked add compares the lhs to the result.
+        let cases = [
+            ("u32", "add v1, u32 1"),
+            ("u32", "sub v1, u32 1"),
+            ("u32", "mul v1, u32 3"),
+            ("u32", "div v1, u32 3"),
+            ("u32", "mod v1, u32 3"),
+            ("i32", "div v1, i32 3"),
+            ("i32", "mod v1, i32 3"),
+            ("u32", "shl v1, u32 1"),
+            ("u32", "shr v1, u32 1"),
+            ("i32", "shr v1, i32 1"),
+            ("u32", "truncate v1 to 8 bits, max_bit_size: 32"),
+        ];
+        for (typ, instruction) in cases {
+            assert!(
+                !loop_increment_is_coalesced(typ, instruction),
+                "`v3 = {instruction}` ({typ}) must not be coalesced with v1"
+            );
+        }
+    }
+
+    #[test]
+    fn does_not_coalesce_when_param_used_after_single_opcode_defining_instruction() {
+        // v3's defining instruction is safe on its own, but v1 is read again by v4's defining
+        // instruction, after v3 would have overwritten v1's register.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, u32 0)
+          b1(v1: u32, v2: u32):
+            v5 = lt v1, v0
+            jmpif v5 then: b2(), else: b3()
+          b2():
+            v3 = unchecked_add v1, u32 1
+            v4 = unchecked_add v2, v1
+            jmp b1(v3, v4)
+          b3():
+            return v2
+        }
+        ";
+        let (coalescing, ssa) = build_coalescing(src);
+        let func = ssa.main();
+        let (arg, _param) = get_jmp_pair(func, 2, 0);
+        assert!(!coalescing.is_coalesced(&arg), "v3 must not coalesce with v1: v4 reads v1");
+
+        // v4 reads v2 only in its own single-opcode defining instruction, so it can still
+        // coalesce with v2.
+        let (arg, param) = get_jmp_pair(func, 2, 1);
+        assert_eq!(coalescing.get_coalesced(&arg), Some(param));
     }
 
     #[test]
