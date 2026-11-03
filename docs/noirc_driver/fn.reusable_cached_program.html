@@ -2,8 +2,8 @@
     options: &amp;<a class="struct" href="struct.CompileOptions.html" title="struct noirc_driver::CompileOptions">CompileOptions</a>,
     count_array_copies: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
     monomorphized: &amp;<a class="struct" href="struct.MonomorphizedProgram.html" title="struct noirc_driver::MonomorphizedProgram">MonomorphizedProgram</a>,
-    cached_program: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;CompiledProgram&gt;,
+    cached_program: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../noirc_artifacts/program/struct.CompiledProgram.html" title="struct noirc_artifacts::program::CompiledProgram">CompiledProgram</a>&gt;,
     force_compile: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;CompiledProgram&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Returns <code>cached_program</code> if it was compiled from the same monomorphized program and nothing
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../noirc_artifacts/program/struct.CompiledProgram.html" title="struct noirc_artifacts::program::CompiledProgram">CompiledProgram</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Returns <code>cached_program</code> if it was compiled from the same monomorphized program and nothing
 requires compiling it again.</p>
 </div></details></section></div></main></body></html>
