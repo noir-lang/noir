@@ -51,7 +51,7 @@
     "@types/pako": "^3",
     "@types/path-browserify": "^1",
     "@types/readable-stream": "^4",
-    "@types/sinon": "^22.0.0",
+    "@types/sinon": "^22.0.2",
     "@wasm-tool/wasm-pack-plugin": "^1.7.0",
     "@web/dev-server-esbuild": "^2.0.0",
     "@web/test-runner": "^1.0.0",
