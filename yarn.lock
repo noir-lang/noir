@@ -1823,7 +1823,7 @@ __metadata:
     "@types/pako": "npm:^3"
     "@types/path-browserify": "npm:^1"
     "@types/readable-stream": "npm:^4"
-    "@types/sinon": "npm:^22.0.0"
+    "@types/sinon": "npm:^22.0.2"
     "@wasm-tool/wasm-pack-plugin": "npm:^1.7.0"
     "@web/dev-server-esbuild": "npm:^2.0.0"
     "@web/test-runner": "npm:^1.0.0"
@@ -3457,19 +3457,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@types/sinon@npm:^22.0.0":
-  version: 22.0.0
-  resolution: "@types/sinon@npm:22.0.0"
+"@types/sinon@npm:^22.0.2":
+  version: 22.0.2
+  resolution: "@types/sinon@npm:22.0.2"
   dependencies:
-    "@types/sinonjs__fake-timers": "npm:*"
-  checksum: 10/19f27c42ad9960934d7a32b3a37ad545eb41f048733fb6b9b79a00083156b4f9a9180b664f40b8688b233ce6d1aa51de445ba8d35f98dbfded152b876692641b
-  languageName: node
-  linkType: hard
-
-"@types/sinonjs__fake-timers@npm:*":
-  version: 8.1.5
-  resolution: "@types/sinonjs__fake-timers@npm:8.1.5"
-  checksum: 10/3a0b285fcb8e1eca435266faa27ffff206608b69041022a42857274e44d9305822e85af5e7a43a9fae78d2ab7dc0fcb49f3ae3bda1fa81f0203064dbf5afd4f6
+    "@sinonjs/fake-timers": "npm:^15.4.0"
+  checksum: 10/021056caadb43cf567cacda2302464f210bbe1b251a4b9ced7f9f679cb908fa9d6a20a7c1830e39cba5a4bd1cd1fe044c5faccc1a5506de155a1a1ca63fe9a43
   languageName: node
   linkType: hard
 
