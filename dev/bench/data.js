@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1793679947978,
+  "lastUpdate": 1793679987596,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22946,48 +22946,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f77b0be6fbffb13fcdcd982f4225730296839cac",
-          "message": "fix(frontend): report a false where-clause bound without generics only at the bound (#14039)",
-          "timestamp": "2026-10-20T09:46:38Z",
-          "tree_id": "2391b3afb3eab75f2efad1031515812ac5f97c51",
-          "url": "https://github.com/noir-lang/noir/commit/f77b0be6fbffb13fcdcd982f4225730296839cac"
-        },
-        "date": 1792491282342,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127124,
-            "range": "± 938",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113686,
-            "range": "± 3000",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3044381,
-            "range": "± 2421",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25039,6 +24997,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2649488,
             "range": "± 1636",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ee79b550dde9fc2ff271f577e3f49535d6ac77a9",
+          "message": "chore(deps-dev): bump webpack from 5.112.0 to 5.112.2 in the webpack group (#14134)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-11-03T04:01:59Z",
+          "tree_id": "7c2fd227fa5999817f6151786940c006673da006",
+          "url": "https://github.com/noir-lang/noir/commit/ee79b550dde9fc2ff271f577e3f49535d6ac77a9"
+        },
+        "date": 1793679980467,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 151611,
+            "range": "± 294",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 128956,
+            "range": "± 1492",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2047557,
+            "range": "± 19768",
             "unit": "ns/iter"
           }
         ]
