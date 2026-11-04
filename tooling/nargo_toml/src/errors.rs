@@ -60,8 +60,8 @@ pub enum ManifestError {
     #[error("{} found in {toml}", if name.is_empty() { "Empty package name".into() } else { format!("Invalid package name `{name}`") })]
     InvalidPackageName { toml: PathBuf, name: String },
 
-    #[error("{} found in {toml}", if name.is_empty() { "Empty dependency name".into() } else { format!("Invalid dependency name `{name}`") })]
-    InvalidDependencyName { toml: PathBuf, name: String },
+    #[error("{} found in the dependencies of `{package_name}` ({toml})", if name.is_empty() { "Empty dependency name".into() } else { format!("Invalid dependency name `{name}`") })]
+    InvalidDependencyName { package_name: CrateName, toml: PathBuf, name: String },
 
     #[error("Invalid directory path {directory} in {toml}: It must point to a subdirectory")]
     InvalidDirectory { toml: PathBuf, directory: PathBuf },
@@ -75,8 +75,10 @@ pub enum ManifestError {
     #[error("Default package was not found. Does {0} exist in your workspace?")]
     MissingDefaultPackage(PathBuf),
 
-    #[error("Package `{0}` has type `bin` but you cannot depend on binary packages")]
-    BinaryDependency(CrateName),
+    #[error(
+        "Package `{dependency_name}` (a dependency of `{depender_name}`) has type `bin` but you cannot depend on binary packages"
+    )]
+    BinaryDependency { depender_name: CrateName, dependency_name: CrateName },
 
     #[error("No common ancestor between {root} and {current}")]
     NoCommonAncestor { root: PathBuf, current: PathBuf },
