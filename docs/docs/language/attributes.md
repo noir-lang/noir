@@ -85,6 +85,8 @@ fn broken() {}
 
 On a trait method, the warning covers calls through the trait as well as calls that resolve to an implementation of the method on a concrete type. Implementing a deprecated trait method does not warn.
 
+If a trait method and the implementation being called are both deprecated, the implementation's message is used when it has one, and the call is an error if either of them specifies `deny`.
+
 ### `field`
 
 Can be used on functions to enable conditional compilation of code depending on the field size.

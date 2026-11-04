@@ -34,26 +34,30 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
         return None;
     };
 
-    let (deny, note) = interner
-        .function_attributes(&func_id)
-        .get_deprecated()
-        .or_else(|| implemented_trait_method_deprecation(interner, func_id))?;
+    // A call on a concrete type resolves directly to the impl method, so deprecating a trait method
+    // has to reach through the impl to warn on those calls.
+    let own = interner.function_attributes(&func_id).get_deprecated();
+    let trait_method = interner
+        .implemented_trait_method(&func_id)
+        .and_then(|method| interner.function_attributes(&method).get_deprecated());
+
+    let (deny, note) = merge_deprecations(own, trait_method)?;
     let name = interner.definition_name(id).to_string();
     Some(TypeCheckError::CallDeprecated { name, deny, note, location })
 }
 
-/// The deprecation of the trait method that `func_id` implements, if `func_id` is a method in a
-/// trait impl. A call on a concrete type resolves directly to the impl method, so deprecating a
-/// trait method has to reach through the impl to warn on those calls.
-fn implemented_trait_method_deprecation(
-    interner: &NodeInterner,
-    func_id: FuncId,
+/// Combines the deprecation of an item with the one it inherits. The item's own note takes priority,
+/// but `deny` on either side holds: an impl can't soften a trait's hard error into a warning.
+fn merge_deprecations(
+    own: Option<(bool, Option<String>)>,
+    inherited: Option<(bool, Option<String>)>,
 ) -> Option<(bool, Option<String>)> {
-    let trait_impl_id = interner.try_function_meta(&func_id)?.trait_impl?;
-    let trait_id = interner.try_get_trait_implementation(trait_impl_id)?.borrow().trait_id;
-    let method_name = interner.function_name(&func_id);
-    let trait_method_id = interner.get_trait(trait_id).method_ids.get(method_name)?;
-    interner.function_attributes(trait_method_id).get_deprecated()
+    match (own, inherited) {
+        (Some((own_deny, own_note)), Some((inherited_deny, inherited_note))) => {
+            Some((own_deny || inherited_deny, own_note.or(inherited_note)))
+        }
+        (own, inherited) => own.or(inherited),
+    }
 }
 
 /// Validate inline-related attributes based on whether the function is constrained or unconstrained.

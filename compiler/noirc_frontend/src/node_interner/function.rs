@@ -102,6 +102,12 @@ impl NodeInterner {
         self.func_id_to_trait.get(func).cloned()
     }
 
+    /// The trait method that `func` implements, if `func` is a method in a trait impl.
+    pub fn implemented_trait_method(&self, func: &FuncId) -> Option<FuncId> {
+        let (_, trait_id) = self.get_function_trait(func)?;
+        self.get_trait(trait_id).method_ids.get(self.function_name(func)).copied()
+    }
+
     /// Returns the visibility of the given function.
     ///
     /// The underlying `function_visibilities` map is populated during def collection,
