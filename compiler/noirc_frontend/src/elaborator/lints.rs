@@ -34,11 +34,26 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
         return None;
     };
 
-    let attributes = interner.function_attributes(&func_id);
-    attributes.get_deprecated().map(|(deny, note)| {
-        let name = interner.definition_name(id).to_string();
-        TypeCheckError::CallDeprecated { name, deny, note, location }
-    })
+    let (deny, note) = interner
+        .function_attributes(&func_id)
+        .get_deprecated()
+        .or_else(|| implemented_trait_method_deprecation(interner, func_id))?;
+    let name = interner.definition_name(id).to_string();
+    Some(TypeCheckError::CallDeprecated { name, deny, note, location })
+}
+
+/// The deprecation of the trait method that `func_id` implements, if `func_id` is a method in a
+/// trait impl. A call on a concrete type resolves directly to the impl method, so deprecating a
+/// trait method has to reach through the impl to warn on those calls.
+fn implemented_trait_method_deprecation(
+    interner: &NodeInterner,
+    func_id: FuncId,
+) -> Option<(bool, Option<String>)> {
+    let trait_impl_id = interner.try_function_meta(&func_id)?.trait_impl?;
+    let trait_id = interner.try_get_trait_implementation(trait_impl_id)?.borrow().trait_id;
+    let method_name = interner.function_name(&func_id);
+    let trait_method_id = interner.get_trait(trait_id).method_ids.get(method_name)?;
+    interner.function_attributes(trait_method_id).get_deprecated()
 }
 
 /// Validate inline-related attributes based on whether the function is constrained or unconstrained.
