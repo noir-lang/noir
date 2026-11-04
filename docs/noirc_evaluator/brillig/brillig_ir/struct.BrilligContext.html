@@ -272,7 +272,7 @@ functions to allow the given function to mutably alias its environment.</p>
     condition: <a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
     error_data_items: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;,
     error_data_types: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="artifact/enum.BrilligParameter.html" title="enum noirc_evaluator::brillig::brillig_ir::artifact::BrilligParameter">BrilligParameter</a>&gt;,
-    error_selector: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../../../acir/circuit/struct.ErrorSelector.html" title="struct acir::circuit::ErrorSelector">ErrorSelector</a>&gt;,
+    error_selector: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;ErrorSelector&gt;,
 )</h4></section></summary><div class="docblock"><p>Jump to a trap condition if <code>condition</code> is false.
 The trap will include the given message as error data.</p>
 <p>If <code>error_selector</code> is None, an empty error data is generated (no error information).</p>
