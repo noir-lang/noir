@@ -16,20 +16,23 @@
 //! v2 = div v1, 8
 //! ```
 //!
-//! If the shift amount is not a constant, 2^N is computed via square&multiply,
-//! using the bits decomposition of the exponent.
+//! If the shift amount is not a constant, 2^N is read from a constant array holding
+//! `[2^0, 2^1, .., 2^(bit_size - 1)]`, indexed by the shift amount:
 //!
-//! Pseudo-code of the computation:
+//! ```ssa
+//! // this, assuming v1 and v2 are u8:
+//! v3 = shr v1, v2
 //!
-//! ```text
-//! let mut r = 1;
-//! let exponent_bits = to_bits(exponent);
-//! for i in 1 .. bit_size + 1 {
-//!     let r_squared = r * r;
-//!     let b = exponent_bits[bit_size - i];
-//!     r = if b { 2 * r_squared } else { r_squared };
-//! }
+//! // is replaced with (overflow check omitted):
+//! v4 = make_array [Field 1, Field 2, Field 4, Field 8, Field 16, Field 32, Field 64, Field 128] : [Field; 8]
+//! v5 = cast v2 as u32
+//! v6 = array_get v4, index v5 -> Field
+//! v7 = cast v6 as u8
+//! v8 = div v1, v7
 //! ```
+//!
+//! Every shift by the same type within a function reads the same array, so its setup cost
+//! is paid once per function and each shift then costs a single memory read.
 //!
 //! ## Unsigned shift-left
 //!
@@ -48,8 +51,8 @@
 //! v5 = cast v4 as u8
 //! ```
 //!
-//! Like in the previous case, if the shift amount is not a constant it's computed
-//! via square&multiply.
+//! Like in the previous case, if the shift amount is not a constant 2^N is read from
+//! a constant array of powers of two.
 //!
 //! ## Signed shift-right
 //!
@@ -307,8 +310,12 @@ impl Context<'_, '_, '_> {
         }
     }
 
-    /// Computes 2^exponent via square&multiply, using the bits decomposition of exponent
-    /// Pseudo-code of the computation:
+    /// Computes 2^exponent as a Field.
+    ///
+    /// A non-constant exponent indexes a constant array of the powers of two below the exponent
+    /// type's bit size. An exponent known to be 0 or 1 (e.g. upcast from a `u1`) is instead
+    /// computed via square&multiply on its single bit, which avoids the array's setup cost.
+    /// Pseudo-code of square&multiply:
     /// ```text
     /// let mut r = 1;
     /// let exponent_bits = to_bits(exponent);
@@ -354,6 +361,10 @@ impl Context<'_, '_, '_> {
             );
             exponent_bit_size.ilog2()
         };
+        if max_exponent_bits > 1 {
+            return self.two_pow_from_table(exponent);
+        }
+
         let result_types =
             vec![Type::Array(Arc::new(vec![Type::bool()]), SemanticLength(max_exponent_bits))];
 
@@ -390,6 +401,47 @@ impl Context<'_, '_, '_> {
         );
 
         r
+    }
+
+    /// Reads 2^exponent from the constant array `[2^0, 2^1, .., 2^(bit_size - 1)]`, where `bit_size`
+    /// is the bit size of the exponent's type.
+    ///
+    /// The read fails for an exponent of `bit_size` or more, which is exactly the overflow condition
+    /// enforced by `enforce_bitshift_rhs_lt_bit_size`. That check's range constraint is then
+    /// redundant in ACIR, where the optimizer moves its message onto the read.
+    fn two_pow_from_table(&mut self, exponent: ValueId) -> ValueId {
+        let exponent_type = self.context.dfg.type_of_value(exponent).unwrap_numeric();
+        let bit_size = exponent_type.bit_size::<FieldElement>();
+
+        let two = FieldElement::from(2u32);
+        let elements = (0..bit_size)
+            .map(|i| self.field_constant(two.pow(&FieldElement::from(u128::from(i)))))
+            .collect();
+        let table_type = Type::Array(Arc::new(vec![Type::field()]), SemanticLength(bit_size));
+        let table = self
+            .context
+            .insert_instruction(
+                Instruction::MakeArray { elements, typ: table_type.clone() },
+                Some(vec![table_type]),
+            )
+            .first();
+
+        let index_type = NumericType::length_type();
+        let mut index = self.insert_cast(exponent, NumericType::unsigned(bit_size));
+        if bit_size > index_type.bit_size::<FieldElement>() {
+            // Narrowing the exponent to the index type requires it to be known to fit. The
+            // table read imposes the same bound, so this range check is free in ACIR.
+            self.context.insert_instruction(
+                Instruction::RangeCheck {
+                    value: index,
+                    max_bit_size: bit_size.ilog2(),
+                    assert_message: None,
+                },
+                None,
+            );
+        }
+        index = self.insert_cast(index, index_type);
+        self.insert_array_get(table, index, Type::field())
     }
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
@@ -554,55 +606,13 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: u32, v1: u32):
                 range_check v1 to 5 bits, "attempt to bit-shift with overflow"
-                v2 = cast v1 as Field
-                v4 = call to_le_bits(v2) -> [u1; 5]
-                v6 = array_get v4, index u32 4 -> u1
-                v7 = not v6
-                v8 = cast v6 as Field
-                v9 = cast v7 as Field
-                v11 = mul Field 2, v8
-                v12 = add v9, v11
-                v14 = array_get v4, index u32 3 -> u1
-                v15 = not v14
-                v16 = cast v14 as Field
-                v17 = cast v15 as Field
-                v18 = mul v12, v12
-                v19 = mul v18, v17
-                v20 = mul v18, Field 2
-                v21 = mul v20, v16
-                v22 = add v19, v21
-                v24 = array_get v4, index u32 2 -> u1
-                v25 = not v24
-                v26 = cast v24 as Field
-                v27 = cast v25 as Field
-                v28 = mul v22, v22
-                v29 = mul v28, v27
-                v30 = mul v28, Field 2
-                v31 = mul v30, v26
-                v32 = add v29, v31
-                v34 = array_get v4, index u32 1 -> u1
-                v35 = not v34
-                v36 = cast v34 as Field
-                v37 = cast v35 as Field
-                v38 = mul v32, v32
-                v39 = mul v38, v37
-                v40 = mul v38, Field 2
-                v41 = mul v40, v36
-                v42 = add v39, v41
-                v44 = array_get v4, index u32 0 -> u1
-                v45 = not v44
-                v46 = cast v44 as Field
-                v47 = cast v45 as Field
-                v48 = mul v42, v42
-                v49 = mul v48, v47
-                v50 = mul v48, Field 2
-                v51 = mul v50, v46
-                v52 = add v49, v51
-                v53 = cast v0 as Field
-                v54 = mul v53, v52
-                v55 = truncate v54 to 32 bits, max_bit_size: 64
-                v56 = cast v55 as u32
-                return v56
+                v34 = make_array [Field 1, Field 2, Field 4, Field 8, Field 16, Field 32, Field 64, Field 128, Field 256, Field 512, Field 1024, Field 2048, Field 4096, Field 8192, Field 16384, Field 32768, Field 65536, Field 131072, Field 262144, Field 524288, Field 1048576, Field 2097152, Field 4194304, Field 8388608, Field 16777216, Field 33554432, Field 67108864, Field 134217728, Field 268435456, Field 536870912, Field 1073741824, Field 2147483648] : [Field; 32]
+                v35 = array_get v34, index v1 -> Field
+                v36 = cast v0 as Field
+                v37 = mul v36, v35
+                v38 = truncate v37 to 32 bits, max_bit_size: 64
+                v39 = cast v38 as u32
+                return v39
             }
             "#);
         }
@@ -627,55 +637,13 @@ mod tests {
               b0(v0: u32, v1: u8):
                 v2 = cast v1 as u32
                 range_check v2 to 5 bits, "attempt to bit-shift with overflow"
-                v3 = cast v1 as Field
-                v5 = call to_le_bits(v3) -> [u1; 5]
-                v7 = array_get v5, index u32 4 -> u1
-                v8 = not v7
-                v9 = cast v7 as Field
-                v10 = cast v8 as Field
-                v12 = mul Field 2, v9
-                v13 = add v10, v12
-                v15 = array_get v5, index u32 3 -> u1
-                v16 = not v15
-                v17 = cast v15 as Field
-                v18 = cast v16 as Field
-                v19 = mul v13, v13
-                v20 = mul v19, v18
-                v21 = mul v19, Field 2
-                v22 = mul v21, v17
-                v23 = add v20, v22
-                v25 = array_get v5, index u32 2 -> u1
-                v26 = not v25
-                v27 = cast v25 as Field
-                v28 = cast v26 as Field
-                v29 = mul v23, v23
-                v30 = mul v29, v28
-                v31 = mul v29, Field 2
-                v32 = mul v31, v27
-                v33 = add v30, v32
-                v35 = array_get v5, index u32 1 -> u1
-                v36 = not v35
-                v37 = cast v35 as Field
-                v38 = cast v36 as Field
-                v39 = mul v33, v33
-                v40 = mul v39, v38
-                v41 = mul v39, Field 2
-                v42 = mul v41, v37
-                v43 = add v40, v42
-                v45 = array_get v5, index u32 0 -> u1
-                v46 = not v45
-                v47 = cast v45 as Field
-                v48 = cast v46 as Field
-                v49 = mul v43, v43
-                v50 = mul v49, v48
-                v51 = mul v49, Field 2
-                v52 = mul v51, v47
-                v53 = add v50, v52
-                v54 = cast v0 as Field
-                v55 = mul v54, v53
-                v56 = truncate v55 to 32 bits, max_bit_size: 64
-                v57 = cast v56 as u32
-                return v57
+                v35 = make_array [Field 1, Field 2, Field 4, Field 8, Field 16, Field 32, Field 64, Field 128, Field 256, Field 512, Field 1024, Field 2048, Field 4096, Field 8192, Field 16384, Field 32768, Field 65536, Field 131072, Field 262144, Field 524288, Field 1048576, Field 2097152, Field 4194304, Field 8388608, Field 16777216, Field 33554432, Field 67108864, Field 134217728, Field 268435456, Field 536870912, Field 1073741824, Field 2147483648] : [Field; 32]
+                v36 = array_get v35, index v2 -> Field
+                v37 = cast v0 as Field
+                v38 = mul v37, v36
+                v39 = truncate v38 to 32 bits, max_bit_size: 64
+                v40 = cast v39 as u32
+                return v40
             }
             "#);
         }
@@ -779,53 +747,11 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: u32, v1: u32):
                 range_check v1 to 5 bits, "attempt to bit-shift with overflow"
-                v2 = cast v1 as Field
-                v4 = call to_le_bits(v2) -> [u1; 5]
-                v6 = array_get v4, index u32 4 -> u1
-                v7 = not v6
-                v8 = cast v6 as Field
-                v9 = cast v7 as Field
-                v11 = mul Field 2, v8
-                v12 = add v9, v11
-                v14 = array_get v4, index u32 3 -> u1
-                v15 = not v14
-                v16 = cast v14 as Field
-                v17 = cast v15 as Field
-                v18 = mul v12, v12
-                v19 = mul v18, v17
-                v20 = mul v18, Field 2
-                v21 = mul v20, v16
-                v22 = add v19, v21
-                v24 = array_get v4, index u32 2 -> u1
-                v25 = not v24
-                v26 = cast v24 as Field
-                v27 = cast v25 as Field
-                v28 = mul v22, v22
-                v29 = mul v28, v27
-                v30 = mul v28, Field 2
-                v31 = mul v30, v26
-                v32 = add v29, v31
-                v34 = array_get v4, index u32 1 -> u1
-                v35 = not v34
-                v36 = cast v34 as Field
-                v37 = cast v35 as Field
-                v38 = mul v32, v32
-                v39 = mul v38, v37
-                v40 = mul v38, Field 2
-                v41 = mul v40, v36
-                v42 = add v39, v41
-                v44 = array_get v4, index u32 0 -> u1
-                v45 = not v44
-                v46 = cast v44 as Field
-                v47 = cast v45 as Field
-                v48 = mul v42, v42
-                v49 = mul v48, v47
-                v50 = mul v48, Field 2
-                v51 = mul v50, v46
-                v52 = add v49, v51
-                v53 = cast v52 as u32
-                v54 = div v0, v53
-                return v54
+                v34 = make_array [Field 1, Field 2, Field 4, Field 8, Field 16, Field 32, Field 64, Field 128, Field 256, Field 512, Field 1024, Field 2048, Field 4096, Field 8192, Field 16384, Field 32768, Field 65536, Field 131072, Field 262144, Field 524288, Field 1048576, Field 2097152, Field 4194304, Field 8388608, Field 16777216, Field 33554432, Field 67108864, Field 134217728, Field 268435456, Field 536870912, Field 1073741824, Field 2147483648] : [Field; 32]
+                v35 = array_get v34, index v1 -> Field
+                v36 = cast v35 as u32
+                v37 = div v0, v36
+                return v37
             }
             "#);
         }
@@ -962,55 +888,14 @@ mod tests {
               b0(v0: i32, v1: i32):
                 v2 = cast v1 as u32
                 range_check v2 to 5 bits, "attempt to bit-shift with overflow"
-                v3 = cast v1 as Field
-                v5 = call to_le_bits(v3) -> [u1; 5]
-                v7 = array_get v5, index u32 4 -> u1
-                v8 = not v7
-                v9 = cast v7 as Field
-                v10 = cast v8 as Field
-                v12 = mul Field 2, v9
-                v13 = add v10, v12
-                v15 = array_get v5, index u32 3 -> u1
-                v16 = not v15
-                v17 = cast v15 as Field
-                v18 = cast v16 as Field
-                v19 = mul v13, v13
-                v20 = mul v19, v18
-                v21 = mul v19, Field 2
-                v22 = mul v21, v17
-                v23 = add v20, v22
-                v25 = array_get v5, index u32 2 -> u1
-                v26 = not v25
-                v27 = cast v25 as Field
-                v28 = cast v26 as Field
-                v29 = mul v23, v23
-                v30 = mul v29, v28
-                v31 = mul v29, Field 2
-                v32 = mul v31, v27
-                v33 = add v30, v32
-                v35 = array_get v5, index u32 1 -> u1
-                v36 = not v35
-                v37 = cast v35 as Field
-                v38 = cast v36 as Field
-                v39 = mul v33, v33
-                v40 = mul v39, v38
-                v41 = mul v39, Field 2
-                v42 = mul v41, v37
-                v43 = add v40, v42
-                v45 = array_get v5, index u32 0 -> u1
-                v46 = not v45
-                v47 = cast v45 as Field
-                v48 = cast v46 as Field
-                v49 = mul v43, v43
-                v50 = mul v49, v48
-                v51 = mul v49, Field 2
-                v52 = mul v51, v47
-                v53 = add v50, v52
-                v54 = cast v0 as Field
-                v55 = mul v54, v53
-                v56 = truncate v55 to 32 bits, max_bit_size: 64
-                v57 = cast v56 as i32
-                return v57
+                v35 = make_array [Field 1, Field 2, Field 4, Field 8, Field 16, Field 32, Field 64, Field 128, Field 256, Field 512, Field 1024, Field 2048, Field 4096, Field 8192, Field 16384, Field 32768, Field 65536, Field 131072, Field 262144, Field 524288, Field 1048576, Field 2097152, Field 4194304, Field 8388608, Field 16777216, Field 33554432, Field 67108864, Field 134217728, Field 268435456, Field 536870912, Field 1073741824, Field 2147483648] : [Field; 32]
+                v36 = cast v1 as u32
+                v37 = array_get v35, index v36 -> Field
+                v38 = cast v0 as Field
+                v39 = mul v38, v37
+                v40 = truncate v39 to 32 bits, max_bit_size: 64
+                v41 = cast v40 as i32
+                return v41
             }
             "#);
         }
@@ -1064,65 +949,24 @@ mod tests {
               b0(v0: i32, v1: i32):
                 v2 = cast v1 as u32
                 range_check v2 to 5 bits, "attempt to bit-shift with overflow"
-                v3 = cast v1 as Field
-                v5 = call to_le_bits(v3) -> [u1; 5]
-                v7 = array_get v5, index u32 4 -> u1
-                v8 = not v7
-                v9 = cast v7 as Field
-                v10 = cast v8 as Field
-                v12 = mul Field 2, v9
-                v13 = add v10, v12
-                v15 = array_get v5, index u32 3 -> u1
-                v16 = not v15
-                v17 = cast v15 as Field
-                v18 = cast v16 as Field
-                v19 = mul v13, v13
-                v20 = mul v19, v18
-                v21 = mul v19, Field 2
-                v22 = mul v21, v17
-                v23 = add v20, v22
-                v25 = array_get v5, index u32 2 -> u1
-                v26 = not v25
-                v27 = cast v25 as Field
-                v28 = cast v26 as Field
-                v29 = mul v23, v23
-                v30 = mul v29, v28
-                v31 = mul v29, Field 2
-                v32 = mul v31, v27
-                v33 = add v30, v32
-                v35 = array_get v5, index u32 1 -> u1
-                v36 = not v35
-                v37 = cast v35 as Field
-                v38 = cast v36 as Field
-                v39 = mul v33, v33
-                v40 = mul v39, v38
-                v41 = mul v39, Field 2
-                v42 = mul v41, v37
-                v43 = add v40, v42
-                v45 = array_get v5, index u32 0 -> u1
-                v46 = not v45
-                v47 = cast v45 as Field
-                v48 = cast v46 as Field
-                v49 = mul v43, v43
-                v50 = mul v49, v48
-                v51 = mul v49, Field 2
-                v52 = mul v51, v47
-                v53 = add v50, v52
-                v54 = cast v53 as i32
-                v55 = cast v0 as u32
-                v57 = lt u32 2147483647, v55
-                v58 = cast v57 as Field
-                v59 = cast v0 as Field
-                v60 = add v58, v59
-                v61 = truncate v60 to 32 bits, max_bit_size: 33
-                v62 = cast v61 as i32
-                v63 = div v62, v54
-                v64 = cast v63 as Field
-                v66 = add v64, Field 4294967296
-                v67 = sub v66, v58
-                v68 = truncate v67 to 32 bits, max_bit_size: 33
-                v69 = cast v68 as i32
-                return v69
+                v35 = make_array [Field 1, Field 2, Field 4, Field 8, Field 16, Field 32, Field 64, Field 128, Field 256, Field 512, Field 1024, Field 2048, Field 4096, Field 8192, Field 16384, Field 32768, Field 65536, Field 131072, Field 262144, Field 524288, Field 1048576, Field 2097152, Field 4194304, Field 8388608, Field 16777216, Field 33554432, Field 67108864, Field 134217728, Field 268435456, Field 536870912, Field 1073741824, Field 2147483648] : [Field; 32]
+                v36 = cast v1 as u32
+                v37 = array_get v35, index v36 -> Field
+                v38 = cast v37 as i32
+                v39 = cast v0 as u32
+                v41 = lt u32 2147483647, v39
+                v42 = cast v41 as Field
+                v43 = cast v0 as Field
+                v44 = add v42, v43
+                v45 = truncate v44 to 32 bits, max_bit_size: 33
+                v46 = cast v45 as i32
+                v47 = div v46, v38
+                v48 = cast v47 as Field
+                v50 = add v48, Field 4294967296
+                v51 = sub v50, v42
+                v52 = truncate v51 to 32 bits, max_bit_size: 33
+                v53 = cast v52 as i32
+                return v53
             }
             "#);
         }
