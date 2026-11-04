@@ -18,7 +18,10 @@
 //! operations over its own fields, so a caller that needs one group does not get a handle on the
 //! rest.
 
-use super::{Elaborator, types::ImplTraitDisallowedContext};
+use super::{
+    Elaborator,
+    types::{ImplTraitDisallowedContext, ImplTraitPosition},
+};
 
 mod body_context;
 mod generics_context;
@@ -53,13 +56,8 @@ pub(super) struct ItemContext {
     /// block, global, or attribute.
     pub(super) in_comptime_context: bool,
 
-    /// Set when resolving types in positions where `impl Trait` is not allowed
-    /// (e.g., struct fields, globals, type aliases, enum variants).
-    /// `impl Trait` is only valid in function parameter and return type positions.
-    ///
-    /// This is stored as a field rather than checked at the call site so that it
-    /// propagates through recursive `resolve_type` calls.
-    pub(super) impl_trait_is_disallowed: Option<ImplTraitDisallowedContext>,
+    /// Whether `impl Trait` is allowed in the type being resolved (see [`ImplTraitPosition`]).
+    pub(super) impl_trait_position: ImplTraitPosition,
 }
 
 impl ItemContext {
@@ -73,7 +71,9 @@ impl ItemContext {
             generics: GenericsContext::default(),
             body: BodyContext::default(),
             in_comptime_context: false,
-            impl_trait_is_disallowed: None,
+            impl_trait_position: ImplTraitPosition::Disallowed(
+                ImplTraitDisallowedContext::NestedType,
+            ),
         }
     }
 
@@ -97,7 +97,7 @@ impl ItemContext {
 
     /// Types resolved for the item may not mention `impl Trait`, because they sit in `context`.
     pub(super) fn disallowing_impl_trait(mut self, context: ImplTraitDisallowedContext) -> Self {
-        self.impl_trait_is_disallowed = Some(context);
+        self.impl_trait_position = ImplTraitPosition::Disallowed(context);
         self
     }
 }

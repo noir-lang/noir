@@ -22,6 +22,6 @@ impl Default for DummyHasher {
 
 unconstrained fn main() {
     let map: UHashMap<u64, u64, BuildHasherDefault<DummyHasher>> =
-        UHashMap::<u64, u64, BuildHasherDefault<DummyHasher>>::default();
+        <UHashMap<u64, u64, BuildHasherDefault<DummyHasher>> as Default>::default();
     println(map == map);
 }

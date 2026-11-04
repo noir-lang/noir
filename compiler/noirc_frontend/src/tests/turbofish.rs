@@ -663,6 +663,28 @@ fn regression_10363() {
 }
 
 #[test]
+fn turbofish_not_allowed_on_generic_parameter_with_a_blanket_impl_method() {
+    let src = r#"
+    pub trait Raw {
+        fn get(self) -> u8;
+    }
+    impl<T> Raw for T {
+        fn get(self) -> u8 { 77 }
+    }
+
+    pub fn read<T>(t: T) -> u8 {
+        T::<u32>::get(t)
+         ^^^^^^^ turbofish (`::<_>`) not allowed on generic parameter
+    }
+
+    fn main() {
+        let _ = read(1);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn concrete_impl_with_dual_turbofish() {
     // Regression: https://github.com/noir-lang/noir/pull/11848
     // Concrete impl's method generics were incorrectly bound to the type

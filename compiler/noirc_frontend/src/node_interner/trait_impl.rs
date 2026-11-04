@@ -5,14 +5,14 @@ use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 use crate::{
-    GenericTypeVars, Shared, Type, TypeBinding, TypeBindings, TypeVariable,
+    GenericTypeVars, Kind, Shared, Type, TypeBinding, TypeBindings, TypeVariable,
     graph::CrateId,
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::traits::{Impl, NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
-    node_interner::{ImplId, ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
+    node_interner::{FuncId, ImplId, ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
 };
 
 use super::NodeInterner;
@@ -20,6 +20,10 @@ use super::NodeInterner;
 /// An arbitrary number to limit the recursion depth when searching for trait impls.
 /// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
 const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
+
+/// A bound `object: Trait<ordered, named>` without unknowns that an impl search has found an impl
+/// for.
+type SolvedBound = (Type, TraitId, Vec<Type>, Vec<NamedType>);
 
 /// Modes that affect the behavior of [`NodeInterner::try_lookup_trait_implementation`].
 #[derive(Clone, Copy)]
@@ -621,6 +625,7 @@ impl NodeInterner {
         trait_lookup_mode: TraitLookupMode,
     ) -> Result<(TraitImplKind, TypeBindings, TypeBindings), ImplSearchErrorKind> {
         let mut bindings = TypeBindings::default();
+        let mut solved = HashSet::default();
         let (impl_kind, instantiation_bindings) = self.lookup_trait_implementation_helper(
             object_type,
             trait_id,
@@ -629,6 +634,7 @@ impl NodeInterner {
             &mut bindings,
             trait_lookup_mode,
             IMPL_SEARCH_RECURSION_LIMIT,
+            &mut solved,
         )?;
         Ok((impl_kind, bindings, instantiation_bindings))
     }
@@ -654,6 +660,9 @@ impl NodeInterner {
     /// - 1+ failing trait constraints, including the original.
     ///   Each constraint after the first represents a `where` clause that was followed.
     /// - 0 trait constraints indicating type annotations are needed to choose an impl.
+    ///
+    /// `solved` holds the where-clause bounds without unknowns this search has already found an
+    /// impl for, so that a bound reached through several impls is solved once.
     #[allow(clippy::too_many_arguments)]
     fn lookup_trait_implementation_helper(
         &self,
@@ -664,6 +673,7 @@ impl NodeInterner {
         type_bindings: &mut TypeBindings,
         mode: TraitLookupMode,
         recursion_limit: u32,
+        solved: &mut HashSet<SolvedBound>,
     ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
         let make_constraint = || {
             let ordered = trait_generics.to_vec();
@@ -689,7 +699,11 @@ impl NodeInterner {
         let object_type = object_type.substitute(type_bindings);
         let is_bindable = object_type.is_bindable();
 
-        if is_bindable && matches!(mode, TraitLookupMode::Default | TraitLookupMode::IgnoreAssumed)
+        // An integer literal's unknown type only stands for an integer type, so its impls are
+        // candidates, as in Rust.
+        if is_bindable
+            && matches!(mode, TraitLookupMode::Default | TraitLookupMode::IgnoreAssumed)
+            && !is_integer_type_variable(&object_type)
         {
             return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
         }
@@ -743,6 +757,7 @@ impl NodeInterner {
                     &mut fresh_bindings,
                     &instantiation_bindings,
                     recursion_limit,
+                    solved,
                 )
             {
                 if error.1.is_undecided() {
@@ -845,38 +860,56 @@ impl NodeInterner {
         }
     }
 
-    /// Whether the impl search for `object_type` at `impl_id`'s trait and trait arguments can
-    /// select an impl other than `impl_id`: several impls match, or another impl is the one that
-    /// matches. The search runs at the object type `impl_id` gives, so unknowns `impl_id` fixes
-    /// (an integer literal's type) are known to it. Nothing is bound.
-    pub(crate) fn another_impl_applies(&self, object_type: &Type, impl_id: TraitImplId) -> bool {
-        let (impl_type, trait_id, instantiation_bindings) = {
-            let trait_impl = self.get_trait_implementation(impl_id);
+    /// The bound declared at `location` in some impl's where clause, as written.
+    pub(crate) fn declared_impl_where_clause_bound(
+        &self,
+        location: Location,
+    ) -> Option<&TraitConstraint> {
+        self.trait_impl_where_clauses
+            .values()
+            .flatten()
+            .find(|bound| bound.trait_bound.location == location)
+    }
+
+    /// Whether the where clause of the impl `method` belongs to can hold for a receiver or path
+    /// of type `typ`: false only when one of its bounds is known to fail for it. A method of an
+    /// impl that can't apply isn't a candidate for a call.
+    pub(crate) fn method_impl_where_clause_may_hold(&self, method: FuncId, typ: &Type) -> bool {
+        let meta = self.function_meta(&method);
+        let (impl_type, generics, where_clause) = if let Some(impl_id) = meta.trait_impl {
+            let Some(trait_impl) = self.try_get_trait_implementation(impl_id) else {
+                return true;
+            };
+            let Some(where_clause) = self.trait_impl_where_clauses.get(&impl_id) else {
+                return true;
+            };
             let trait_impl = trait_impl.borrow();
-            let (impl_type, instantiation_bindings) = trait_impl
-                .typ
-                .substitute_type_vars_with_fresh_type_vars(&trait_impl.generics, self);
-            (impl_type, trait_impl.trait_id, instantiation_bindings)
+            (trait_impl.typ.clone(), trait_impl.generics.clone(), where_clause.clone())
+        } else if let Some(impl_id) = meta.impl_id {
+            let impl_ = self.get_impl(impl_id);
+            let generics = vecmap(&impl_.generics, |generic| generic.type_var.clone());
+            (impl_.typ.clone(), generics, impl_.where_clause.clone())
+        } else {
+            return true;
         };
-        let mut bindings = TypeBindings::default();
-        if object_type.try_unify(&impl_type, &mut bindings).is_err() {
-            return false;
+        if where_clause.is_empty() {
+            return true;
         }
-        let object_type = object_type.substitute(&bindings);
-        let trait_generics =
-            vecmap(&self.get_trait_generics_for_impl(impl_id).ordered, |generic| {
-                generic.substitute(&instantiation_bindings).substitute(&bindings)
-            });
-        match self.try_lookup_trait_implementation(
-            &object_type,
-            trait_id,
-            &trait_generics,
-            &[],
-            TraitLookupMode::Default,
+        let (impl_type, instantiation_bindings) =
+            impl_type.substitute_type_vars_with_fresh_type_vars(&generics, self);
+        let mut bindings = TypeBindings::default();
+        if !impl_type.try_unify_receiver(typ, &mut bindings) {
+            return true;
+        }
+        match self.validate_where_clause(
+            &where_clause,
+            &mut bindings,
+            &instantiation_bindings,
+            IMPL_SEARCH_RECURSION_LIMIT,
+            &mut HashSet::default(),
         ) {
-            Ok((TraitImplKind::Normal(id) | TraitImplKind::Prepared(id, _), ..)) => id != impl_id,
-            Ok((TraitImplKind::Assumed { .. }, ..)) => false,
-            Err(error) => matches!(error, ImplSearchErrorKind::MultipleMatching(_)),
+            Ok(()) => true,
+            Err((_, error)) => error.is_undecided(),
         }
     }
 
@@ -888,7 +921,10 @@ impl NodeInterner {
         type_bindings: &mut TypeBindings,
         instantiation_bindings: &TypeBindings,
         recursion_limit: u32,
+        solved: &mut HashSet<SolvedBound>,
     ) -> Result<(), (TraitConstraint, ImplSearchErrorKind)> {
+        // An undecided bound doesn't hide a later one that fails: the where clause fails then.
+        let mut undecided = None;
         for constraint in where_clause {
             let constraint_type =
                 constraint.typ.substitute(instantiation_bindings).substitute(type_bindings);
@@ -904,23 +940,57 @@ impl NodeInterner {
                     NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
                 });
 
+            let key = (
+                constraint_type.clone(),
+                constraint.trait_bound.trait_id,
+                trait_generics.clone(),
+                trait_associated_types.clone(),
+            );
+            let is_rigid = !constraint_type.contains_unbound_type_variable()
+                && trait_generics.iter().all(|typ| !typ.contains_unbound_type_variable())
+                && trait_associated_types
+                    .iter()
+                    .all(|named| !named.typ.contains_unbound_type_variable());
+            if is_rigid && solved.contains(&key) {
+                continue;
+            }
+
             // We can ignore any associated types on the constraint since those should not affect
             // which impl we choose.
-            self.lookup_trait_implementation_helper(
-                &constraint_type,
-                constraint.trait_bound.trait_id,
-                &trait_generics,
-                &trait_associated_types,
-                // Use a fresh set of type bindings here since the constraint_type originates from
-                // our impl list, which we don't want to bind to.
-                type_bindings,
-                TraitLookupMode::Default,
-                recursion_limit - 1,
-            )
-            .map_err(|error| (constraint.clone(), error))?;
+            let result = self
+                .lookup_trait_implementation_helper(
+                    &constraint_type,
+                    constraint.trait_bound.trait_id,
+                    &trait_generics,
+                    &trait_associated_types,
+                    // Use a fresh set of type bindings here since the constraint_type originates from
+                    // our impl list, which we don't want to bind to.
+                    type_bindings,
+                    TraitLookupMode::Default,
+                    recursion_limit - 1,
+                    solved,
+                )
+                .map_err(|error| {
+                    let mut constraint = constraint.clone();
+                    constraint.typ = constraint_type.clone();
+                    constraint.trait_bound.trait_generics.ordered = trait_generics.clone();
+                    constraint.trait_bound.trait_generics.named = trait_associated_types.clone();
+                    (constraint, error)
+                });
+            match result {
+                Err(error) if error.1.is_undecided() => {
+                    undecided.get_or_insert(error);
+                    continue;
+                }
+                Err(error) => return Err(error),
+                Ok(_) => (),
+            }
+            if is_rigid {
+                solved.insert(key);
+            }
         }
 
-        Ok(())
+        undecided.map_or(Ok(()), Err)
     }
 
     pub(crate) fn trait_constraint_string(
@@ -1053,4 +1123,14 @@ fn mentions_generic_parameter(typ: &Type) -> bool {
         !found
     });
     found
+}
+
+/// Whether `typ` is an integer literal's still unknown type.
+fn is_integer_type_variable(typ: &Type) -> bool {
+    match typ.follow_bindings() {
+        Type::TypeVariable(variable) => {
+            matches!(variable.kind().as_ref(), Kind::IntegerOrField | Kind::Integer)
+        }
+        _ => false,
+    }
 }

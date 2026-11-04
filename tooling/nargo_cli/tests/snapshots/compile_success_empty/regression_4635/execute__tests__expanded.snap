@@ -55,7 +55,8 @@ where
 
 fn main() {
     let fields: [Field; 1] = [5_Field; 1];
-    let foo: MyStruct<AztecAddress> = MyStruct::<AztecAddress>::deserialize(fields);
+    let foo: MyStruct<AztecAddress> =
+        <MyStruct<AztecAddress> as Deserialize<1>>::deserialize(fields);
     let bar: AztecAddress = AztecAddress { inner: 5_Field };
     assert(foo.a == bar);
 }

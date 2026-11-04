@@ -834,6 +834,33 @@ fn blanket_impls_whose_bounds_have_no_impls_yet_overlap() {
     check_errors(src);
 }
 
+#[test]
+fn blanket_impls_where_one_bound_has_an_impl_for_another_type_overlap() {
+    let src = r#"
+    pub trait Bounded {}
+    pub trait Audited {}
+    impl Bounded for u8 {}
+    pub trait Validate { fn validate(self) -> u32; }
+    impl<T> Validate for T where T: Bounded { fn validate(self) -> u32 { 0 } }
+            ~~~~~~~~ Previous impl defined here
+    impl<T> Validate for T where T: Audited { fn validate(self) -> u32 { 1 } }
+                         ^ Impl for type `T` overlaps with existing impl
+                         ~ Overlapping impl
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_where_clause_naming_a_trait_declared_before_it_is_accepted() {
+    let src = r#"
+    pub trait B {}
+    pub trait A<U> where U: B {}
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
 /// https://github.com/noir-lang/noir-claude/issues/2835: the overlap is reported in the library
 /// that declares the impls, before a dependent crate implements both bounds for its own type.
 #[test]

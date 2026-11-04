@@ -644,8 +644,9 @@ fn self_associated_constant_from_different_trait() {
 }
 
 #[test]
-fn self_associated_constant_does_not_cross_trait_boundaries() {
-    // Self::AssociatedConstant cannot access constants from other trait impls
+fn self_associated_constant_of_another_trait_impl_is_found() {
+    // `Self::N` names `N` of any trait in scope that `Self` implements, for a primitive `Self` as
+    // for a struct.
     let src = r#"
     trait Base {
         let N: u32;
@@ -662,13 +663,12 @@ fn self_associated_constant_does_not_cross_trait_boundaries() {
     impl Derived for u32 {
         fn get_base() -> u32 {
             Self::N
-                  ^ No method named 'N' found for type 'u32'
         }
     }
 
     fn main() {}
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -3921,11 +3921,11 @@ fn check_first_does_not_choose_the_impl_for_an_unannotated_integer() {
     fn main(y: Field) -> pub Field {
         let x = 5;
         A {}.check(x, y);
-        ^^^^^^^^^^ No matching impl found for `U: Bar`
-        ~~~~~~~~~~ No impl for `U: Bar`
+        ^^^^^^^^^^ No matching impl found for `Field: Bar`
+        ~~~~~~~~~~ No impl for `Field: Bar`
         W {}.conv(x)
-        ^^^^^^^^^ No matching impl found for `U: Baz`
-        ~~~~~~~~~ No impl for `U: Baz`
+        ^^^^^^^^^ No matching impl found for `Field: Baz`
+        ~~~~~~~~~ No impl for `Field: Baz`
     }
     "#;
     check_errors(&format!("{IMPLS_DECIDED_BY_WHERE_CLAUSES}{main}"));
@@ -3937,11 +3937,11 @@ fn conv_first_does_not_choose_the_impl_for_an_unannotated_integer() {
     fn main(y: Field) -> pub Field {
         let x = 5;
         let r = W {}.conv(x);
-                ^^^^^^^^^ No matching impl found for `U: Baz`
-                ~~~~~~~~~ No impl for `U: Baz`
+                ^^^^^^^^^ No matching impl found for `Field: Baz`
+                ~~~~~~~~~ No impl for `Field: Baz`
         A {}.check(x, y);
-        ^^^^^^^^^^ No matching impl found for `U: Bar`
-        ~~~~~~~~~~ No impl for `U: Bar`
+        ^^^^^^^^^^ No matching impl found for `Field: Bar`
+        ~~~~~~~~~~ No impl for `Field: Bar`
         r
     }
     "#;
@@ -4255,6 +4255,33 @@ fn bool_associated_type_result_is_not_a_shift_operand() {
         g(S { m0: x }) << false
         ^^^^^^^^^^^^^^^^^^^^^^^ No implementation for `bool << bool`
     }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_header_projecting_through_a_later_impl_for_a_type_in_a_module() {
+    let src = r#"
+    mod m { pub struct S {} }
+    trait C { type T; }
+    trait E<X> { fn get(self) -> Field; }
+    struct Q {}
+    impl E<<m::S as C>::T> for Q { fn get(self) -> Field { 1 } }
+    impl C for m::S { type T = u8; }
+    fn main() -> pub Field { let q = Q {}; E::<u8>::get(q) }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn path_through_an_associated_type_no_bound_on_the_generic_declares_is_reported_once() {
+    let src = r#"
+    trait Foo { fn foo() -> Field; }
+    pub fn bar<T>() -> Field where T: Foo {
+        T::A::foo()
+        ^ Could not resolve 'T' in path
+    }
+    fn main() {}
     "#;
     check_errors(src);
 }
