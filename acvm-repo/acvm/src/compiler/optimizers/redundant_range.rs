@@ -50,6 +50,13 @@
 //! it would result in a read past the end of the array, which is invalid. We can then remove the explicit
 //! range constraint on `index` as the usage as an array index more tightly constrains its value.
 //!
+//! An explicit range constraint removed this way can carry an assertion message. When the array
+//! read which makes it redundant has exactly `2^num_bits` elements, the read rejects precisely the
+//! values the range constraint rejects, so the message is attached to the read instead (unless the
+//! read already has a message of its own). For instance a bit shift by `k` checks `k < bit_size`
+//! with a range constraint carrying "attempt to bit-shift with overflow", and then reads `2^k` from
+//! an array of `bit_size` powers of two.
+//!
 //! # Side effects
 //!
 //! The pass will keep range constraints where, should the constraint have failed, removing it
@@ -61,7 +68,7 @@
 use acir::{
     AcirField,
     circuit::{
-        Circuit, Opcode,
+        Circuit, Opcode, OpcodeLocation,
         brillig::BrilligFunctionId,
         opcodes::{BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
     },
@@ -224,11 +231,31 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// is known before reaching a RANGE opcode.
     #[tracing::instrument(level = "trace", name = "redundant_range_replace", skip_all)]
     pub(crate) fn replace_redundant_ranges(
-        self,
+        mut self,
         order_list: Vec<usize>,
     ) -> (Circuit<F>, Vec<usize>) {
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
+        // For each memory op, the length of the block it accesses.
+        let mut block_lengths: HashMap<BlockId, usize> = HashMap::new();
+        let memory_op_block_len: Vec<Option<usize>> = self
+            .circuit
+            .opcodes
+            .iter()
+            .map(|opcode| match opcode {
+                Opcode::MemoryInit { block_id, init, .. } => {
+                    block_lengths.insert(*block_id, init.len());
+                    None
+                }
+                Opcode::MemoryOp { block_id, .. } => block_lengths.get(block_id).copied(),
+                _ => None,
+            })
+            .collect();
+        // (removed RANGE index, memory op index) pairs whose assertion payload moves to the memory op.
+        // Indices are positions in `self.circuit.opcodes`; `order_list` maps them to the positions
+        // that `assert_messages` refers to.
+        let mut payload_moves: Vec<(usize, usize)> = Vec::new();
+        let mut assert_messages = std::mem::take(&mut self.circuit.assert_messages);
         // Consider the index beyond the last as a pseudo side effect by which time all constraints need to be inserted.
         let mut next_side_effect = self.circuit.opcodes.len();
         // Going in reverse so we can propagate the side effect information backwards.
@@ -274,6 +301,20 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
 
             // If there is something even stricter before the next side effect (or the end), we don't need this.
             if has_stricter_before_next_side_effect {
+                // When the first stricter constraint is a memory op over a block of exactly
+                // 2^num_bits slots, the op fails on precisely the values this RANGE rejects, so
+                // the RANGE's assertion message describes the op's failure too.
+                if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { num_bits, .. }) = &opcode
+                {
+                    let first_stricter =
+                        info.switch_points.range(idx + 1..next_side_effect).next().copied();
+                    if let Some(mem_idx) = first_stricter
+                        && memory_op_block_len[mem_idx]
+                            .is_some_and(|len| len.is_power_of_two() && len.ilog2() == *num_bits)
+                    {
+                        payload_moves.push((idx, mem_idx));
+                    }
+                }
                 continue;
             }
 
@@ -285,7 +326,18 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
         optimized_opcodes.reverse();
         new_order_list.reverse();
 
-        (Circuit { opcodes: optimized_opcodes, ..self.circuit }, new_order_list)
+        for (range_idx, mem_idx) in payload_moves {
+            let range_loc = OpcodeLocation::Acir(order_list[range_idx]);
+            let mem_loc = OpcodeLocation::Acir(order_list[mem_idx]);
+            if assert_messages.iter().any(|(loc, _)| *loc == mem_loc) {
+                continue;
+            }
+            if let Some(entry) = assert_messages.iter_mut().find(|(loc, _)| *loc == range_loc) {
+                entry.0 = mem_loc;
+            }
+        }
+
+        (Circuit { opcodes: optimized_opcodes, assert_messages, ..self.circuit }, new_order_list)
     }
 }
 
@@ -312,7 +364,7 @@ mod tests {
     };
     use acir::{
         AcirField,
-        circuit::{Circuit, brillig::BrilligFunctionId},
+        circuit::{AssertionPayload, Circuit, OpcodeLocation, brillig::BrilligFunctionId},
         native_types::{Expression, Witness},
     };
     use test_case::test_case;
@@ -630,6 +682,107 @@ mod tests {
         INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
         READ w2 = b0[w1]
         ");
+    }
+
+    /// Runs the optimizer over `src`, with an assertion payload on each of the opcodes at
+    /// `messages` (pairs of opcode index and error selector), and returns the optimized circuit
+    /// together with the payload locations in pre-optimization opcode positions.
+    fn optimize_with_messages(
+        src: &str,
+        messages: &[(usize, u64)],
+    ) -> (Circuit<FieldElement>, Vec<(usize, u64)>) {
+        let mut circuit = Circuit::from_str(src).unwrap();
+        circuit.assert_messages = messages
+            .iter()
+            .map(|(index, selector)| {
+                let payload = AssertionPayload { error_selector: *selector, payload: Vec::new() };
+                (OpcodeLocation::Acir(*index), payload)
+            })
+            .collect();
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        let locations = optimized_circuit
+            .assert_messages
+            .iter()
+            .map(|(location, payload)| {
+                let OpcodeLocation::Acir(index) = location else { panic!("unexpected location") };
+                (*index, payload.error_selector)
+            })
+            .collect();
+        (optimized_circuit, locations)
+    }
+
+    #[test]
+    fn message_of_range_implied_by_array_read_moves_to_the_read() {
+        // The read of an 8-element array fails for exactly the values a 3-bit range rejects.
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 3
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        ";
+        let (optimized_circuit, locations) = optimize_with_messages(src, &[(0, 7)]);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        ");
+        assert_eq!(locations, vec![(2, 7)]);
+    }
+
+    #[test]
+    fn message_of_range_implied_by_shorter_array_read_is_not_moved() {
+        // A 4-bit range accepts 9, which a read of a 9-element array rejects, so the read's
+        // failure is not the failure the range's message describes.
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 4
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        ";
+        let (optimized_circuit, locations) = optimize_with_messages(src, &[(0, 7)]);
+        assert_eq!(optimized_circuit.opcodes.len(), 2);
+        assert_eq!(locations, vec![(0, 7)]);
+    }
+
+    #[test]
+    fn message_of_range_does_not_replace_message_of_array_read() {
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 3
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        ";
+        let (optimized_circuit, locations) = optimize_with_messages(src, &[(0, 7), (2, 9)]);
+        assert_eq!(optimized_circuit.opcodes.len(), 2);
+        assert_eq!(locations, vec![(0, 7), (2, 9)]);
+    }
+
+    #[test]
+    fn message_of_range_kept_when_range_is_kept() {
+        // A side effect between the range and the read keeps the range, along with its message.
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 3
+        BRILLIG CALL func: 0, predicate: 1, inputs: [w1], outputs: []
+        INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        ";
+        let (optimized_circuit, locations) = optimize_with_messages(src, &[(0, 7)]);
+        assert_eq!(optimized_circuit.opcodes.len(), 4);
+        assert_eq!(locations, vec![(0, 7)]);
     }
 
     #[test]
