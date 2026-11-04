@@ -693,10 +693,7 @@ impl Attributes {
     /// from the attribute's arguments. If neither argument is specified, deny
     /// defaults to false while message defaults to None.
     pub fn get_deprecated(&self) -> Option<(bool, Option<String>)> {
-        self.secondary.iter().find_map(|attr| match &attr.kind {
-            SecondaryAttributeKind::Deprecated(deny, note) => Some((*deny, note.clone())),
-            _ => None,
-        })
+        get_deprecated(&self.secondary)
     }
 
     pub fn get_field_attribute(&self) -> Option<String> {
@@ -863,6 +860,15 @@ impl Display for FunctionAttributeKind {
     }
 }
 
+/// If `attributes` contains a deprecated attribute, return a tuple of (deny, message) from the
+/// attribute's arguments.
+pub fn get_deprecated(attributes: &[SecondaryAttribute]) -> Option<(bool, Option<String>)> {
+    attributes.iter().find_map(|attr| match &attr.kind {
+        SecondaryAttributeKind::Deprecated(deny, note) => Some((*deny, note.clone())),
+        _ => None,
+    })
+}
+
 /// Secondary attributes are those which a function can have many of.
 /// They are not able to change the `FunctionKind` and thus do not have direct impact on the IR output
 /// They are often consumed by libraries or used as notices for the developer
@@ -874,7 +880,7 @@ pub struct SecondaryAttribute {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SecondaryAttributeKind {
-    /// Marks whether a function is deprecated or not.
+    /// Marks whether an item is deprecated or not.
     ///
     /// - The first parameter is `true` if this should be a hard error, or `false` for a warning.
     ///   In source code, not specifying "deny" will default this to a warning.

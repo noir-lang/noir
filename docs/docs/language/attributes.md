@@ -87,6 +87,19 @@ On a trait method, the warning covers calls through the trait as well as calls t
 
 The attribute has no effect on a method inside a trait `impl`, and generates a warning there: deprecate the method on the trait instead.
 
+It can also be placed on a trait. Naming the trait in an `impl`, a bound, a where clause, a parent trait or an `impl Trait` type generates a warning, and so does calling any of its methods. Uses inside the trait's own declaration do not warn. If one of its methods is also deprecated, the method's message is used when it has one, and `deny` on either of them makes a call an error.
+
+```rust
+#[deprecated("use NewHash")]
+trait OldHash {
+    fn hash(self) -> Field;
+}
+
+fn digest<T>(x: T) -> Field where T: OldHash { // warning
+    x.hash() // warning
+}
+```
+
 ### `field`
 
 Can be used on functions to enable conditional compilation of code depending on the field size.

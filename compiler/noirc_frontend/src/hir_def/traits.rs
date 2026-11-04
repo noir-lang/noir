@@ -9,6 +9,7 @@ use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
 };
+use crate::token::SecondaryAttribute;
 use crate::{
     GenericTypeVars, Kind, NamedGeneric, ResolvedGenerics, Type, TypeBinding, TypeBindings,
     TypeVariable, TypeVariableId,
@@ -97,6 +98,8 @@ pub struct Trait {
 
     /// Map from each associated constant's name to a unique `DefinitionId` for that constant.
     pub associated_constant_ids: HashMap<String, DefinitionId>,
+
+    pub attributes: Vec<SecondaryAttribute>,
 }
 
 /// A completed trait implementation.

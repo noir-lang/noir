@@ -1051,6 +1051,9 @@ impl Elaborator<'_> {
                 let location = trait_path.location;
                 let trait_path = self.validate_path(trait_path.clone());
                 let trait_id = self.resolve_trait_by_path(trait_path);
+                if let Some(trait_id) = trait_id {
+                    self.check_deprecated_trait_use(trait_id, location);
+                }
 
                 // Check and remove and any generic that is specifying an associated item
                 if !trait_generics.named_args.is_empty()
