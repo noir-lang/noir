@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.0](https://github.com/noir-lang/noir/compare/v1.0.0...v1.1.0) (2026-11-04)
+
+
+### Features
+
+* **brillig:** Skip jumps to the next emitted block ([#14128](https://github.com/noir-lang/noir/issues/14128)) ([5a90e04](https://github.com/noir-lang/noir/commit/5a90e04ef4fa087eed4af3d744310d80827408b2))
+* **brillig:** Skip shift overflow check for constant in-range shift amounts ([#14127](https://github.com/noir-lang/noir/issues/14127)) ([db4c4cc](https://github.com/noir-lang/noir/commit/db4c4ccad61301761b386abe6e7dad9637baa76e))
+* **ssa:** Enforce bit-shift overflow with a range check ([#14138](https://github.com/noir-lang/noir/issues/14138)) ([e0ca395](https://github.com/noir-lang/noir/commit/e0ca3950281d8fd47f0468ffbb11d0985d2488e1))
+
 ## [1.0.0](https://github.com/noir-lang/noir/compare/v1.0.0-rc.7...v1.0.0) (2026-10-29)
 
 
