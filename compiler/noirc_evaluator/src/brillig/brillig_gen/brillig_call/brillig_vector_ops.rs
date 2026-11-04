@@ -215,6 +215,7 @@ mod tests {
             globals,
             hoisted_global_constants,
             building_globals: false,
+            fused_cast: None,
         }
     }
 
