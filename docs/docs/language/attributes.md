@@ -57,8 +57,6 @@ When applied to a function, indicates that the function is implemented by the co
 
 Marks a function as _deprecated_. Calling the function will generate a warning: `warning: use of deprecated function`
 
-On a trait method, the warning covers calls through the trait as well as calls that resolve to an implementation of the method on a concrete type. Implementing a deprecated trait method does not warn.
-
 Example:
 
 ```rust
@@ -84,6 +82,8 @@ To change the warning into a hard error, `deny` can be specified on the attribut
 #[deprecated(deny, "don't use this!")]
 fn broken() {}
 ```
+
+On a trait method, the warning covers calls through the trait as well as calls that resolve to an implementation of the method on a concrete type. Implementing a deprecated trait method does not warn.
 
 ### `field`
 
