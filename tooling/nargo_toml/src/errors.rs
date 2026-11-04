@@ -98,15 +98,18 @@ pub enum GitError {
     MissingHost { url: String },
 
     #[error(
-        "Cannot download dependency {url} at tag `{tag}`: `git` was not found. Install git and make sure it is on your PATH"
+        "Cannot download dependency {url} at `{reference}`: `git` was not found. Install git and make sure it is on your PATH"
     )]
-    GitNotFound { url: String, tag: String },
+    GitNotFound { url: String, reference: String },
 
-    #[error("Cannot download dependency {url} at tag `{tag}`: failed to run `git`: {source}")]
-    SpawnFailed { url: String, tag: String, source: std::io::Error },
+    #[error("Cannot download dependency {url} at `{reference}`: failed to run `git`: {source}")]
+    SpawnFailed { url: String, reference: String, source: std::io::Error },
 
-    #[error("Failed to download dependency {url} at tag `{tag}`: `git clone` failed ({status}){}", if stderr.is_empty() { String::new() } else { format!(":\n{stderr}") })]
-    CloneFailed { url: String, tag: String, status: ExitStatus, stderr: String },
+    #[error("Failed to download dependency {url} at `{reference}`: `git clone` failed ({status}){}", if stderr.is_empty() { String::new() } else { format!(":\n{stderr}") })]
+    CloneFailed { url: String, reference: String, status: ExitStatus, stderr: String },
+
+    #[error("Failed to check out `{reference}` from {url}: `git checkout` failed ({status}){}", if stderr.is_empty() { String::new() } else { format!(":\n{stderr}") })]
+    CheckoutFailed { url: String, reference: String, status: ExitStatus, stderr: String },
 
     #[error("Failed to lock the git dependency cache: {0}")]
     Lock(std::io::Error),

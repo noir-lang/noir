@@ -10,7 +10,7 @@ Nargo allows you to upload packages to GitHub and use them as dependencies.
 
 ## Specifying a dependency
 
-Specifying a dependency requires a `tag` to a specific commit and a `git` url to the url containing the package.
+Specifying a dependency requires a `git` url to the url containing the package, and either a `tag` (a branch or tag name) or a `rev` (a commit hash) to pin it to a specific commit.
 
 :::note
 
@@ -36,6 +36,15 @@ If the module is in a subdirectory, you can define a subdirectory in your git re
 blob = {tag ="v1.2.1", git = "https://github.com/AztecProtocol/aztec-packages", directory = "noir-projects/noir-protocol-circuits/crates/blob"}
 ```
 
+To pin a dependency to an exact commit rather than a branch or tag, use `rev` instead of `tag`:
+
+```toml
+# Nargo.toml
+
+[dependencies]
+bignum = { rev = "0e0d0f6f8f2e6c3f9f2b1a0c4d5e6f708192a3b4", git = "https://github.com/noir-lang/noir-bignum" }
+```
+
 :::tip
 
 Instead of editing _Nargo.toml_ by hand, you can let `nargo add` write the entry for you. It downloads the dependency, verifies it, and names the entry after the dependency's own package:
@@ -43,6 +52,8 @@ Instead of editing _Nargo.toml_ by hand, you can let `nargo add` write the entry
 ```sh
 nargo add --git https://github.com/noir-lang/noir-bignum --tag v0.8.0
 ```
+
+Use `--rev <commit-hash>` instead of `--tag` to pin the dependency to a specific commit.
 
 Add `--directory <subdir>` when the package lives in a subdirectory of the repository.
 

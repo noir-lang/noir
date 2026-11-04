@@ -356,8 +356,21 @@ mod tests {
     }
 
     #[test]
-    fn add_git_requires_tag() {
-        parse_cli("nargo add --git https://example.com/repo").expect_err("--git requires --tag");
+    fn add_git_requires_a_tag_or_rev() {
+        parse_cli("nargo add --git https://example.com/repo")
+            .expect_err("--git requires either --tag or --rev");
+    }
+
+    #[test]
+    fn add_rejects_tag_and_rev_together() {
+        parse_cli("nargo add --git https://example.com/repo --tag v1 --rev 0e0d0f6")
+            .expect_err("--tag and --rev are mutually exclusive");
+    }
+
+    #[test]
+    fn add_accepts_git_with_rev() {
+        parse_cli("nargo add --git https://example.com/repo --rev 0e0d0f6")
+            .expect("a git dependency pinned to a rev should parse");
     }
 
     #[test]
