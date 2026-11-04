@@ -194,6 +194,11 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 Overflow { operator: BinaryOp::Mul { unchecked: false }, .. },
                 RangeCheckFailed { msg: Some(msg), .. },
             ) => msg == "attempt to multiply with overflow",
+            // `remove_bit_shifts` enforces that the shift amount is below the bit size with a range check.
+            (
+                Overflow { operator: BinaryOp::Shl | BinaryOp::Shr, .. },
+                RangeCheckFailed { msg: Some(msg), .. },
+            ) => msg == "attempt to bit-shift with overflow",
 
             (
                 ConstrainEqFailed { msg: msg1, .. } | ConstrainNeFailed { msg: msg1, .. },
@@ -432,6 +437,33 @@ mod tests {
             rhs: String::new(),
             rhs_id: Id::new(1),
             msg: Some(msg.to_string()),
+        }
+    }
+
+    /// Build a `RangeCheckFailed` error carrying `msg`.
+    fn range_check_failed(msg: &str) -> InterpreterError {
+        InterpreterError::RangeCheckFailed {
+            value: String::new(),
+            value_id: Id::new(0),
+            actual_bits: 7,
+            max_bits: 6,
+            msg: Some(msg.to_string()),
+        }
+    }
+
+    /// An out-of-range shift amount turns from an `Overflow` into a `RangeCheckFailed`
+    /// across `remove_bit_shifts`; the two must compare equal.
+    #[test]
+    fn shift_overflow_matches_range_check() {
+        for operator in [BinaryOp::Shl, BinaryOp::Shr] {
+            assert!(Comparable::equivalent(
+                &overflow(operator),
+                &range_check_failed("attempt to bit-shift with overflow"),
+            ));
+            assert!(!Comparable::equivalent(
+                &overflow(operator),
+                &range_check_failed("attempt to multiply with overflow"),
+            ));
         }
     }
 
