@@ -57,7 +57,7 @@ use crate::node_interner::GlobalValue;
 use crate::shared::{Builtin, ForeignCall, Signedness};
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
-    Type, TypeBindings,
+    Type, TypeBinding, TypeBindings,
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
@@ -134,6 +134,10 @@ pub struct Interpreter<'local, 'interner> {
     /// Current evaluation depth.
     evaluation_depth: usize,
 
+    /// How many function and closure calls deep the interpreter is: zero while it is in its
+    /// outermost frame.
+    call_depth: usize,
+
     /// Whether we are inside an unconstrained context. This is set to true when entering
     /// an unconstrained function, and it keeps being true in nested calls regardless of
     /// them being constrained or unconstrained.
@@ -156,6 +160,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             call_bindings: HashMap::default(),
             in_loop: false,
             evaluation_depth: 0,
+            call_depth: 0,
             in_unconstrained,
         }
     }
@@ -199,6 +204,28 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// its caller). This is [`Self::value`], skipped while nothing has been solved at runtime.
     pub(crate) fn apply_runtime_solves(&self, value: Value) -> Value {
         if self.frame.has_runtime_solves() { self.value(value) } else { value }
+    }
+
+    /// Binds the type variables solved in the outermost frame to their solutions, unless that
+    /// frame is in a loop.
+    ///
+    /// The outermost frame interprets code the elaborator hands over (a `comptime` statement or
+    /// block, a global's initializer, a macro call's arguments), and outside a loop it never
+    /// evaluates the same expression twice, so what it has solved there is final. Those variables
+    /// belong to the program being elaborated: later statements are type-checked against them,
+    /// and other interpreters read values holding them. Both only see what is bound on the
+    /// variable itself, so the solutions are committed there.
+    fn commit_final_solves(&mut self) {
+        if self.call_depth > 0 || self.in_loop || !self.frame.has_runtime_solves() {
+            return;
+        }
+        for (var, kind, typ) in self.frame.take_runtime_solutions() {
+            if let TypeBinding::Unbound(..) = var.binding() {
+                // The solution unified with the variable while interpreting, so this only fails
+                // when an error was already reported for it.
+                let _ = var.try_bind(typ, &kind, Location::dummy());
+            }
+        }
     }
 
     /// Call the given function with the given arguments and return the result.
@@ -253,6 +280,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // The caller's frame is restored when the call returns, so the callee extends a copy.
         let callee_frame = self.frame.clone().for_call(&own_bindings);
         let caller_frame = std::mem::replace(&mut self.frame, callee_frame);
+        self.call_depth += 1;
 
         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
             tracker.track_function_call(function, location);
@@ -264,9 +292,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .call_function_inner(function, arguments, location)
             .map(|result| self.apply_runtime_solves(result));
 
+        self.call_depth -= 1;
         let callee_frame = std::mem::replace(&mut self.frame, caller_frame);
         let visible: Vec<&Type> = own_bindings.values().map(|(_, _, typ)| typ).collect();
         let solves = self.frame.take_solves(&callee_frame, &visible);
+        self.commit_final_solves();
 
         self.elaborator.pop_interpreter_call_stack();
         result.map(|result| (result, solves))
@@ -454,6 +484,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
             let callee_frame = this.frame.clone().for_closure(closure.frame);
             let caller_frame = std::mem::replace(&mut this.frame, callee_frame);
+            this.call_depth += 1;
 
             // The body can solve types after a value holding them was built (`[make!()]` types
             // the array before the macro call runs), so resolve the result under the closure's
@@ -462,6 +493,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 .call_closure_inner(closure.lambda, closure.env, arguments, call_location)
                 .map(|result| this.apply_runtime_solves(result));
 
+            this.call_depth -= 1;
             let callee_frame = std::mem::replace(&mut this.frame, caller_frame);
             let solves = this.frame.take_solves(&callee_frame, &[&closure.typ]);
             this.elaborator.pop_interpreter_call_stack();
@@ -765,6 +797,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         };
         self.evaluation_depth -= 1;
+        self.commit_final_solves();
         result
     }
 
