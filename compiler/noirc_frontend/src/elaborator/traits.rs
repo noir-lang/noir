@@ -173,6 +173,7 @@ use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::Location;
 
+use crate::token::get_deprecated;
 use crate::{
     IMPL_TRAIT_PARAMETER_NAME_PREFIX, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBindings,
     TypeVariable,
@@ -188,7 +189,7 @@ use crate::{
     },
     hir::{
         comptime::InterpreterError,
-        def_collector::dc_crate::UnresolvedTrait,
+        def_collector::dc_crate::{CompilationError, UnresolvedTrait},
         resolution::errors::ResolverError,
         type_check::{NoMatchingImplFoundError, TypeCheckError, generics::TraitGenerics},
     },
@@ -650,7 +651,40 @@ impl Elaborator<'_> {
     /// Resolves a trait bound, marking the trait as referenced.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_trait_bound(&mut self, bound: &TraitBound) -> Option<ResolvedTraitBound> {
-        self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsReferenced)
+        let resolved =
+            self.resolve_trait_bound_inner(bound, PathResolutionMode::MarkAsReferenced)?;
+        self.check_deprecated_trait_use(resolved.trait_id, resolved.location);
+        Some(resolved)
+    }
+
+    /// Reports a use of `trait_id` at `location` if the trait is deprecated.
+    ///
+    /// Uses within the trait's own declaration don't count, and neither does the impl a trait alias
+    /// generates, which is located at the alias's name. A single written bound can be resolved more
+    /// than once, for example an impl's where clause is resolved for each of its methods, so a
+    /// location is only reported once.
+    pub(super) fn check_deprecated_trait_use(&mut self, trait_id: TraitId, location: Location) {
+        let the_trait = self.interner.get_trait(trait_id);
+        let Some((deny, note)) = get_deprecated(&the_trait.attributes) else {
+            return;
+        };
+        if self.item.impl_context.trait_declaration() == Some(trait_id)
+            || the_trait.location == location
+        {
+            return;
+        }
+
+        let already_reported = self.errors.iter().any(|error| {
+            matches!(
+                error,
+                CompilationError::TypeError(TypeCheckError::UseOfDeprecated { location: reported, .. })
+                    if *reported == location
+            )
+        });
+        if !already_reported {
+            let name = the_trait.name.to_string();
+            self.push_err(TypeCheckError::UseOfDeprecated { name, deny, note, location });
+        }
     }
 
     /// Resolves a trait bound, marking the trait as used.
