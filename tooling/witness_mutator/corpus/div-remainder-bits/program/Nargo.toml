@@ -1,0 +1,6 @@
+[package]
+name = "trunc_u128"
+type = "bin"
+authors = [""]
+
+[dependencies]

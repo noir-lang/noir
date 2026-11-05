@@ -1,0 +1,12 @@
+diff --git a/compiler/noirc_evaluator/src/ssa/opt/expand_signed_math.rs b/compiler/noirc_evaluator/src/ssa/opt/expand_signed_math.rs
+index a61383e0a2e..3a0a456875b 100644
+--- a/compiler/noirc_evaluator/src/ssa/opt/expand_signed_math.rs
++++ b/compiler/noirc_evaluator/src/ssa/opt/expand_signed_math.rs
+@@ -166,7 +166,6 @@ impl Context<'_, '_, '_> {
+         } else {
+             "Attempt to calculate the remainder with overflow".to_string()
+         };
+-        self.insert_constrain(min_overflow, zero, Some(message.into()));
+ 
+         // What about checking that the divisor is not zero? We don't need to explicitly check
+         // this here because it'll be checked when doing the unsigned div/mod.
