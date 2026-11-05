@@ -1,0 +1,6 @@
+[package]
+name = "deprecated_trait_impl_from_trait_constraint"
+type = "bin"
+authors = [""]
+
+[dependencies]

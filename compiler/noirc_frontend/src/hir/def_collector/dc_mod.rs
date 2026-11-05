@@ -255,6 +255,7 @@ impl ModCollector<'_> {
             }
 
             let unresolved_trait_impl = UnresolvedTraitImpl {
+                is_synthetic: trait_impl.is_synthetic,
                 file_id: self.file_id,
                 module_id: self.module_id,
                 r#trait: trait_impl.r#trait,

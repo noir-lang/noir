@@ -87,7 +87,7 @@ On a trait method, the warning covers calls through the trait as well as calls t
 
 The attribute has no effect on a method inside a trait `impl`, and generates a warning there: deprecate the method on the trait instead.
 
-It can also be placed on a trait. Naming the trait in an `impl`, a bound, a where clause, a parent trait or an `impl Trait` type generates a warning, and so does calling any of its methods. Uses inside the trait's own declaration do not warn. If one of its methods is also deprecated, the method's message is used when it has one, and `deny` on either of them makes a call an error.
+It can also be placed on a trait. Naming the trait in an `impl`, a bound, a where clause, a parent trait, an associated type bound, a trait alias target, an `impl Trait` type or a type such as `<Bar as Foo>::Assoc` generates a warning, and so does calling any of its methods. Naming it in a `use`, `Foo::C` or `let f = Foo::foo;` does not warn yet, and neither does an operator that dispatches to it. Uses inside the trait's own declaration do not warn. If one of its methods is also deprecated, the method's message is used when it has one, and `deny` on either of them makes a call an error.
 
 ```rust
 #[deprecated("use NewHash")]

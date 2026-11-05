@@ -1051,7 +1051,10 @@ impl Elaborator<'_> {
                 let location = trait_path.location;
                 let trait_path = self.validate_path(trait_path.clone());
                 let trait_id = self.resolve_trait_by_path(trait_path);
-                if let Some(trait_id) = trait_id {
+                // The impl generated for a trait alias names the alias from its own declaration.
+                if let Some(trait_id) = trait_id
+                    && !trait_impl.is_synthetic
+                {
                     self.check_deprecated_trait_use(trait_id, location);
                 }
 
@@ -1094,6 +1097,7 @@ impl Elaborator<'_> {
                 // into unresolved ones, but ones that point to solved types.
                 let trait_id = *trait_id;
                 let trait_generics = trait_generics.clone();
+                self.check_deprecated_trait_use(trait_id, location);
                 let trait_generics = GenericTypeArgs {
                     ordered_args: vecmap(&trait_generics.ordered, |typ| {
                         let quoted_type_id = self.interner.push_quoted_type(typ.clone());

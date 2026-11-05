@@ -844,6 +844,69 @@ fn deprecated_trait_alias_warns_on_use_but_not_on_its_declaration() {
     check_errors(src);
 }
 
+#[test]
+fn deprecated_trait_warns_on_as_trait_path_in_type() {
+    let src = r#"
+    #[deprecated("use something else")]
+    pub trait Foo {
+        type Assoc;
+    }
+
+    pub struct Bar {}
+
+    pub fn f(_x: <Bar as Foo>::Assoc) {}
+                         ^^^ use something else
+                         ~~~ `Foo` has been deprecated
+
+    impl Foo for Bar {
+         ^^^ use something else
+         ~~~ `Foo` has been deprecated
+        type Assoc = u32;
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn deprecated_trait_does_not_warn_on_as_trait_path_inside_its_own_declaration() {
+    let src = r#"
+    #[deprecated("use something else")]
+    pub trait Foo {
+        type Assoc;
+
+        fn get(self) -> <Self as Foo>::Assoc;
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn deprecated_trait_warns_on_impl_generated_by_a_macro() {
+    let src = r#"
+    #[deprecated("use something else")]
+    pub trait Foo {}
+
+    #[generate_impl]
+    ~~~~~~~~~~~~~~~~ While running this function attribute
+    pub struct Bar {}
+
+    comptime fn generate_impl(_: TypeDefinition) -> Quoted {
+        quote {
+            impl Foo for Bar {}
+                 ^^^ use something else
+                 ~~~ `Foo` has been deprecated
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
 /// `check_errors` matches annotations against a set, so it can't tell one warning from two at the
 /// same location. A bound can be resolved more than once, which must still report a single use.
 #[test]
@@ -903,6 +966,21 @@ fn deprecated_trait_warns_once_per_use() {
             "qualified method call",
             "pub struct S {} impl Foo for S { fn foo(self) {} } pub fn f() { <S as Foo>::foo(S {}); }",
             2,
+        ),
+        (
+            "where clause on a macro-generated impl with several methods",
+            "pub trait Baz { fn a(self); fn b(self); }
+             #[generate_impl]
+             pub struct S<T> { x: T }
+             comptime fn generate_impl(_: TypeDefinition) -> Quoted {
+                 quote {
+                     impl<T> Baz for S<T> where T: Foo {
+                         fn a(self) {}
+                         fn b(self) {}
+                     }
+                 }
+             }",
+            1,
         ),
         ("two separate uses", "pub fn f<T: Foo>(_x: T) {} pub fn g<T: Foo>(_x: T) {}", 2),
     ];

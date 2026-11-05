@@ -659,18 +659,15 @@ impl Elaborator<'_> {
 
     /// Reports a use of `trait_id` at `location` if the trait is deprecated.
     ///
-    /// Uses within the trait's own declaration don't count, and neither does the impl a trait alias
-    /// generates, which is located at the alias's name. A single written bound can be resolved more
-    /// than once, for example an impl's where clause is resolved for each of its methods, so a
+    /// Uses within the trait's own declaration don't count. A single written bound can be resolved
+    /// more than once, for example an impl's where clause is resolved for each of its methods, so a
     /// location is only reported once.
     pub(super) fn check_deprecated_trait_use(&mut self, trait_id: TraitId, location: Location) {
         let the_trait = self.interner.get_trait(trait_id);
         let Some((deny, note)) = get_deprecated(&the_trait.attributes) else {
             return;
         };
-        if self.item.impl_context.trait_declaration() == Some(trait_id)
-            || the_trait.location == location
-        {
+        if self.item.impl_context.trait_declaration() == Some(trait_id) {
             return;
         }
 

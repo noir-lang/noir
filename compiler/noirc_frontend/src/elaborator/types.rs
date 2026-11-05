@@ -1341,6 +1341,7 @@ impl Elaborator<'_> {
             // Error should already be pushed in the None case
             return Type::Error;
         };
+        self.check_deprecated_trait_use(trait_id, location);
 
         if let Some(typ) =
             self.try_resolve_self_as_trait_path(&path, mode, wildcard_allowed, trait_id)
