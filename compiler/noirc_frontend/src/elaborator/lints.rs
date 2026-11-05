@@ -34,11 +34,9 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
         return None;
     };
 
-    let attributes = interner.function_attributes(&func_id);
-    attributes.get_deprecated().map(|(deny, note)| {
-        let name = interner.definition_name(id).to_string();
-        TypeCheckError::CallDeprecated { name, deny, note, location }
-    })
+    let (deny, note) = interner.function_deprecation(&func_id)?;
+    let name = interner.definition_name(id).to_string();
+    Some(TypeCheckError::CallDeprecated { name, deny, note, location })
 }
 
 /// Validate inline-related attributes based on whether the function is constrained or unconstrained.
