@@ -64,6 +64,8 @@ pub enum DefCollectorErrorKind {
         trait_method_name: String,
         trait_method_location: Location,
     },
+    #[error("The `#[deprecated]` attribute has no effect on a method in a trait impl")]
+    DeprecatedOnTraitImplMethod { location: Location },
     #[error("The `#[test]` attribute may only be used on a non-associated function")]
     TestOnAssociatedFunction { location: Location },
     #[error("The `#[fuzz]` attribute may only be used on a non-associated function")]
@@ -100,6 +102,7 @@ impl DefCollectorErrorKind {
                 trait_method_location: location,
                 ..
             }
+            | DefCollectorErrorKind::DeprecatedOnTraitImplMethod { location }
             | DefCollectorErrorKind::TestOnAssociatedFunction { location }
             | DefCollectorErrorKind::FuzzOnAssociatedFunction { location }
             | DefCollectorErrorKind::ExportOnAssociatedFunction { location }
@@ -293,6 +296,11 @@ impl<'a> From<&'a DefCollectorErrorKind> for Diagnostic {
                 diag.add_secondary(format!("definition of `{trait_method_name}` from trait"), *trait_method_location);
                 diag
             }
+            DefCollectorErrorKind::DeprecatedOnTraitImplMethod { location } => Diagnostic::simple_warning(
+                "The `#[deprecated]` attribute has no effect on a method in a trait impl".into(),
+                "Deprecate the method on the trait instead".into(),
+                *location,
+            ),
             DefCollectorErrorKind::TestOnAssociatedFunction { location } => Diagnostic::simple_error(
                 "The `#[test]` attribute is disallowed on associated functions".into(),
                 String::new(),

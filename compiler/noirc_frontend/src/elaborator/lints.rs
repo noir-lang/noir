@@ -35,29 +35,14 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
     };
 
     // A call on a concrete type resolves directly to the impl method, so deprecating a trait method
-    // has to reach through the impl to warn on those calls.
-    let own = interner.function_attributes(&func_id).get_deprecated();
-    let trait_method = interner
-        .implemented_trait_method(&func_id)
-        .and_then(|method| interner.function_attributes(&method).get_deprecated());
-
-    let (deny, note) = merge_deprecations(own, trait_method)?;
+    // has to reach through the impl to warn on those calls. The impl method's own attributes come
+    // first because `FunctionDefinition::disable` can apply to it directly.
+    let (deny, note) = interner.function_attributes(&func_id).get_deprecated().or_else(|| {
+        let trait_method = interner.implemented_trait_method(&func_id)?;
+        interner.function_attributes(&trait_method).get_deprecated()
+    })?;
     let name = interner.definition_name(id).to_string();
     Some(TypeCheckError::CallDeprecated { name, deny, note, location })
-}
-
-/// Combines the deprecation of an item with the one it inherits. The item's own note takes priority,
-/// but `deny` on either side holds: an impl can't soften a trait's hard error into a warning.
-fn merge_deprecations(
-    own: Option<(bool, Option<String>)>,
-    inherited: Option<(bool, Option<String>)>,
-) -> Option<(bool, Option<String>)> {
-    match (own, inherited) {
-        (Some((own_deny, own_note)), Some((inherited_deny, inherited_note))) => {
-            Some((own_deny || inherited_deny, own_note.or(inherited_note)))
-        }
-        (own, inherited) => own.or(inherited),
-    }
 }
 
 /// Validate inline-related attributes based on whether the function is constrained or unconstrained.

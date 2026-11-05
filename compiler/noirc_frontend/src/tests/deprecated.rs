@@ -172,13 +172,12 @@ fn deprecated_trait_method_with_deny_is_an_error_on_call_on_concrete_type() {
     assert!(deprecation_diagnostic(src, "use something else").is_error());
 }
 
-// An impl method and the trait method it implements can both be deprecated.
+// A method in a trait impl can't be deprecated: the attribute warns, and has no other effect.
 
 #[test]
-fn deprecated_impl_method_warns_with_its_own_note_over_the_trait_methods_note() {
+fn deprecated_on_trait_impl_method_warns_and_calls_stay_silent() {
     let src = r#"
     trait Foo {
-        #[deprecated("note on the trait method")]
         fn foo(self);
     }
 
@@ -186,20 +185,66 @@ fn deprecated_impl_method_warns_with_its_own_note_over_the_trait_methods_note() 
 
     impl Foo for Bar {
         #[deprecated("note on the impl method")]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ The `#[deprecated]` attribute has no effect on a method in a trait impl
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Deprecate the method on the trait instead
         fn foo(self) {}
     }
 
     fn main() {
         Bar {}.foo();
-        ^^^^^^^^^^ note on the impl method
-        ~~~~~~~~~~ `foo` has been deprecated
     }
     "#;
     check_errors(src);
 }
 
 #[test]
-fn deprecated_impl_method_does_not_soften_deny_on_the_trait_method() {
+fn deprecated_with_deny_on_trait_impl_method_only_warns() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        #[deprecated(deny, "note on the impl method")]
+        fn foo(self) {}
+    }
+
+    fn main() {
+        Bar {}.foo();
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert_eq!(errors.len(), 1, "Expected a single diagnostic: {errors:?}");
+    assert!(CustomDiagnostic::from(&errors[0]).is_warning());
+}
+
+#[test]
+fn deprecated_on_trait_impl_method_does_not_replace_the_trait_methods_attribute() {
+    let src = r#"
+    trait Foo {
+        #[deprecated(deny, "note on the trait method")]
+        fn foo(self);
+    }
+
+    struct Bar {}
+
+    impl Foo for Bar {
+        #[deprecated("note on the impl method")]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ The `#[deprecated]` attribute has no effect on a method in a trait impl
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Deprecate the method on the trait instead
+        fn foo(self) {}
+    }
+
+    fn main() {
+        Bar {}.foo();
+        ^^^^^^^^^^ note on the trait method
+        ~~~~~~~~~~ `foo` has been deprecated
+    }
+    "#;
+    check_errors(src);
+
     let src = r#"
     trait Foo {
         #[deprecated(deny, "note on the trait method")]
@@ -217,49 +262,22 @@ fn deprecated_impl_method_does_not_soften_deny_on_the_trait_method() {
         Bar {}.foo();
     }
     "#;
-    assert!(deprecation_diagnostic(src, "note on the impl method").is_error());
+    assert!(deprecation_diagnostic(src, "note on the trait method").is_error());
 }
 
 #[test]
-fn deprecated_impl_method_with_deny_is_an_error_when_the_trait_method_only_warns() {
+fn deprecated_on_inherent_method_warns_on_calls() {
     let src = r#"
-    trait Foo {
-        #[deprecated("note on the trait method")]
-        fn foo(self);
-    }
-
     struct Bar {}
 
-    impl Foo for Bar {
-        #[deprecated(deny, "note on the impl method")]
-        fn foo(self) {}
+    impl Bar {
+        #[deprecated("use something else")]
+        fn foo(_self: Self) {}
     }
 
     fn main() {
         Bar {}.foo();
-    }
-    "#;
-    assert!(deprecation_diagnostic(src, "note on the impl method").is_error());
-}
-
-#[test]
-fn deprecated_impl_method_without_note_uses_the_trait_methods_note() {
-    let src = r#"
-    trait Foo {
-        #[deprecated("note on the trait method")]
-        fn foo(self);
-    }
-
-    struct Bar {}
-
-    impl Foo for Bar {
-        #[deprecated]
-        fn foo(self) {}
-    }
-
-    fn main() {
-        Bar {}.foo();
-        ^^^^^^^^^^ note on the trait method
+        ^^^^^^^^^^ use something else
         ~~~~~~~~~~ `foo` has been deprecated
     }
     "#;

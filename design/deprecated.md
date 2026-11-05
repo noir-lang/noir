@@ -12,20 +12,22 @@ does not warn: the impl's author may have to provide it for as long as the trait
 
 Rust behaves the same way for these calls.
 
-## When the impl method is deprecated too
+## `#[deprecated]` on a trait impl method
 
-The two attributes are merged, not ranked:
+The attribute has no effect on a method in a trait impl and warns that it's useless. It is removed
+during def collection, so nothing later (calls, `nargo doc`, comptime queries) can observe it.
 
-- `deny` on either one makes the call an error.
-- The impl method's message is used, falling back to the trait method's.
+A trait impl has to provide every required method for as long as the trait requires it, so one impl
+can't meaningfully retire a method on its own, and letting it would let an impl soften a trait
+method's `deny` into a warning. Rust rejects the attribute there outright (`useless_deprecated`).
+Noir warns, so that code which has the attribute keeps compiling.
 
-Merging means a trait author's hard error holds for every impl, including one that adds a plain
-`#[deprecated]` of its own. This matters beyond `deny` as written in source, because
-`FunctionDefinition::disable` is implemented as `deprecated(deny)` on the disabled function, which
-a macro can apply to a trait method (see the `comptime_trait_method_disable` test program).
+Methods in inherent impls are ordinary functions and can be deprecated as usual.
 
-Rust rejects `#[deprecated]` on the items of a trait impl (`useless_deprecated`), so it has no
-such case. Noir accepts it and applies it to calls that resolve to that impl method.
+`FunctionDefinition::disable` is a separate path. It is implemented as `deprecated(deny)` applied
+after collection and can target a trait impl method, a trait method or a free function. A call
+errors if its callee is disabled, or if the trait method its callee implements is (see the
+`comptime_trait_method_disable` and `comptime_trait_impl_method_disable` test programs).
 
 ## `#[allow]`
 
