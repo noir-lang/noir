@@ -34,13 +34,7 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
         return None;
     };
 
-    // A call on a concrete type resolves directly to the impl method, so deprecating a trait method
-    // has to reach through the impl to warn on those calls. The impl method's own attributes come
-    // first because `FunctionDefinition::disable` can apply to it directly.
-    let (deny, note) = interner.function_attributes(&func_id).get_deprecated().or_else(|| {
-        let trait_method = interner.implemented_trait_method(&func_id)?;
-        interner.function_attributes(&trait_method).get_deprecated()
-    })?;
+    let (deny, note) = interner.function_deprecation(&func_id)?;
     let name = interner.definition_name(id).to_string();
     Some(TypeCheckError::CallDeprecated { name, deny, note, location })
 }

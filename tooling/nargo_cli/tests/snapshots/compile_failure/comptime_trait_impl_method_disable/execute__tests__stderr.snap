@@ -2,10 +2,17 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: The `#[deprecated]` attribute has no effect on a method in a trait impl
+  ┌─ src/main.nr:8:5
+  │
+8 │     #[deprecated("has no effect")]
+  │     ------------------------------ Deprecate the method on the trait instead
+  │
+
 error: foo is disabled
-   ┌─ src/main.nr:23:5
+   ┌─ src/main.nr:29:5
    │
-23 │     Bar {}.foo();
+29 │     Bar {}.foo();
    │     ---------- `foo` has been deprecated
    │
 

@@ -108,6 +108,17 @@ impl NodeInterner {
         self.get_trait(trait_id).method_ids.get(self.function_name(func)).copied()
     }
 
+    /// The deprecation that applies to `func` as (deny, message): its own, or that of the trait
+    /// method it implements. A call on a concrete type resolves directly to the impl method, so
+    /// deprecating a trait method has to reach through the impl. The impl method's own attributes
+    /// come first because `FunctionDefinition::disable` can apply to it directly.
+    pub fn function_deprecation(&self, func: &FuncId) -> Option<(bool, Option<String>)> {
+        self.function_attributes(func).get_deprecated().or_else(|| {
+            let trait_method = self.implemented_trait_method(func)?;
+            self.function_attributes(&trait_method).get_deprecated()
+        })
+    }
+
     /// Returns the visibility of the given function.
     ///
     /// The underlying `function_visibilities` map is populated during def collection,

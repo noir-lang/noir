@@ -85,3 +85,27 @@ mod methods {
     );
     nargo_doc(&dir, &["--check"]).assert().success();
 }
+
+#[test]
+fn impl_method_page_shows_deprecation_of_the_trait_method() {
+    let dir = library_crate(
+        "deprecated_trait_method",
+        "
+pub trait Foo {
+    #[deprecated(\"use something else\")]
+    fn foo(self);
+}
+
+pub struct Bar {}
+
+impl Foo for Bar {
+    fn foo(self) {}
+}
+",
+    );
+    nargo_doc(&dir, &[]).assert().success();
+
+    let page = dir.path().join("target/docs/deprecated_trait_method/struct.Bar.html");
+    let page = std::fs::read_to_string(page).unwrap();
+    assert!(page.contains("Deprecated: use something else"), "No deprecation in {page}");
+}

@@ -284,6 +284,35 @@ fn deprecated_on_inherent_method_warns_on_calls() {
     check_errors(src);
 }
 
+#[test]
+fn deprecated_on_method_in_macro_generated_trait_impl_warns_and_calls_stay_silent() {
+    let src = r#"
+    trait Foo {
+        fn foo(self);
+    }
+
+    #[generate_impl]
+    ~~~~~~~~~~~~~~~~ While running this function attribute
+    struct Bar {}
+
+    comptime fn generate_impl(_: TypeDefinition) -> Quoted {
+        quote {
+            impl Foo for Bar {
+                #[deprecated("note on the impl method")]
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ The `#[deprecated]` attribute has no effect on a method in a trait impl
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Deprecate the method on the trait instead
+                fn foo(self) {}
+            }
+        }
+    }
+
+    fn main() {
+        Bar {}.foo();
+    }
+    "#;
+    check_errors(src);
+}
+
 // These calls resolve to the trait's own function, which carries the attribute directly.
 
 #[test]
