@@ -374,6 +374,25 @@ impl<'interner> Monomorphizer<'interner> {
         self.interner.try_id_type(id).map_or(Type::Error, |typ| self.ty(typ))
     }
 
+    /// Whether the operand of an operator has a primitive type (a `Field`, an integer or a
+    /// `bool`) in the function being monomorphized.
+    ///
+    /// An operator applied to a generic operand is elaborated as a call to the operator's trait
+    /// method, because the generic body is type checked once, before its type arguments are
+    /// known. When the operand resolves to a primitive type, that call is emitted as the
+    /// primitive operator. The standard library implements every operator trait for
+    /// primitives as the primitive operator itself, and those impls cannot be overridden, so
+    /// the result is the same. Emitting the call would cost more: `a < b` becomes
+    /// `a.cmp(b) == Ordering::less()`, and `cmp` evaluates two comparisons.
+    fn is_primitive_operand(
+        &self,
+        operand: ExprId,
+        location: Location,
+    ) -> Result<bool, MonomorphizationError> {
+        let typ = Self::convert_type(&self.expr_type(operand), location)?;
+        Ok(matches!(typ, ast::Type::Field | ast::Type::Integer(..) | ast::Type::Bool))
+    }
+
     /// The type of the definition `id` as seen from the function being monomorphized.
     fn definition_type(&self, id: node_interner::DefinitionId) -> Type {
         self.interner.try_definition_type(id).map_or(Type::Error, |typ| self.ty(typ))
@@ -945,7 +964,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let rhs = self.expr(prefix.rhs)?;
                 let location = self.interner.expr_location(&expr);
 
-                if self.interner.get_selected_impl_for_expression(expr).is_some() {
+                if self.interner.get_selected_impl_for_expression(expr).is_some()
+                    && !self.is_primitive_operand(prefix.rhs, location)?
+                {
                     // If an impl was selected for this prefix operator, replace it
                     // with a method call to the appropriate trait impl method.
                     let (function_type, ret) =
@@ -979,7 +1000,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let rhs = self.expr(infix.rhs)?;
                 let operator = infix.operator.kind;
                 let location = self.interner.expr_location(&expr);
-                if self.interner.get_selected_impl_for_expression(expr).is_some() {
+                if self.interner.get_selected_impl_for_expression(expr).is_some()
+                    && !self.is_primitive_operand(infix.lhs, location)?
+                {
                     // If an impl was selected for this infix operator, replace it
                     // with a method call to the appropriate trait impl method.
                     let (function_type, ret) =
