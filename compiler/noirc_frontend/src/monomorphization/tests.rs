@@ -2339,3 +2339,110 @@ fn locals_reports_the_most_recently_monomorphized_function() {
     assert!(monomorphizer.process_next_job().unwrap(), "expected `foo` to be queued");
     assert_eq!(monomorphizer.locals().len(), 2, "expected the locals of `foo`: `a` and `b`");
 }
+
+#[test]
+fn operator_on_generic_resolved_to_primitive_is_primitive() {
+    // `a < b` and `-a` on a generic operand are elaborated as calls to `Ord::cmp` and `Neg::neg`.
+    // When the operand resolves to a primitive type they are emitted as the primitive operators,
+    // and a struct operand calls its impl.
+    let src = r#"
+    use cmp::{Ord, Ordering};
+
+    impl Ord for u8 {
+        fn cmp(self, other: u8) -> Ordering {
+            if self < other {
+                Ordering::less()
+            } else if self > other {
+                Ordering::greater()
+            } else {
+                Ordering::equal()
+            }
+        }
+    }
+
+    impl Neg for i8 {
+        fn neg(self) -> i8 {
+            -self
+        }
+    }
+
+    struct Foo {
+        a: u8,
+    }
+
+    impl Ord for Foo {
+        fn cmp(self, other: Self) -> Ordering {
+            self.a.cmp(other.a)
+        }
+    }
+
+    fn lt<T: Ord>(a: T, b: T) -> bool {
+        a < b
+    }
+
+    fn neg<T: Neg>(a: T) -> T {
+        -a
+    }
+
+    fn main(x: u8, y: u8, z: i8) -> pub (bool, i8, bool) {
+        (lt(x, y), neg(z), lt(Foo { a: x }, Foo { a: y }))
+    }
+    "#;
+
+    let program =
+        get_monomorphized_with_stdlib(src, &[stdlib_src::EQ, stdlib_src::ORD, stdlib_src::NEG])
+            .unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u8, y$l1: u8, z$l2: i8) -> pub (bool, i8, bool) {
+        (lt$f1(x$l0, y$l1), neg$f2(z$l2), lt$f3({
+            let a$l3 = x$l0;
+            (a$l3)
+        }, {
+            let a$l4 = y$l1;
+            (a$l4)
+        }))
+    }
+    fn lt$f1(a$l5: u8, b$l6: u8) -> bool {
+        (a$l5 < b$l6)
+    }
+    fn neg$f2(a$l7: i8) -> i8 {
+        (-a$l7)
+    }
+    fn lt$f3(a$l8: (u8,), b$l9: (u8,)) -> bool {
+        (cmp$f4(a$l8, b$l9).0 == 0)
+    }
+    fn cmp$f4(self$l10: (u8,), other$l11: (u8,)) -> (Field,) {
+        cmp$f5(self$l10.0, other$l11.0)
+    }
+    fn cmp$f5(self$l12: u8, other$l13: u8) -> (Field,) {
+        if (self$l12 < other$l13) {
+            less$f6()
+        } else {
+            if (self$l12 > other$l13) {
+                greater$f7()
+            } else {
+                equal$f8()
+            }
+        }
+    }
+    fn less$f6() -> (Field,) {
+        {
+            let result$l14 = 0;
+            (result$l14)
+        }
+    }
+    fn greater$f7() -> (Field,) {
+        {
+            let result$l15 = 2;
+            (result$l15)
+        }
+    }
+    fn equal$f8() -> (Field,) {
+        {
+            let result$l16 = 1;
+            (result$l16)
+        }
+    }
+    ");
+}
