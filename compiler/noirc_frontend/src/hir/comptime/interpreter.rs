@@ -1491,11 +1491,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_constrain(&mut self, constrain: &HirConstrainExpression) -> IResult<Value> {
-        match self.evaluate(constrain.0)? {
+        let condition = self.evaluate(constrain.0)?;
+        // The message is evaluated whether or not the assertion holds, after the condition,
+        // as ACIR and Brillig do, so its side effects and failures are the same in comptime code.
+        let message = constrain.2.map(|expr| self.evaluate(expr)).transpose()?;
+        match condition {
             Value::Bool(true) => Ok(Value::Unit),
             Value::Bool(false) => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);
-                let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
                 let message = message.map(|value| {
                     value.display(self.elaborator.interner, self.elaborator.files).to_string()
                 });
