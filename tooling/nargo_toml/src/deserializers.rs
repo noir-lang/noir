@@ -5,7 +5,9 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Deserializer, de::Visitor};
 
-use crate::{Config, DependencyConfig, PackageConfig, PackageMetadata, WorkspaceConfig};
+use crate::{
+    Config, DependencyConfig, GitReference, PackageConfig, PackageMetadata, WorkspaceConfig,
+};
 
 impl<'de> Deserialize<'de> for Config {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -82,7 +84,7 @@ impl<'de> Visitor<'de> for DependencyConfigMapVisitor {
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str(
-            "a dependency to be either `{ git = \"...\", tag = \"...\" }` or `{ path = \"...\" }`",
+            "a dependency to be either `{ git = \"...\", tag = \"...\" }`, `{ git = \"...\", rev = \"...\" }` or `{ path = \"...\" }`",
         )
     }
 
@@ -92,6 +94,7 @@ impl<'de> Visitor<'de> for DependencyConfigMapVisitor {
     {
         let mut git: Option<String> = None;
         let mut tag: Option<String> = None;
+        let mut rev: Option<String> = None;
         let mut directory: Option<String> = None;
         let mut path: Option<String> = None;
 
@@ -102,6 +105,9 @@ impl<'de> Visitor<'de> for DependencyConfigMapVisitor {
                 }
                 "tag" => {
                     tag = Some(map.next_value()?);
+                }
+                "rev" => {
+                    rev = Some(map.next_value()?);
                 }
                 "directory" => {
                     directory = Some(map.next_value()?);
@@ -118,10 +124,22 @@ impl<'de> Visitor<'de> for DependencyConfigMapVisitor {
 
         match (git, path) {
             (Some(git), None) => {
-                let Some(tag) = tag else {
-                    return Err(serde::de::Error::custom("Git dependencies must have a `tag` key"));
+                // A git dependency must be pinned to exactly one reference: a `tag` or a `rev`.
+                let reference = match (tag, rev) {
+                    (Some(tag), None) => GitReference::Tag(tag),
+                    (None, Some(rev)) => GitReference::Rev(rev),
+                    (Some(_), Some(_)) => {
+                        return Err(serde::de::Error::custom(
+                            "Git dependencies must have either a `tag` or a `rev` key, not both",
+                        ));
+                    }
+                    (None, None) => {
+                        return Err(serde::de::Error::custom(
+                            "Git dependencies must have a `tag` or a `rev` key",
+                        ));
+                    }
                 };
-                Ok(DependencyConfig::Git { git, tag, directory })
+                Ok(DependencyConfig::Git { git, reference, directory })
             }
             (None, Some(path)) => Ok(DependencyConfig::Path { path }),
             (Some(..), Some(..)) => Err(serde::de::Error::custom(

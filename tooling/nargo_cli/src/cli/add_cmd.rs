@@ -5,7 +5,8 @@ use nargo::constants::PKG_FILE;
 use nargo::package::CrateName;
 use nargo::workspace::Workspace;
 use nargo_toml::{
-    DependencyConfig, PackageSelection, add_dependency_to_manifest, resolve_dependency,
+    DependencyConfig, GitReference, PackageSelection, add_dependency_to_manifest,
+    resolve_dependency,
 };
 use thiserror::Error;
 use url::Url;
@@ -68,6 +69,7 @@ impl FromStr for GitUrl {
 /// written, so a dependency that cannot be found never ends up in `Nargo.toml`.
 #[derive(Debug, Clone, Args)]
 #[clap(group(ArgGroup::new("source").required(true).args(["path", "git"])))]
+#[clap(group(ArgGroup::new("git-reference").multiple(false).args(["tag", "rev"])))]
 pub(crate) struct AddCommand {
     /// Name to use for the dependency (the key under `[dependencies]`).
     /// Defaults to the package name declared in the dependency's own `Nargo.toml`.
@@ -78,12 +80,16 @@ pub(crate) struct AddCommand {
     path: Option<String>,
 
     /// URL of a git repository to depend on.
-    #[clap(long, conflicts_with = "path", requires = "tag")]
+    #[clap(long, conflicts_with = "path", requires = "git-reference")]
     git: Option<GitUrl>,
 
-    /// Git branch or tag to use (required with `--git`).
+    /// Git tag or branch of the repository to use (mutually exclusive with `--rev`).
     #[clap(long, requires = "git")]
     tag: Option<String>,
+
+    /// Git commit hash of the repository to use (mutually exclusive with `--tag`).
+    #[clap(long = "rev", requires = "git")]
+    rev: Option<String>,
 
     /// Subdirectory within the git repository that contains the package.
     #[clap(long, requires = "git")]
@@ -118,12 +124,20 @@ pub(crate) fn run(args: AddCommand, workspace: Workspace) -> Result<(), CliError
 
     let dependency = match (&args.path, &args.git) {
         (Some(path), _) => DependencyConfig::Path { path: path.clone() },
-        (None, Some(git)) => DependencyConfig::Git {
-            git: git.as_str().to_string(),
-            // `clap` guarantees `--tag` is present whenever `--git` is.
-            tag: args.tag.clone().expect("--git requires --tag"),
-            directory: args.directory.clone(),
-        },
+        (None, Some(git)) => {
+            // `clap`'s required `git-reference` group guarantees exactly one of `--tag`/`--rev`
+            // is present whenever `--git` is.
+            let reference = match (&args.tag, &args.rev) {
+                (Some(tag), None) => GitReference::Tag(tag.clone()),
+                (None, Some(rev)) => GitReference::Rev(rev.clone()),
+                _ => unreachable!("clap requires exactly one of --tag or --rev with --git"),
+            };
+            DependencyConfig::Git {
+                git: git.as_str().to_string(),
+                reference,
+                directory: args.directory.clone(),
+            }
+        }
         // `clap`'s required `source` group guarantees exactly one of `--path`/`--git`.
         (None, None) => unreachable!("clap requires either --path or --git"),
     };
@@ -142,8 +156,12 @@ pub(crate) fn run(args: AddCommand, workspace: Workspace) -> Result<(), CliError
     let location = resolved.package().root_dir.display();
     noirc_errors::println_to_stdout!("Added dependency `{name}`");
     match &dependency {
-        DependencyConfig::Git { git, tag, .. } => {
-            noirc_errors::println_to_stdout!("    source: {git} (tag {tag})");
+        DependencyConfig::Git { git, reference, .. } => {
+            let kind = match reference {
+                GitReference::Tag(_) => "tag",
+                GitReference::Rev(_) => "rev",
+            };
+            noirc_errors::println_to_stdout!("    source: {git} ({kind} {})", reference.as_str());
         }
         DependencyConfig::Path { path } => {
             noirc_errors::println_to_stdout!("    source: {path}");
@@ -191,6 +209,7 @@ mod tests {
             path: Some(path.to_string()),
             git: None,
             tag: None,
+            rev: None,
             directory: None,
             overwrite,
             package_options: PackageOptions::default(),
