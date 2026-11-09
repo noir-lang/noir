@@ -650,10 +650,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let destination_block = &dfg[destination];
         let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
 
-        for (arg, param) in arguments.iter().zip_eq(destination_block.parameters()) {
-            let arg_var = self.convert_ssa_value(*arg, dfg);
-            let arg_reg = arg_var.extract_register();
+        // Resolve every argument to a register before writing any spill slot. An argument can
+        // be a spilled parameter of the destination block itself (e.g. a loop header swapping
+        // two variables), so reloading it after an earlier store to its slot would read the
+        // new value instead of the old one.
+        let arg_regs =
+            vecmap(arguments, |arg| self.convert_ssa_value(*arg, dfg).extract_register());
 
+        for (arg_reg, param) in arg_regs.into_iter().zip_eq(destination_block.parameters()) {
             // Check if the param was eagerly spilled as a successor block
             // param. Use the permanent record (not the transient `spilled`
             // map) so ALL Jmp sites consistently write to the spill slot,
