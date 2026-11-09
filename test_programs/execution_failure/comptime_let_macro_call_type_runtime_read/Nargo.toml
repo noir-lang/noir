@@ -1,0 +1,6 @@
+[package]
+name = "comptime_let_macro_call_type_runtime_read"
+type = "bin"
+authors = [""]
+
+[dependencies]
