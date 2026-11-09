@@ -174,7 +174,7 @@ After the run, one `lcov.info` file is written per package:
 
 The output directory can be overridden with `--coverage-dir <DIR>`. The same single-vs-multi-package nesting applies relative to the chosen directory.
 
-The files use [lcov trace file format](https://ltp.sourceforge.net/coverage/lcov/geninfo.1.php) and are compatible with standard coverage tools. For in-editor highlighting, install the [Coverage Gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) VS Code extension, which automatically picks up `lcov.info` files and highlights covered (green) and uncovered (red) lines in the editor.
+The files use [lcov trace file format](https://github.com/linux-test-project/lcov/blob/master/docs/man/geninfo.rst) and are compatible with standard coverage tools. For in-editor highlighting, install the [Coverage Gutters](https://marketplace.visualstudio.com/items?itemName=ryanluker.vscode-coverage-gutters) VS Code extension, which automatically picks up `lcov.info` files and highlights covered (green) and uncovered (red) lines in the editor.
 
 ## Mocking Oracles
 
