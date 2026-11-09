@@ -44,6 +44,11 @@ let s = myStruct { myField: y };
 assert(s.myField == x, s);
 ```
 
+The message expression is evaluated every time the assertion runs, after the condition and whether
+or not the assertion holds. Any side effects in it, such as mutations, always happen, and if
+evaluating it fails (for example, it overflows or contains a failing assertion), the program fails
+even when the condition holds. This is the same in constrained, unconstrained and `comptime` code.
+
 There is also a special `static_assert` function that behaves like `assert`,
 but that runs at compile-time.
 
