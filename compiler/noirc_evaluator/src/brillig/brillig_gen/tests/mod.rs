@@ -56,6 +56,14 @@ pub(crate) fn execute_brillig_from_ssa_with_options(
     calldata: Vec<FieldElement>,
     options: &BrilligOptions,
 ) -> Vec<FieldElement> {
+    execute_bytecode(&linked_bytecode_from_ssa(src, options), calldata)
+}
+
+/// Compile SSA source to the bytecode of a fully linked entry point.
+pub(crate) fn linked_bytecode_from_ssa(
+    src: &str,
+    options: &BrilligOptions,
+) -> Vec<BrilligOpcode<FieldElement>> {
     let ssa = Ssa::from_str(src).unwrap();
     let brillig = ssa.to_brillig(options);
     let func = ssa.main();
@@ -67,8 +75,7 @@ pub(crate) fn execute_brillig_from_ssa_with_options(
             FunctionContext::ssa_type_to_parameter(&typ)
         })
         .collect();
-    let generated = gen_brillig_for(func, &arguments, &brillig, options).unwrap();
-    execute_bytecode(&generated.byte_code, calldata)
+    gen_brillig_for(func, &arguments, &brillig, options).unwrap().byte_code
 }
 
 fn execute_bytecode(
