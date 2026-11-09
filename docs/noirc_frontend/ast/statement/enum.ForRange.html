@@ -6,7 +6,7 @@
     self,
     identifier: <a class="struct" href="../struct.Ident.html" title="struct noirc_frontend::ast::Ident">Ident</a>,
     block: <a class="struct" href="../struct.Expression.html" title="struct noirc_frontend::ast::Expression">Expression</a>,
-    for_loop_location: Location,
+    for_loop_location: <a class="struct" href="../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
 ) -&gt; <a class="struct" href="../struct.Statement.html" title="struct noirc_frontend::ast::Statement">Statement</a></h4></section></summary><div class="docblock"><p>Create a ‘for’ expression taking care of desugaring a ‘for e in array’ loop
 into the following if needed:</p>
 <div class="example-wrap"><pre class="language-text"><code>{
