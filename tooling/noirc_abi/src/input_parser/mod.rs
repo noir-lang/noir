@@ -13,6 +13,27 @@ use crate::{Abi, AbiType};
 pub mod json;
 mod toml;
 
+fn check_input_keys<'a>(
+    keys: impl Iterator<Item = &'a String>,
+    abi: &Abi,
+) -> Result<(), InputParserError> {
+    let parameter_names =
+        abi.parameters.iter().map(|parameter| parameter.name.as_str()).collect::<HashSet<_>>();
+    let unexpected_keys = keys
+        .filter(|key| {
+            !(parameter_names.contains(key.as_str())
+                || abi.return_type.is_some() && key.as_str() == crate::MAIN_RETURN_NAME)
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+
+    if unexpected_keys.is_empty() {
+        Ok(())
+    } else {
+        Err(InputParserError::UnexpectedArguments(unexpected_keys))
+    }
+}
+
 /// This is what all formats eventually transform into
 /// For example, a toml file will parse into `TomlTypes`
 /// and those `TomlTypes` will be mapped to Value
