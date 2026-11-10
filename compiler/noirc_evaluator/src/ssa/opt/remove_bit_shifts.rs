@@ -16,10 +16,25 @@
 //! v2 = div v1, 8
 //! ```
 //!
-//! If the shift amount is not a constant, 2^N is computed via square&multiply,
-//! using the bits decomposition of the exponent.
+//! If the shift amount is not a constant, 2^N is read from a constant array holding
+//! `[2^0, 2^1, .., 2^(bit_size - 1)]`, indexed by the shift amount:
 //!
-//! Pseudo-code of the computation:
+//! ```ssa
+//! // this, assuming v1 and v2 are u8:
+//! v3 = shr v1, v2
+//!
+//! // is replaced with (overflow check omitted):
+//! v4 = make_array [Field 1, Field 2, Field 4, Field 8, Field 16, Field 32, Field 64, Field 128] : [Field; 8]
+//! v5 = cast v2 as u32
+//! v6 = array_get v4, index v5 -> Field
+//! v7 = cast v6 as u8
+//! v8 = div v1, v7
+//! ```
+//!
+//! Every shift by the same type within a function reads the same array, so its setup cost
+//! is paid once per function and each shift then costs a single memory read. A function with
+//! too few such shifts to recover that setup cost computes 2^N via square&multiply instead,
+//! using the bits decomposition of the exponent:
 //!
 //! ```text
 //! let mut r = 1;
@@ -48,8 +63,8 @@
 //! v5 = cast v4 as u8
 //! ```
 //!
-//! Like in the previous case, if the shift amount is not a constant it's computed
-//! via square&multiply.
+//! Like in the previous case, if the shift amount is not a constant 2^N is read from
+//! a constant array of powers of two.
 //!
 //! ## Signed shift-right
 //!
@@ -60,7 +75,11 @@
 //! ## Signed shift-left
 //!
 //! This case is similar to unsigned shift-left.
-use std::{borrow::Cow, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use acvm::{
     FieldElement,
@@ -98,6 +117,8 @@ impl Function {
             return;
         }
 
+        let table_bit_sizes = self.bit_sizes_worth_a_two_pow_table();
+
         self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
@@ -118,7 +139,7 @@ impl Function {
 
             let [old_result] = context.dfg.instruction_result(instruction_id);
 
-            let mut bitshift_context = Context { context };
+            let mut bitshift_context = Context { context, table_bit_sizes: &table_bit_sizes };
             bitshift_context.enforce_bitshift_rhs_lt_bit_size(rhs);
 
             let new_result = if operator == BinaryOp::Shl {
@@ -133,10 +154,64 @@ impl Function {
         #[cfg(debug_assertions)]
         remove_bit_shifts_post_check(self);
     }
+
+    /// Returns the exponent bit sizes for which this function computes enough powers of two from
+    /// non-constant exponents that reading them from a shared table is cheaper than computing
+    /// each one with square&multiply.
+    ///
+    /// The table costs about one gate per element to set up and then saves a near-constant
+    /// amount per read, so it pays off from a number of reads which grows with the bit size.
+    /// The minimums below are where the table first produces a smaller UltraHonk circuit for a
+    /// function shifting by that many runtime amounts.
+    fn bit_sizes_worth_a_two_pow_table(&self) -> HashSet<u32> {
+        fn min_table_reads(bit_size: u32) -> usize {
+            match bit_size {
+                ..=8 => 2,
+                16 => 3,
+                32 => 4,
+                64 => 7,
+                _ => 11,
+            }
+        }
+
+        let mut reads: HashMap<u32, usize> = HashMap::default();
+        for block in self.reachable_blocks() {
+            for instruction in self.dfg[block].instructions() {
+                let Instruction::Binary(Binary { lhs, rhs, operator }) = &self.dfg[*instruction]
+                else {
+                    continue;
+                };
+                if !matches!(operator, BinaryOp::Shl | BinaryOp::Shr)
+                    || self.dfg.is_constant(*rhs)
+                    || self.dfg.get_value_max_num_bits(*rhs) == 1
+                {
+                    continue;
+                }
+                let bit_size = self.dfg.type_of_value(*rhs).bit_size();
+                // A left shift whose result may not fit in a field computes two powers of two.
+                let max_result_bits = self.dfg.get_value_max_num_bits(*lhs) + bit_size;
+                let count = if *operator == BinaryOp::Shl
+                    && max_result_bits >= FieldElement::max_num_bits()
+                {
+                    2
+                } else {
+                    1
+                };
+                *reads.entry(bit_size).or_default() += count;
+            }
+        }
+        reads
+            .into_iter()
+            .filter(|(bit_size, count)| *count >= min_table_reads(*bit_size))
+            .map(|(bit_size, _)| bit_size)
+            .collect()
+    }
 }
 
 struct Context<'m, 'dfg, 'mapping> {
     context: &'m mut SimpleOptimizationContext<'dfg, 'mapping>,
+    /// Exponent bit sizes whose non-constant powers of two are read from a table.
+    table_bit_sizes: &'m HashSet<u32>,
 }
 
 impl Context<'_, '_, '_> {
@@ -307,8 +382,13 @@ impl Context<'_, '_, '_> {
         }
     }
 
-    /// Computes 2^exponent via square&multiply, using the bits decomposition of exponent
-    /// Pseudo-code of the computation:
+    /// Computes 2^exponent as a Field.
+    ///
+    /// A non-constant exponent indexes a constant array of the powers of two below the exponent
+    /// type's bit size when the function has enough such exponents of that bit size to recover
+    /// the array's setup cost (see `bit_sizes_worth_a_two_pow_table`). Otherwise, and for an
+    /// exponent known to be 0 or 1 (e.g. upcast from a `u1`), it is computed via square&multiply.
+    /// Pseudo-code of square&multiply:
     /// ```text
     /// let mut r = 1;
     /// let exponent_bits = to_bits(exponent);
@@ -354,6 +434,10 @@ impl Context<'_, '_, '_> {
             );
             exponent_bit_size.ilog2()
         };
+        if max_exponent_bits > 1 && self.table_bit_sizes.contains(&max_bit_size) {
+            return self.two_pow_from_table(exponent);
+        }
+
         let result_types =
             vec![Type::Array(Arc::new(vec![Type::bool()]), SemanticLength(max_exponent_bits))];
 
@@ -390,6 +474,47 @@ impl Context<'_, '_, '_> {
         );
 
         r
+    }
+
+    /// Reads 2^exponent from the constant array `[2^0, 2^1, .., 2^(bit_size - 1)]`, where `bit_size`
+    /// is the bit size of the exponent's type.
+    ///
+    /// The read fails for an exponent of `bit_size` or more, which is exactly the overflow condition
+    /// enforced by `enforce_bitshift_rhs_lt_bit_size`. That check's range constraint is then
+    /// redundant in ACIR, where the optimizer moves its message onto the read.
+    fn two_pow_from_table(&mut self, exponent: ValueId) -> ValueId {
+        let exponent_type = self.context.dfg.type_of_value(exponent).unwrap_numeric();
+        let bit_size = exponent_type.bit_size::<FieldElement>();
+
+        let two = FieldElement::from(2u32);
+        let elements = (0..bit_size)
+            .map(|i| self.field_constant(two.pow(&FieldElement::from(u128::from(i)))))
+            .collect();
+        let table_type = Type::Array(Arc::new(vec![Type::field()]), SemanticLength(bit_size));
+        let table = self
+            .context
+            .insert_instruction(
+                Instruction::MakeArray { elements, typ: table_type.clone() },
+                Some(vec![table_type]),
+            )
+            .first();
+
+        let index_type = NumericType::length_type();
+        let mut index = self.insert_cast(exponent, NumericType::unsigned(bit_size));
+        if bit_size > index_type.bit_size::<FieldElement>() {
+            // Narrowing the exponent to the index type requires it to be known to fit. The
+            // table read imposes the same bound, so this range check is free in ACIR.
+            self.context.insert_instruction(
+                Instruction::RangeCheck {
+                    value: index,
+                    max_bit_size: bit_size.ilog2(),
+                    assert_message: None,
+                },
+                None,
+            );
+        }
+        index = self.insert_cast(index, index_type);
+        self.insert_array_get(table, index, Type::field())
     }
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
@@ -1382,6 +1507,110 @@ mod tests {
         );
         let ssa = Ssa::from_str(&src).unwrap().remove_bit_shifts();
         let result = ssa.interpret(vec![lhs, rhs]);
+        let Err(InterpreterError::RangeCheckFailed { msg, .. }) = result else {
+            panic!("expected the shift amount to fail a range check, got {result:?}");
+        };
+        assert_eq!(msg.as_deref(), Some("attempt to bit-shift with overflow"));
+    }
+
+    /// SSA for a function shifting `v0` by each of its other `shifts` parameters, all of type `typ`.
+    fn ssa_with_runtime_shifts(typ: &str, op: &str, shifts: usize) -> String {
+        let params = (1..=shifts).map(|i| format!(", v{i}: {typ}")).collect::<String>();
+        let instructions = (1..=shifts)
+            .map(|i| format!("            v{} = {op} v0, v{i}\n", shifts + i))
+            .collect::<String>();
+        let returns =
+            (1..=shifts).map(|i| format!("v{}", shifts + i)).collect::<Vec<_>>().join(", ");
+        format!(
+            "
+        acir(inline) fn main f0 {{
+          b0(v0: {typ}{params}):
+{instructions}            return {returns}
+        }}
+        "
+        )
+    }
+
+    // The table of powers of two is used once a function computes enough of them to recover
+    // the table's setup cost. A `u128` left shift whose result may not fit in a field computes
+    // two powers of two, so it reaches the minimum with half as many shifts as a right shift.
+    #[test_case("u8", "shr", 1, false)]
+    #[test_case("u8", "shr", 2, true)]
+    #[test_case("u32", "shl", 3, false)]
+    #[test_case("u32", "shl", 4, true)]
+    #[test_case("u64", "shr", 6, false)]
+    #[test_case("u64", "shr", 7, true)]
+    #[test_case("u128", "shr", 10, false)]
+    #[test_case("u128", "shr", 11, true)]
+    #[test_case("u128", "shl", 5, false)]
+    #[test_case("u128", "shl", 6, true)]
+    fn uses_two_pow_table_from_minimum_number_of_runtime_shifts(
+        typ: &str,
+        op: &str,
+        shifts: usize,
+        uses_table: bool,
+    ) {
+        let ssa = Ssa::from_str(&ssa_with_runtime_shifts(typ, op, shifts)).unwrap();
+        let ssa = ssa.remove_bit_shifts().to_string();
+        assert_eq!(ssa.contains("make_array"), uses_table, "{ssa}");
+        assert_eq!(!ssa.contains("to_le_bits"), uses_table, "{ssa}");
+    }
+
+    #[test]
+    fn reads_powers_of_two_from_table() {
+        let src = ssa_with_runtime_shifts("u8", "shr", 2);
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8, v2: u8):
+            range_check v1 to 3 bits, "attempt to bit-shift with overflow"
+            v11 = make_array [Field 1, Field 2, Field 4, Field 8, Field 16, Field 32, Field 64, Field 128] : [Field; 8]
+            v12 = cast v1 as u32
+            v13 = array_get v11, index v12 -> Field
+            v14 = cast v13 as u8
+            v15 = div v0, v14
+            range_check v2 to 3 bits, "attempt to bit-shift with overflow"
+            v16 = make_array [Field 1, Field 2, Field 4, Field 8, Field 16, Field 32, Field 64, Field 128] : [Field; 8]
+            v17 = cast v2 as u32
+            v18 = array_get v16, index v17 -> Field
+            v19 = cast v18 as u8
+            v20 = div v0, v19
+            return v15, v20
+        }
+        "#);
+    }
+
+    // Shifts read from the table give the same results as before the pass up to the largest
+    // valid shift amount.
+    #[test_case("u8", 2, Value::u8(1), Value::u8(7), Value::u8(1 << 7); "u8")]
+    #[test_case("u64", 7, Value::u64(1), Value::u64(63), Value::u64(1 << 63); "u64")]
+    #[test_case("u128", 6, Value::u128(1), Value::u128(127), Value::u128(1 << 127); "u128")]
+    fn shift_read_from_table_by_one_less_than_bit_size(
+        typ: &str,
+        shifts: usize,
+        lhs: Value,
+        rhs: Value,
+        expected: Value,
+    ) {
+        let ssa = Ssa::from_str(&ssa_with_runtime_shifts(typ, "shl", shifts)).unwrap();
+        let inputs = std::iter::once(lhs).chain(std::iter::repeat_n(rhs, shifts)).collect();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.remove_bit_shifts());
+        assert!(ssa.to_string().contains("make_array"));
+        assert_eq!(result, Ok(vec![expected; shifts]));
+    }
+
+    // A shift read from the table by an amount not less than the bit size fails the overflow
+    // check, as a shift computed via square&multiply does.
+    #[test_case("u8", 2, Value::u8(1), Value::u8(8); "u8")]
+    #[test_case("u128", 6, Value::u128(1), Value::u128(128); "u128")]
+    fn shift_read_from_table_by_bit_size_fails(typ: &str, shifts: usize, lhs: Value, rhs: Value) {
+        let ssa = Ssa::from_str(&ssa_with_runtime_shifts(typ, "shl", shifts)).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert!(ssa.to_string().contains("make_array"));
+        let inputs = std::iter::once(lhs).chain(std::iter::repeat_n(rhs, shifts)).collect();
+        let result = ssa.interpret(inputs);
         let Err(InterpreterError::RangeCheckFailed { msg, .. }) = result else {
             panic!("expected the shift amount to fail a range check, got {result:?}");
         };
