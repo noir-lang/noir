@@ -1397,8 +1397,8 @@ fn no_matching_impl_for_recursive_generic_where_clause() {
     fn main() {
         let a: [[[[Field; 2]; 2]; 2]; 2] = [[[[1, 2], [3, 4]], [[5, 6], [7, 8]]], [[[1, 2], [3, 4]], [[5, 6], [7, 8]]]];
         assert(a.my_eq(a));
-               ^^^^^^^ No matching impl found for `T: MyEq`
-               ~~~~~~~ No impl for `T: MyEq`
+               ^^^^^^^ No matching impl found for `[[[Field; 2]; 2]; 2]: MyEq`
+               ~~~~~~~ No impl for `[[[Field; 2]; 2]; 2]: MyEq`
     }
 
     trait MyEq {
@@ -1723,8 +1723,8 @@ fn errors_on_where_clause_bound_without_generics_whose_impl_where_clause_fails()
     trait Other {}
     impl<T> Marker for [T; 2] where T: Other {}
     pub fn f() where [Field; 2]: Marker {}
-                                 ^^^^^^ No matching impl found for `T: Other`
-                                 ~~~~~~ No impl for `T: Other`
+                                 ^^^^^^ No matching impl found for `Field: Other`
+                                 ~~~~~~ No impl for `Field: Other`
     fn main() {}
     "#;
     check_errors(src);

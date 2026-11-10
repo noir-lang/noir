@@ -45,8 +45,8 @@ use crate::{
     },
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
-        DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplId, TraitImplKind,
-        TraitItemId, TraitLookupMode,
+        ApplicableMethods, DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplId,
+        TraitImplKind, TraitItemId, TraitLookupMode,
     },
     shared::Signedness,
 };
@@ -79,13 +79,26 @@ pub enum WildcardAllowed {
     No(WildcardDisallowedContext),
 }
 
-/// Context for positions where `impl Trait` is not allowed as a type.
-/// `impl Trait` is only meaningful in function signatures (parameters and return types).
+/// Where the type being resolved sits, as far as `impl Trait` is concerned. `impl Trait` is only
+/// meaningful as a whole function parameter or return type; parameters are desugared to generics
+/// before their types are resolved, so a whole return type is the one place it is resolved.
 ///
-/// This context is stored on the elaborator's `ItemContext` and checked in the `TraitAsType` arm of
-/// type resolution. The variant is used to produce a position-specific error message.
+/// This is stored on the elaborator's `ItemContext`, so that it propagates through recursive
+/// type resolution, and checked in the `TraitAsType` arm of type resolution.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ImplTraitPosition {
+    /// A function's whole return type: `impl Trait` is allowed. The types within it are
+    /// [`ImplTraitDisallowedContext::NestedType`].
+    ReturnType,
+    /// `impl Trait` is not allowed here; the context gives the position-specific error message.
+    Disallowed(ImplTraitDisallowedContext),
+}
+
+/// Context for positions where `impl Trait` is not allowed as a type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImplTraitDisallowedContext {
+    /// Anywhere other than a whole function parameter or return type.
+    NestedType,
     StructField,
     EnumVariant,
     Global,
@@ -240,6 +253,27 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         wildcard_allowed: WildcardAllowed,
     ) -> Type {
+        // The types within a whole return type are nested in it.
+        let impl_trait_position = self.item.impl_trait_position;
+        if impl_trait_position == ImplTraitPosition::ReturnType {
+            self.item.impl_trait_position =
+                ImplTraitPosition::Disallowed(ImplTraitDisallowedContext::NestedType);
+        }
+        let typ =
+            self.resolve_type_at_position(typ, kind, mode, wildcard_allowed, impl_trait_position);
+        self.item.impl_trait_position = impl_trait_position;
+        typ
+    }
+
+    /// [`Self::resolve_type_with_kind_inner`] for a type at `impl_trait_position`.
+    fn resolve_type_at_position(
+        &mut self,
+        typ: UnresolvedType,
+        kind: &Kind,
+        mode: PathResolutionMode,
+        wildcard_allowed: WildcardAllowed,
+        impl_trait_position: ImplTraitPosition,
+    ) -> Type {
         use crate::ast::UnresolvedTypeData::*;
 
         let location = typ.location;
@@ -285,7 +319,7 @@ impl Elaborator<'_> {
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
-                if let Some(context) = self.item.impl_trait_is_disallowed {
+                if let ImplTraitPosition::Disallowed(context) = impl_trait_position {
                     self.push_err(ResolverError::ImplTraitTypeDisallowed {
                         location: path.location,
                         context,
@@ -435,17 +469,26 @@ impl Elaborator<'_> {
     ) -> Vec<(TraitId, Type)> {
         let mut found = Vec::new();
         let mut visited = BTreeSet::new();
-        self.collect_associated_type_in_parent_traits(trait_id, name, &mut found, &mut visited);
+        let bindings = TypeBindings::default();
+        self.collect_associated_type_in_parent_traits(
+            trait_id,
+            name,
+            &bindings,
+            &mut found,
+            &mut visited,
+        );
         found
     }
 
     /// Recursively collect all (`trait_id`, type) pairs for a named associated type
     /// across a trait and its parent hierarchy. Skip traits already
-    /// visited in `visited`.
+    /// visited in `visited`. `bindings` maps the trait's `Self`, generics and associated types to
+    /// those of the trait being defined, which reaches it through its parent bounds.
     fn collect_associated_type_in_parent_traits(
         &self,
         trait_id: TraitId,
         name: &str,
+        bindings: &TypeBindings,
         found: &mut Vec<(TraitId, Type)>,
         visited: &mut BTreeSet<TraitId>,
     ) {
@@ -460,11 +503,43 @@ impl Elaborator<'_> {
             found.push((trait_id, typ));
         }
 
-        let parent_trait_ids: Vec<_> =
-            the_trait.parent_bounds().map(|bound| bound.trait_id()).collect();
-        for parent_id in parent_trait_ids {
-            self.collect_associated_type_in_parent_traits(parent_id, name, found, visited);
+        let self_type = the_trait.self_type().substitute(bindings);
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
+        for parent_bound in parent_bounds {
+            let parent_id = parent_bound.trait_id();
+            let parent = self.interner.get_trait(parent_id);
+            let bound = parent_bound.instantiate_in_declaration(bindings, parent);
+            let parent_bindings = parent.bound_bindings(&self_type, &bound.trait_generics);
+            self.collect_associated_type_in_parent_traits(
+                parent_id,
+                name,
+                &parent_bindings,
+                found,
+                visited,
+            );
+
+            // A parent bound that fixes the associated type (`trait Foo: Bar<Out = Field>`)
+            // decides it for every implementor, so it replaces the parent's own one. Two bounds
+            // fixing it to different types are reported on the trait declaration.
+            let named = bound.trait_generics.named.iter().find(|named| named.name.as_str() == name);
+            let Some(typ) = named.map(|named| named.typ.clone()) else {
+                continue;
+            };
+            let own = found.iter_mut().find(|(id, earlier)| {
+                *id == parent_id && self.is_own_associated_type(parent_id, name, earlier)
+            });
+            if let Some((_, own)) = own {
+                *own = typ;
+            }
         }
+    }
+
+    /// Whether `typ` is the trait's own associated type `name`, as
+    /// [`Self::collect_associated_type_in_parent_traits`] finds it on the trait itself.
+    fn is_own_associated_type(&self, trait_id: TraitId, name: &str, typ: &Type) -> bool {
+        let own = self.interner.get_trait(trait_id).get_associated_type(name);
+        matches!((typ, own), (Type::NamedGeneric(generic), Some(own))
+            if generic.type_var.id() == own.type_var.id())
     }
 
     /// Search for an associated type in the impls of the parent traits of `trait_bound`, as
@@ -547,11 +622,7 @@ impl Elaborator<'_> {
     /// Also searches parent traits.
     #[tracing::instrument(level = "trace", skip_all)]
     fn lookup_associated_type_on_generic(&mut self, path: &TypedPath) -> Option<Type> {
-        if !self.item.generics.has_bounds() {
-            return None;
-        }
-
-        if path.segments.len() != 2 {
+        if path.segments.len() != 2 || path.kind != PathKind::Plain {
             return None;
         }
 
@@ -580,7 +651,12 @@ impl Elaborator<'_> {
         }
 
         match found_types.len() {
-            0 => None, // Fall through to normal resolution
+            // A generic shadows any module of its name, so `T::Item` names nothing else.
+            0 => {
+                let ident = path.segments[0].ident.clone();
+                self.push_err(PathResolutionError::Unresolved(ident));
+                Some(Type::Error)
+            }
             1 => Some(found_types.remove(0).1),
             _ => {
                 // Multiple traits have this associated type - ambiguous
@@ -1013,7 +1089,7 @@ impl Elaborator<'_> {
     /// Look up a path as a generic type parameter or an associated type
     /// Returns `None` if the path doesn't match any of these.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn lookup_generic_or_associated_type(
+    pub(super) fn lookup_generic_or_associated_type(
         &mut self,
         path: &TypedPath,
         args: &GenericTypeArgs,
@@ -1490,33 +1566,6 @@ impl Elaborator<'_> {
         Some(typ.substitute(&instantiation_bindings).follow_bindings())
     }
 
-    /// This resolves `Self::some_static_method`, inside an impl block (where we don't have a concrete `self_type`)
-    /// or inside a trait default method.
-    ///
-    /// Returns the trait method, trait constraint, and whether the impl is assumed to exist by a where clause or not
-    /// E.g. `t.method()` with `where T: Foo<Bar>` in scope will return `(Foo::method, T, vec![Bar])`
-    fn resolve_trait_static_method_by_self(
-        &self,
-        path: &TypedPath,
-        trait_id: TraitId,
-    ) -> Option<TraitPathResolution> {
-        // Reached only for a plain `Self::…` prefix, so the only thing left to distinguish is the
-        // single-segment `Self::item` form (a longer `Self::A::b` is left to the bounds fallback).
-        debug_assert!(path.kind == PathKind::Plain && path.segments[0].ident.is_self_type_name());
-        if path.segments.len() != 2 {
-            return None;
-        }
-
-        let method = &path.segments[1].ident;
-        let the_trait = self.interner.get_trait(trait_id);
-        // Allow referring to trait constants via Self:: as well
-        let definition = the_trait.find_method_or_constant(method.as_str(), self.interner)?;
-        let constraint = the_trait.as_constraint(path.location);
-        let trait_method = TraitItem { definition, constraint, assumed: true };
-        let method = TraitPathResolutionMethod::TraitItem(trait_method);
-        Some(TraitPathResolution { method, item: None, errors: Vec::new() })
-    }
-
     /// Resolves the last segment of a `Trait::item` path against a prefix already resolved to a
     /// trait. The segment is either a trait static method (`Trait::method`) or an associated
     /// constant (`Trait::CONST`); returns `None` if it is neither.
@@ -1538,7 +1587,11 @@ impl Elaborator<'_> {
         let name = last_segment.ident.as_str();
         let method_func_id = the_trait.method_ids.get(name).copied();
         let associated_constant = the_trait.associated_constant_ids.get(name).copied();
-        let constraint = the_trait.as_constraint(location);
+        // `Trait::item` is `<_ as Trait<_>>::item`: the type and the trait's arguments are unknowns
+        // of this use.
+        let trait_generics = the_trait.fresh_generics(self.interner, location);
+        let trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
+        let constraint = TraitConstraint { typ: self.interner.next_type_variable(), trait_bound };
 
         let trait_resolution = if let Some(func_id) = method_func_id {
             let definition = self.interner.function_definition_id(func_id);
@@ -1551,6 +1604,9 @@ impl Elaborator<'_> {
                 errors: resolution.errors,
             })
         } else if let Some(definition) = associated_constant {
+            // A constant has no argument to tell its type, so `Trait::CONST` is the one of the
+            // trait's own `Self`, which only a default method body has.
+            let constraint = self.interner.get_trait(trait_id).as_constraint(location);
             let trait_item = TraitItem { definition, constraint, assumed: true };
             Some(TraitPathResolution {
                 method: TraitPathResolutionMethod::TraitItem(trait_item),
@@ -1566,23 +1622,40 @@ impl Elaborator<'_> {
         self.variable_from_trait_resolution_or_unresolved(location, last_segment, trait_resolution)
     }
 
-    /// Resolves `T::item` to a method or associated constant of a generic `T`, given the `T: Trait`
-    /// bounds matched in scope (and the trait/supertrait hierarchy they reach). Reports an error and
-    /// resolves to nothing identifiable when the item is ambiguous across in-scope traits.
+    /// Resolves `T::item` to a method or associated constant of a generic `T`, through
+    /// `assumed_bounds` and the `T: Trait` bounds in scope (and the trait/supertrait hierarchy they
+    /// reach), or else to a method of an impl for all types. Reports an error and resolves to
+    /// nothing identifiable when the item is ambiguous across in-scope traits.
     /// E.g. `t.method()` with `where T: Foo<Bar>` in scope returns `(Foo::method, T, vec![Bar])`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_bounded_generic_item(
         &mut self,
-        bounds: Vec<TraitConstraint>,
+        typ: Type,
+        assumed_bounds: Vec<TraitConstraint>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
         location: Location,
     ) -> Option<VariableResolution> {
+        // A prefix that names no type (`T::A` where no bound on `T` declares `A`) is already
+        // reported.
+        if matches!(typ, Type::Error) {
+            return None;
+        }
+
         let method_name = last_segment.ident.as_str();
 
+        // A turbofish on the generic itself (e.g. `T::<u32>::method`) is not allowed.
+        if let Some(turbofish) = &turbofish {
+            self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
+                item: "generic parameter".to_string(),
+                location: turbofish.location,
+            });
+        }
+
+        let in_scope = self.item.generics.bounds_on_type(&typ).cloned().collect::<Vec<_>>();
         let mut matches = Vec::new();
         let mut visited = BTreeSet::new();
-        for constraint in bounds {
+        for constraint in assumed_bounds.into_iter().chain(in_scope) {
             let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
             matches.extend(self.find_methods_or_constants_in_trait(
                 method_name,
@@ -1594,14 +1667,6 @@ impl Elaborator<'_> {
 
         let trait_resolution = if matches.len() == 1 {
             let method = matches.remove(0).0;
-
-            // A turbofish on the generic itself (e.g. `T::<u32>::method`) is not allowed.
-            if let Some(turbofish) = &turbofish {
-                self.push_err(PathResolutionError::TurbofishNotAllowedOnItem {
-                    item: "generic parameter".to_string(),
-                    location: turbofish.location,
-                });
-            }
 
             Some(TraitPathResolution { method, item: None, errors: Vec::new() })
         } else if matches.len() > 1 {
@@ -1615,7 +1680,24 @@ impl Elaborator<'_> {
                 errors,
             })
         } else {
-            None
+            // A method no bound provides may be one of an impl for all types `T`, as for a method
+            // call on the generic.
+            let has_self_arg = false;
+            let generic_methods = self.lookup_generic_methods(&typ, method_name, has_self_arg);
+            if generic_methods.is_empty() {
+                None
+            } else {
+                let prefix = None;
+                self.resolve_qualified_trait_method(
+                    &typ,
+                    generic_methods,
+                    last_segment,
+                    None,
+                    prefix,
+                    Vec::new(),
+                    location,
+                )
+            }
         };
 
         // The generic is in scope; the last segment must be a method or associated constant
@@ -1672,7 +1754,7 @@ impl Elaborator<'_> {
     /// `function_meta` directly via `Methods::method_matches`) doesn't ICE on a
     /// still-deferred meta.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn lookup_direct_method(
+    pub(crate) fn lookup_direct_method(
         &mut self,
         typ: &Type,
         method_name: &str,
@@ -1684,7 +1766,7 @@ impl Elaborator<'_> {
 
     /// Lazy-aware wrapper around [`crate::node_interner::NodeInterner::lookup_trait_methods`].
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn lookup_trait_methods(
+    pub(crate) fn lookup_trait_methods(
         &mut self,
         typ: &Type,
         method_name: &str,
@@ -1692,6 +1774,17 @@ impl Elaborator<'_> {
     ) -> Vec<(FuncId, TraitId, Type)> {
         self.resolve_method_candidate_metas(typ, method_name);
         self.interner.lookup_trait_methods(typ, method_name, has_self_arg)
+    }
+
+    /// Lazy-aware wrapper around [`crate::node_interner::NodeInterner::applicable_methods`].
+    pub(super) fn applicable_methods(
+        &mut self,
+        typ: &Type,
+        method_name: &str,
+        check_self_param: bool,
+    ) -> ApplicableMethods {
+        self.resolve_method_candidate_metas(typ, method_name);
+        self.interner.applicable_methods(typ, method_name, check_self_param)
     }
 
     /// Lazy-aware wrapper around [`crate::node_interner::NodeInterner::lookup_generic_methods`].
@@ -1702,14 +1795,17 @@ impl Elaborator<'_> {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        for func_id in self.interner.generic_method_candidate_ids(method_name) {
-            self.define_function_meta_if_undefined(func_id);
-        }
+        self.resolve_method_candidate_metas(typ, method_name);
         self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
     }
 
+    /// Defines the metas of the methods named `method_name` that a lookup on `typ` may read: those
+    /// of `typ`'s own impls and of impls for all types `T`.
     fn resolve_method_candidate_metas(&mut self, typ: &Type, method_name: &str) {
-        for func_id in self.interner.method_candidate_ids(typ, method_name) {
+        let generic = self.interner.generic_method_candidate_ids(method_name);
+        for func_id in
+            self.interner.method_candidate_ids(typ, method_name).into_iter().chain(generic)
+        {
             self.define_function_meta_if_undefined(func_id);
         }
     }
@@ -1717,10 +1813,11 @@ impl Elaborator<'_> {
     /// Resolves `Type::method` (or `Type::<..>::method`) given a prefix already resolved to a type,
     /// type alias, or primitive type.
     ///
-    /// When turbofish generics are present, uses type-directed lookup to select the correct impl
-    /// (e.g. `S::<u32, u64>::foo` picks the impl whose self type unifies with `S<u32, u64>`).
-    /// Without turbofish, returns `None` so the caller falls back to module-based lookup, which
-    /// handles `Self::method`, visibility checks, and associated constants correctly.
+    /// The last segment is an inherent method, a trait method of the type's own impls or of an
+    /// impl for all types, or else a value of the type (an enum variant or associated constant).
+    /// A turbofish selects the impl whose self type unifies with it (`S::<u32, u64>::foo`).
+    /// `Self` is the impl's own self type, and a type that is a generic parameter (through an
+    /// alias) resolves through its bounds, like `T::item`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_method_on_type_prefix(
         &mut self,
@@ -1748,13 +1845,42 @@ impl Elaborator<'_> {
             );
         };
 
-        // Kept for the value fallback below (the method-lookup branches consume `turbofish`).
+        // `Self` in an impl is the impl's own self type (`S<T>`), not the type its path names with
+        // fresh generics (`S<_>`).
+        let typ = match self.item.impl_context.self_type() {
+            Some(self_type) if is_self_prefix && turbofish.is_none() => self_type.clone(),
+            _ => typ,
+        };
+
+        // A type that is a generic parameter (through an alias, `Id::<T>`) has the items of its
+        // bounds, like `T::item`.
+        if matches!(typ.follow_bindings_shallow().as_ref(), Type::NamedGeneric(_)) {
+            // The prefix's turbofish gave the alias its arguments.
+            let assumed_bounds = Vec::new();
+            return self.resolve_bounded_generic_item(
+                typ,
+                assumed_bounds,
+                &last_segment,
+                None,
+                location,
+            );
+        }
+
+        // Kept for the fallbacks below (the method-lookup branches consume `turbofish` and
+        // `path_resolution`).
         let fallback_turbofish = turbofish.clone();
 
         let method_name = last_segment.ident.as_str();
 
         let check_self_param = false;
-        let direct_method = self.lookup_direct_method(&typ, method_name, check_self_param);
+        let methods = self.applicable_methods(&typ, method_name, check_self_param);
+        let direct_method = methods.direct.first().map(|method| method.method);
+        let trait_methods = methods.trait_methods();
+        // An inherent method that isn't visible from here leaves the call to a trait method if
+        // there is one, and otherwise stays the resolution, to report it as private.
+        let direct_method = direct_method.filter(|func_id| {
+            self.method_call_is_visible(*func_id, &typ) || trait_methods.is_empty()
+        });
 
         // Resolve inherent methods (`TypeName::method`, and `Self::method`) through this
         // type-directed lookup. Names that aren't an inherent method here (associated constants,
@@ -1763,6 +1889,7 @@ impl Elaborator<'_> {
             self.resolve_turbofish_type_method(
                 &typ,
                 direct_method,
+                trait_methods,
                 &last_segment,
                 turbofish,
                 path_resolution,
@@ -1782,10 +1909,10 @@ impl Elaborator<'_> {
         } else {
             self.resolve_qualified_trait_method(
                 &typ,
-                None,
+                trait_methods,
                 &last_segment,
                 turbofish,
-                path_resolution,
+                Some(path_resolution),
                 errors,
                 location,
             )
@@ -1794,11 +1921,21 @@ impl Elaborator<'_> {
         // The last segment isn't an inherent or qualified trait method on the type; it may still be
         // an enum variant or an associated constant accessed as `Type::CONST`, resolved directly on
         // the type (or, if the prefix was a broken type alias whose type is `Type::Error`, reported
-        // there as an unresolved member). The error is reported if it is none of these.
-        match trait_resolution {
-            Some(resolution) => self.variable_from_trait_resolution(location, resolution),
-            None => self.resolve_value_in_type(&last_segment, &typ, fallback_turbofish),
+        // there as an unresolved member). Failing that, it may be a method of an impl for all types
+        // `T` (`impl<T> Foo for T`). The value's error is reported if it is none of these.
+        if let Some(mut resolution) = trait_resolution {
+            // A `Self::method` that resolves to a method of the impl's own self type binds that
+            // impl's generics to the enclosing impl's, like an inherent `Self::method`.
+            if is_self_prefix
+                && fallback_turbofish.is_none()
+                && let Some(PathResolutionItem::Method(_, None, func_id)) = resolution.item
+            {
+                resolution.item = Some(PathResolutionItem::SelfMethod(func_id));
+            }
+            return self.variable_from_trait_resolution(location, resolution);
         }
+        let value = self.lookup_path_as_value_in_type(&last_segment, &typ, fallback_turbofish);
+        self.variable_resolution_from_value_item(value, last_segment.ident.location())
     }
 
     /// Resolves a turbofished `TypeName::<..>::method` path. Resolves to the single inherent method
@@ -1809,6 +1946,7 @@ impl Elaborator<'_> {
         &mut self,
         typ: &Type,
         direct_method: Option<FuncId>,
+        type_trait_methods: Vec<(FuncId, TraitId, Type)>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
         path_resolution: PathResolution,
@@ -1836,9 +1974,6 @@ impl Elaborator<'_> {
             ));
         }
 
-        let has_self_arg = false;
-        let type_trait_methods = self.lookup_trait_methods(typ, method_name, has_self_arg);
-
         // If no method matches the turbofish type but the name is a known method for this type
         // (just incompatible), report an error. If the name isn't a method at all (e.g. it's an
         // associated constant), return None and let the fallback handle it.
@@ -1865,10 +2000,10 @@ impl Elaborator<'_> {
 
         self.resolve_qualified_trait_method(
             typ,
-            Some(type_trait_methods),
+            type_trait_methods,
             last_segment,
             turbofish,
-            path_resolution,
+            Some(path_resolution),
             generics_errors,
             location,
         )
@@ -2010,27 +2145,26 @@ impl Elaborator<'_> {
     }
 
     /// Resolves `Type::method` to a trait method on `typ`, given the trait methods already looked up
-    /// for this type (or `None` to look them up here). Returns `None` if `method` isn't a trait method
+    /// for this type. Returns `None` if `method` isn't a trait method
     /// on `typ` at all; otherwise resolves to the single matching method, or reports an ambiguity when
     /// more than one trait in scope provides it.
     #[allow(clippy::too_many_arguments)]
     fn resolve_qualified_trait_method(
         &mut self,
         typ: &Type,
-        trait_methods: Option<Vec<(FuncId, TraitId, Type)>>,
+        trait_methods: Vec<(FuncId, TraitId, Type)>,
         last_segment: &TypedPathSegment,
         turbofish: Option<Turbofish>,
-        path_resolution: PathResolution,
+        prefix: Option<PathResolution>,
         generics_errors: Vec<CompilationError>,
         location: Location,
     ) -> Option<TraitPathResolution> {
-        let PathResolution { item: path_resolution_item, errors: path_resolution_errors } =
-            path_resolution;
+        // A generic parameter prefix (`T::method`) resolves to no item of its own.
+        let (path_resolution_item, path_resolution_errors) = match prefix {
+            Some(PathResolution { item, errors }) => (Some(item), errors),
+            None => (None, Vec::new()),
+        };
         let method_name = last_segment.ident.as_str();
-
-        let has_self_arg = false;
-        let trait_methods = trait_methods
-            .unwrap_or_else(|| self.lookup_trait_methods(typ, method_name, has_self_arg));
 
         if trait_methods.is_empty() {
             return None;
@@ -2070,15 +2204,15 @@ impl Elaborator<'_> {
             HirMethodReference::TraitItemId(HirTraitMethodReference {
                 definition,
                 trait_id,
+                ref trait_generics,
                 ..
             }) => {
                 // In this case turbofish won't be resolved again, so we can commit the errors
                 self.push_errors(generics_errors);
 
-                let trait_ = self.interner.get_trait(trait_id);
-
-                let mut constraint = trait_.as_constraint(location);
-                constraint.typ = typ.clone();
+                let trait_generics = trait_generics.clone();
+                let trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
+                let constraint = TraitConstraint { typ: typ.clone(), trait_bound };
 
                 let trait_method = TraitItem { definition, constraint, assumed: false };
                 let func_id = hir_method_reference.func_id(self.interner)?;
@@ -2117,7 +2251,7 @@ impl Elaborator<'_> {
         self.record_direct_method_reference(func_id, method_ident);
         self.push_direct_method_visibility_error(func_id, method_ident, &mut errors);
         Self::type_method_or_trait_method_func_id_resolution(
-            path_resolution_item,
+            Some(path_resolution_item),
             turbofish,
             func_id,
             errors,
@@ -2157,12 +2291,12 @@ impl Elaborator<'_> {
     }
 
     fn type_method_or_trait_method_func_id_resolution(
-        path_resolution_item: PathResolutionItem,
+        path_resolution_item: Option<PathResolutionItem>,
         turbofish: Option<Turbofish>,
         func_id: FuncId,
         errors: Vec<PathResolutionError>,
     ) -> TraitPathResolution {
-        let item = match path_resolution_item {
+        let item = path_resolution_item.map(|item| match item {
             PathResolutionItem::Type(type_id) => {
                 PathResolutionItem::Method(type_id, turbofish, func_id)
             }
@@ -2173,9 +2307,9 @@ impl Elaborator<'_> {
                 PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, func_id)
             }
             _ => unreachable!("An early return should have triggered before in this case"),
-        };
+        });
         let method = TraitPathResolutionMethod::NotATraitMethod(func_id);
-        TraitPathResolution { method, item: Some(item), errors }
+        TraitPathResolution { method, item, errors }
     }
 
     /// `Self::…` inside a trait impl. `Self` is the impl's concrete type with associated items, so
@@ -2200,8 +2334,9 @@ impl Elaborator<'_> {
         self.resolve_self_as_concrete_type(path, last_segment, turbofish)
     }
 
-    /// `Self::…` inside a trait definition. `Self` is the trait, so the last segment resolves to an
-    /// assumed constraint on the current trait, falling back to a supertrait reached through it.
+    /// `Self::…` inside a trait definition. `Self` is bounded by the trait itself, and by the
+    /// item's `where Self:` bounds, so the last segment is an item of one of those (or of a
+    /// supertrait reached through them), like `T::item` for a bounded generic `T`.
     pub(super) fn resolve_self_in_trait(
         &mut self,
         path: TypedPath,
@@ -2209,23 +2344,19 @@ impl Elaborator<'_> {
         last_segment: TypedPathSegment,
         turbofish: Option<Turbofish>,
     ) -> Option<VariableResolution> {
-        if let Some(resolution) = self.resolve_trait_static_method_by_self(&path, trait_id) {
-            return self.variable_from_trait_resolution(path.location, resolution);
+        if path.segments.len() != 2 {
+            self.push_err(PathResolutionError::Unresolved(last_segment.ident.clone()));
+            return None;
         }
-        // Fall back to a supertrait reached through the assumed `Self` bound.
-        if let Some(bounds) = self.matching_generic_bounds(&path) {
-            return self.resolve_bounded_generic_item(
-                bounds,
-                &last_segment,
-                turbofish,
-                path.location,
-            );
-        }
-        // `Self` here is the trait itself, so the last segment can only be a trait static method or
-        // associated constant (handled above); anything else names nothing. Report the last
-        // segment rather than the in-scope `Self`.
-        self.push_err(PathResolutionError::Unresolved(last_segment.ident.clone()));
-        None
+        let constraint = self.interner.get_trait(trait_id).as_constraint(path.location);
+        let typ = constraint.typ.clone();
+        self.resolve_bounded_generic_item(
+            typ,
+            vec![constraint],
+            &last_segment,
+            turbofish,
+            path.location,
+        )
     }
 
     /// Resolve `Self::method` (or `Self::AssocType::method`) by resolving the `Self` prefix as a
@@ -3334,6 +3465,7 @@ impl Elaborator<'_> {
                 method_name,
                 call_location,
                 object_location,
+                check_self_param,
             ),
             // `DefCollectorErrorKind::ReferenceInTraitImpl`: "Trait impls are not allowed on reference types"
             // References to another type should resolve to methods of their element type.
@@ -3383,9 +3515,8 @@ impl Elaborator<'_> {
         // it yet: an accessible trait method may exist that should be called instead. We keep
         // the inherent method around as a fallback so that, if no trait method resolves, the
         // caller still reports the appropriate "private" visibility error against it.
-        self.resolve_method_candidate_metas(object_type, method_name);
-        let direct_methods =
-            self.interner.lookup_direct_methods(object_type, method_name, check_self_param);
+        let methods = self.applicable_methods(object_type, method_name, check_self_param);
+        let direct_methods = vecmap(&methods.direct, |method| method.method);
 
         // Non-overlapping inherent impls (`impl S<u8>`, `impl S<u16>`) can all apply to a receiver
         // whose type is not yet known (`S<_>`). Picking one would fix the receiver's type from
@@ -3414,27 +3545,12 @@ impl Elaborator<'_> {
             return Some(HirMethodReference::FuncId(method_id));
         }
 
-        // Next lookup all matching trait methods.
-        let trait_methods = self.lookup_trait_methods(object_type, method_name, check_self_param);
-
-        // If there's at least one matching trait method we need to see if only one is in scope.
+        // Next, the trait methods, among which the traits in scope choose.
+        let trait_methods = methods.trait_methods();
         if !trait_methods.is_empty() {
             return self.return_trait_method_in_scope(
                 object_type,
                 &trait_methods,
-                method_name,
-                call_location,
-            );
-        }
-
-        // If we couldn't find any trait methods, search in
-        // impls for all types `T`, e.g. `impl<T> Foo for T`
-        let generic_methods =
-            self.lookup_generic_methods(object_type, method_name, check_self_param);
-        if !generic_methods.is_empty() {
-            return self.return_trait_method_in_scope(
-                object_type,
-                &generic_methods,
                 method_name,
                 call_location,
             );
@@ -3454,6 +3570,7 @@ impl Elaborator<'_> {
             method_name,
             call_location,
             object_location,
+            check_self_param,
         )
     }
 
@@ -3563,21 +3680,15 @@ impl Elaborator<'_> {
         method_name: &str,
         location: Location,
     ) -> HirMethodReference {
-        if let Some(func_id) = self.directly_bound_impl_method(object_type, trait_methods) {
+        // The trait's generics at this call are unknowns that type checking solves.
+        let trait_ = self.interner.get_trait(trait_id);
+        let trait_generics = trait_.fresh_generics(self.interner, location);
+        if let Some(func_id) =
+            self.impl_method_selected_at_call(object_type, trait_id, &trait_generics, trait_methods)
+        {
             return HirMethodReference::FuncId(func_id);
         }
 
-        // The trait's generics at this call are unknowns that type checking solves.
-        let trait_ = self.interner.get_trait(trait_id);
-        let fresh = |generic: &crate::ResolvedGeneric| {
-            self.interner.next_type_variable_with_kind(generic.kind().into_owned())
-        };
-        let ordered = vecmap(&trait_.generics, fresh);
-        let named = vecmap(&trait_.associated_types, |generic| NamedType {
-            name: Ident::new(generic.name.to_string(), location),
-            typ: fresh(generic),
-        });
-        let trait_generics = TraitGenerics { ordered, named };
         let definition = trait_.find_method(method_name, self.interner).unwrap();
         let assumed = false;
         HirMethodReference::TraitItemId(HirTraitMethodReference {
@@ -3588,29 +3699,42 @@ impl Elaborator<'_> {
         })
     }
 
-    /// The method a call binds directly, without its impl being determined by the trait
-    /// constraint: the single candidate, when it is a method of an impl and the impl search can
-    /// select no other impl for `object_type`.
-    ///
-    /// A default body an impl inherits shares the trait's `FuncId`, whose `Self` the trait
-    /// constraint binds. A call another impl can serve goes through the trait constraint too,
-    /// which selects that impl or reports the ambiguity.
-    fn directly_bound_impl_method(
+    /// The method of the impl the impl search selects for `object_type: trait_id<trait_generics>`
+    /// at this call, when it can already decide: the call then refers to that impl's method
+    /// directly. When it can't decide yet (a type it depends on is still unknown, an enclosing
+    /// `where` clause applies, or several impls match), the call refers to the trait's method and
+    /// a constraint decides the impl once types are known. The search binds nothing, so
+    /// `trait_generics` are those of that constraint too.
+    fn impl_method_selected_at_call(
         &self,
         object_type: &Type,
+        trait_id: TraitId,
+        trait_generics: &TraitGenerics,
         trait_methods: &[(FuncId, TraitId, Type)],
     ) -> Option<FuncId> {
-        let [(func_id, _, _)] = trait_methods else { return None };
-        let meta = self.interner.function_meta(func_id);
-        if meta.trait_id.is_some() {
+        let (impl_kind, _, _) = self
+            .interner
+            .try_lookup_trait_implementation(
+                object_type,
+                trait_id,
+                &trait_generics.ordered,
+                &trait_generics.named,
+                TraitLookupMode::Default,
+            )
+            .ok()?;
+        let (TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _)) = impl_kind
+        else {
             return None;
-        }
-        if let Some(impl_id) = meta.trait_impl
-            && self.interner.another_impl_applies(object_type, impl_id)
-        {
-            return None;
-        }
-        Some(*func_id)
+        };
+        // A method of an impl for all types `T` (`impl<T> Foo for T`) isn't bound directly: its
+        // self type `T` says nothing about `object_type`, so it is the trait constraint that binds
+        // `T` to it.
+        trait_methods.iter().find_map(|(func_id, _, impl_self_type)| {
+            let meta = self.interner.function_meta(func_id);
+            let for_all_types = matches!(impl_self_type.follow_bindings(), Type::TypeVariable(_));
+            (meta.trait_id.is_none() && meta.trait_impl == Some(impl_id) && !for_all_types)
+                .then_some(*func_id)
+        })
     }
 
     /// Assuming that we are currently elaborating a function, try to look up a method in:
@@ -3625,6 +3749,7 @@ impl Elaborator<'_> {
         method_name: &str,
         location: Location,
         object_location: Location,
+        check_self_param: bool,
     ) -> Option<HirMethodReference> {
         let Some(DependencyId::Function(func_id)) = self.item.module.current_item() else {
             // Unexpected method outside a function.
@@ -3669,8 +3794,10 @@ impl Elaborator<'_> {
             );
         }
 
+        let object_type_expanded = object_type.follow_bindings();
         for constraint in &func_trait_constraints {
-            if *object_type == constraint.typ
+            // A bound may name the type through an alias, also within it (`Option<Id<T>>: Foo`).
+            if object_type_expanded == constraint.typ.follow_bindings()
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
@@ -3685,6 +3812,21 @@ impl Elaborator<'_> {
         }
 
         let matches = self.merge_trait_method_candidates(candidates);
+
+        // The bounds' methods take precedence, like a type's inherent methods. Without one, a
+        // method of an impl for all types `T` (`impl<T> Foo for T`) can apply.
+        if matches.is_empty() {
+            let generic_methods =
+                self.lookup_generic_methods(object_type, method_name, check_self_param);
+            if !generic_methods.is_empty() {
+                return self.return_trait_method_in_scope(
+                    object_type,
+                    &generic_methods,
+                    method_name,
+                    location,
+                );
+            }
+        }
 
         self.handle_trait_method_lookup_matches(
             object_type,
@@ -4032,6 +4174,8 @@ impl Elaborator<'_> {
 
         if let Type::TraitAsType(trait_id, _, generics) = declared_return_type {
             self.use_unstable_feature(UnstableFeature::TraitAsType, last_expr_location);
+            // The body's type may be decided by the impls its own constraints select.
+            self.select_where_possible();
             if self
                 .interner
                 .lookup_trait_implementation(
@@ -4134,6 +4278,10 @@ impl Elaborator<'_> {
         bindings: &mut TypeBindings,
     ) {
         self.bind_generics_from_trait_bound(&constraint.trait_bound, bindings);
+        self.interner
+            .get_trait(constraint.trait_bound.trait_id)
+            .self_param
+            .bind(&constraint.typ, bindings);
 
         // Also bind associated types inherited from parent traits, e.g. a method returning
         // `Self::A` where `A` is defined on a parent trait rather than this one. Without this
@@ -4151,8 +4299,6 @@ impl Elaborator<'_> {
         // itself. See the doc comment for why those self-mappings are not no-ops.
         if assumed {
             let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-
-            the_trait.self_param.bind(&constraint.typ, bindings);
 
             for (param, arg) in
                 the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)

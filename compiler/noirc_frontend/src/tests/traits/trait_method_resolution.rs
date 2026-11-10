@@ -1,7 +1,7 @@
 //! Tests for trait method resolution and scope rules.
 //! Validates that trait methods are correctly resolved based on imports, handles ambiguity, and suggests missing imports.
 
-use crate::test_utils::{get_monomorphized, stdlib_src};
+use crate::test_utils::{get_monomorphized, get_program_with_stdlib_dependency, stdlib_src};
 use crate::tests::{
     assert_no_errors, check_errors, check_errors_with_stdlib, check_monomorphization_error,
 };
@@ -1411,7 +1411,8 @@ fn turbofish_path_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_a
 }
 
 #[test]
-fn method_call_selects_a_types_own_impl_over_a_blanket_impl_with_an_undecided_where_clause() {
+fn method_call_that_a_types_own_impl_and_a_blanket_impl_can_serve_needs_a_type_annotation() {
+    // `S: Into<_>` matches both impls, as in Rust (E0283).
     let src = r#"
     trait From<T> {
         fn from(input: T) -> Self;
@@ -1433,19 +1434,11 @@ fn method_call_selects_a_types_own_impl_over_a_blanket_impl_with_an_undecided_wh
 
     fn main() {
         let _ = S {}.into();
+                ^^^^^^^^^ Object type is unknown in method call
+                ~~~~~~~~~ Type must be known by this point to know which method to call
     }
     "#;
-    let program = get_monomorphized(src).unwrap();
-    insta::assert_snapshot!(program, @r"
-    fn main$f0() -> () {
-        let _$l0 = into$f1({
-            ()
-        })
-    }
-    fn into$f1(self$l1: ()) -> Field {
-        2
-    }
-    ");
+    check_errors(src);
 }
 
 #[test]
@@ -1492,7 +1485,8 @@ fn calls_select_a_types_own_impl_over_a_blanket_impl_whose_where_clause_fails() 
 }
 
 #[test]
-fn type_path_call_selects_a_types_own_impl_over_a_blanket_impl_of_another_trait() {
+fn type_path_call_of_a_method_a_types_own_impl_and_a_blanket_impl_provide_is_ambiguous() {
+    // As in Rust (E0034), and as for a method call.
     let src = r#"
     trait From<T> {
         fn from(input: T) -> Self;
@@ -1511,24 +1505,17 @@ fn type_path_call_selects_a_types_own_impl_over_a_blanket_impl_of_another_trait(
 
     fn main() -> pub Field {
         S::from(1).x
+           ^^^^ Multiple applicable items in scope
+           ~~~~ Multiple traits which provide `from` are implemented and in scope: `From`, `Parse`
     }
     "#;
-    let program = get_monomorphized(src).unwrap();
-    insta::assert_snapshot!(program, @r"
-    fn main$f0() -> pub Field {
-        from$f1(1).0
-    }
-    fn from$f1(x$l0: Field) -> (Field,) {
-        {
-            let x$l1 = x$l0;
-            (x$l1)
-        }
-    }
-    ");
+    check_errors(src);
 }
 
 #[test]
-fn method_call_selects_a_types_own_impl_over_a_blanket_impl_at_other_trait_arguments() {
+fn method_call_with_an_integer_literal_argument_selects_the_impl_of_its_default_type() {
+    // `5` can be a `u32` (W's own impl) or a `Field` (the blanket impl), so the call is decided
+    // only once the literal takes its default type, `Field`, as Rust's literals take `i32`.
     let src = r#"
     struct W { v: Field }
     trait Scale<X> {
@@ -1555,14 +1542,17 @@ fn method_call_selects_a_types_own_impl_over_a_blanket_impl_at_other_trait_argum
         };
         scale$f1(w$l2, 5)
     }
-    fn scale$f1(self$l3: (Field,), k$l4: u32) -> Field {
-        (self$l3.0 * (k$l4 as Field))
+    fn scale$f1(self$l3: (Field,), k$l4: Field) -> Field {
+        k$l4
     }
     ");
 }
 
 #[test]
-fn type_path_call_selects_a_types_own_impl_over_an_identity_blanket_impl() {
+fn type_path_call_with_an_integer_literal_argument_uses_the_impl_of_its_default_type() {
+    // `3` can be a `u8` (u64's own impl) or a `u64` (the blanket impl), so the call is decided
+    // only once the literal takes its default type, `Field`, which no impl takes (Rust reports
+    // `u64: Conv<i32>`).
     let src = r#"
     trait Conv<X> {
         fn conv(x: X) -> Self;
@@ -1576,17 +1566,11 @@ fn type_path_call_selects_a_types_own_impl_over_an_identity_blanket_impl() {
 
     fn main() -> pub u64 {
         u64::conv(3)
+        ^^^^^^^^^ No matching impl found for `u64: Conv<Field>`
+        ~~~~~~~~~ No impl for `u64: Conv<Field>`
     }
     "#;
-    let program = get_monomorphized(src).unwrap();
-    insta::assert_snapshot!(program, @r"
-    fn main$f0() -> pub u64 {
-        conv$f1(3)
-    }
-    fn conv$f1(x$l0: u8) -> u64 {
-        ((x$l0 as u64) + 100)
-    }
-    ");
+    check_errors(src);
 }
 
 #[test]
@@ -1622,4 +1606,99 @@ fn method_call_selects_a_blanket_impl_when_a_types_own_impl_has_a_failing_where_
         2
     }
     ");
+}
+
+#[test]
+fn type_path_call_selects_a_blanket_impl_when_the_type_has_no_impl_of_its_own() {
+    let src = r#"
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    impl<T> Foo for T {
+        fn value(self) -> Field { 1 }
+    }
+    struct S {}
+    struct G<T> {}
+
+    fn main() -> pub Field {
+        S::value(S {}) + G::<u8>::value(G::<u8> {})
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        (value$f1({
+            ()
+        }) + value$f2({
+            ()
+        }))
+    }
+    fn value$f1(self$l0: ()) -> Field {
+        1
+    }
+    fn value$f2(self$l1: ()) -> Field {
+        1
+    }
+    ");
+}
+
+#[test]
+fn type_path_naming_an_associated_constant_and_a_blanket_impl_method_is_rejected() {
+    // Rust reports the two items as ambiguous (E0034). The method is the one resolved here, so the
+    // path is rejected for its type.
+    let src = r#"
+    trait Foo {
+        fn VALUE(self) -> Field;
+    }
+    impl<T> Foo for T {
+        fn VALUE(self) -> Field { 1 }
+    }
+    trait Bar {
+        let VALUE: u32;
+    }
+    struct S {}
+    impl Bar for S {
+        let VALUE: u32 = 5;
+    }
+
+    fn main() -> pub u32 {
+                     ^^^ expected type u32, found type fn(S) -> Field
+                     ~~~ expected u32 because of return type
+        S::VALUE
+        ~~~~~~~~ fn(S) -> Field returned here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_in_a_global_with_a_blanket_impl_method_of_the_same_name() {
+    let src = r#"
+    trait Len { fn len(self) -> u32; }
+    impl<T> Len for T { fn len(self) -> u32 { let _ = self; 0 } }
+    struct S {}
+    impl S { fn len(self) -> u32 { let _ = self; 3 } }
+    global G: u32 = S {}.len();
+    global H: u32 = true.len();
+    fn main() { assert(G + H == 3); }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn coercion_in_a_global_with_a_blanket_impl_method_named_like_the_coercion() {
+    let stdlib_src = r#"
+    impl<T, let N: u32> [T; N] {
+        #[builtin(as_vector)]
+        pub fn as_vector(self) -> [T] {}
+    }
+    "#;
+    let root_src = r#"
+    trait Conv { fn as_vector(self) -> u32; }
+    impl<T> Conv for T { fn as_vector(self) -> u32 { let _ = self; 0 } }
+    global G: [Field] = [1, 2];
+    fn main() { let _ = G; }
+    "#;
+    let errors = get_program_with_stdlib_dependency(stdlib_src, root_src);
+    assert!(errors.is_empty(), "expected no errors, got {errors:?}");
 }

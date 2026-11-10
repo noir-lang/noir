@@ -371,12 +371,18 @@ fn desugar_generic_trait_bounds(
 /// 1. Paths without generics
 /// 2. Paths with generics
 /// 3. Everything else
+///
+/// Within each, a bound whose trait arguments name another generic's associated item
+/// (`C: Check<V::K>`) comes after the others, so that the bound declaring that item (`V: Validator`)
+/// is in scope when it is resolved.
 fn reorder_where_clause(where_clause: &mut Vec<UnresolvedTraitConstraint>) {
     let mut paths_without_generics = Vec::new();
     let mut paths_with_generics = Vec::new();
     let mut others = Vec::new();
 
-    for clause in std::mem::take(where_clause) {
+    let (plain, projecting): (Vec<_>, Vec<_>) =
+        std::mem::take(where_clause).into_iter().partition(|clause| !names_a_projection(clause));
+    for clause in plain.into_iter().chain(projecting) {
         if let UnresolvedTypeData::Named(_, generics, _) = &clause.typ.typ {
             if generics.is_empty() {
                 paths_without_generics.push(clause);
@@ -392,17 +398,27 @@ fn reorder_where_clause(where_clause: &mut Vec<UnresolvedTraitConstraint>) {
     where_clause.extend(others);
 }
 
+/// Whether the trait arguments of `clause` name an associated item through a path (`V::K`,
+/// `<V as Tr>::K`).
+fn names_a_projection(clause: &UnresolvedTraitConstraint) -> bool {
+    // The generics of an enclosing impl aren't known here, so any path of several segments counts.
+    let mut finder = ProjectionFinder::new(None);
+    clause.trait_bound.trait_generics.accept(&mut finder);
+    finder.found
+}
+
 /// Finds whether a type names an associated item through a path (`V::K`, `<V as Tr>::K`), which
 /// can only be resolved once the impl or bound providing that item is known.
 pub(crate) struct ProjectionFinder<'a> {
-    /// The generics in scope: a path is a projection only when it starts with one of them, so a
-    /// module path (`m::S`) isn't one.
-    generics: &'a [UnresolvedGeneric],
+    /// The generics in scope, when all of them are known: a path is then a projection only when
+    /// it starts with one of them. Otherwise any path of several segments is taken to be one,
+    /// a module path (`m::S`) too.
+    generics: Option<&'a [UnresolvedGeneric]>,
     pub(crate) found: bool,
 }
 
 impl<'a> ProjectionFinder<'a> {
-    pub(crate) fn new(generics: &'a [UnresolvedGeneric]) -> Self {
+    pub(crate) fn new(generics: Option<&'a [UnresolvedGeneric]>) -> Self {
         Self { generics, found: false }
     }
 }
@@ -412,8 +428,10 @@ impl Visitor for ProjectionFinder<'_> {
         let Some(head) = path.segments.first().filter(|_| path.segments.len() > 1) else {
             return;
         };
-        self.found |= self.generics.iter().any(|generic| {
-            generic.ident().ident().is_some_and(|ident| ident.as_str() == head.ident.as_str())
+        self.found |= self.generics.is_none_or(|generics| {
+            generics.iter().any(|generic| {
+                generic.ident().ident().is_some_and(|ident| ident.as_str() == head.ident.as_str())
+            })
         });
     }
 

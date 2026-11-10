@@ -106,11 +106,6 @@ impl GenericsContext {
         vecmap(&self.params, |generic| generic.type_var.clone())
     }
 
-    /// Whether any bound at all is in scope, written or implied.
-    pub(crate) fn has_bounds(&self) -> bool {
-        !self.trait_bounds.is_empty()
-    }
-
     /// Assumes `constraint` for the rest of the item.
     pub(crate) fn add_bound(&mut self, constraint: TraitConstraint) {
         self.trait_bounds.push(constraint);
@@ -136,9 +131,20 @@ impl GenericsContext {
         &'a self,
         name: &'a str,
     ) -> impl Iterator<Item = &'a TraitConstraint> {
+        // A bound may name the generic through an alias (`Id<T>: Foo`).
         self.trait_bounds.iter().filter(move |constraint| {
-            matches!(&constraint.typ, Type::NamedGeneric(generic) if generic.name.as_str() == name)
+            matches!(&*constraint.typ.follow_bindings_shallow(), Type::NamedGeneric(generic) if generic.name.as_str() == name)
         })
+    }
+
+    /// The bounds on `typ` in scope, e.g. `Mk` for `<T as Tr>::A` given `T: Tr` and
+    /// `trait Tr { type A: Mk; }`.
+    pub(crate) fn bounds_on_type<'a>(
+        &'a self,
+        typ: &'a Type,
+    ) -> impl Iterator<Item = &'a TraitConstraint> {
+        let typ = typ.follow_bindings();
+        self.trait_bounds.iter().filter(move |constraint| constraint.typ.follow_bindings() == typ)
     }
 
     /// Drops every bound on `trait_id`, for when the constraints that brought them into scope

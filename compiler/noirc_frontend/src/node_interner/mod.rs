@@ -361,6 +361,33 @@ pub enum TraitImplKind {
     Prepared(TraitImplId, Location),
 }
 
+/// The methods of one name that apply to a type (see [`NodeInterner::applicable_methods`]).
+pub(crate) struct ApplicableMethods {
+    pub(crate) direct: Vec<ImplMethod>,
+    own_trait_methods: Vec<(FuncId, TraitId, Type)>,
+    generic_trait_methods: Vec<(FuncId, TraitId, Type)>,
+}
+
+impl ApplicableMethods {
+    /// The trait methods of the type's own impls and of impls for all types `T`, which are
+    /// candidates alike.
+    pub(crate) fn trait_methods(self) -> Vec<(FuncId, TraitId, Type)> {
+        let mut trait_methods = self.own_trait_methods;
+        trait_methods.extend(self.generic_trait_methods);
+        trait_methods
+    }
+
+    /// The trait methods of impls for all types `T`. For a generic type (`T`) these are its own
+    /// impls, which [`NodeInterner::applicable_methods`] collects once, as its own.
+    fn for_all_types(self, typ: &Type) -> Vec<(FuncId, TraitId, Type)> {
+        if get_type_method_key(typ) == Some(TypeMethodKey::Generic) {
+            self.own_trait_methods
+        } else {
+            self.generic_trait_methods
+        }
+    }
+}
+
 /// When searching for a trait impl, these are the types of errors we can expect
 #[derive(Debug)]
 pub enum ImplSearchErrorKind {
@@ -898,7 +925,13 @@ impl NodeInterner {
     /// * `Err` if the function returning the `impl Trait` needs to be elaborated first
     pub fn id_type_substitute_trait_as_type(&self, def_id: DefinitionId) -> Result<Type, FuncId> {
         let typ = self.definition_type(def_id);
-        if let Type::Function(args, ret, env, unconstrained) = &typ {
+        // A generic function's type is quantified over its generics, which its body's type is
+        // written in as well.
+        let (generics, function) = match &typ {
+            Type::Forall(generics, function) => (Some(generics), function.as_ref()),
+            function => (None, function),
+        };
+        if let Type::Function(args, ret, env, unconstrained) = function {
             let def = self.definition(def_id);
             if let Type::TraitAsType(..) = ret.as_ref()
                 && let DefinitionKind::Function(func_id) = def.kind
@@ -910,7 +943,10 @@ impl NodeInterner {
                 let ret_type = self.id_type(func_body);
                 let new_type =
                     Type::Function(args.clone(), Box::new(ret_type), env.clone(), *unconstrained);
-                return Ok(new_type);
+                return Ok(match generics {
+                    Some(generics) => Type::Forall(generics.clone(), Box::new(new_type)),
+                    None => new_type,
+                });
             }
         }
         Ok(typ)
@@ -1081,10 +1117,7 @@ impl NodeInterner {
         method_name: &str,
         check_self_param: bool,
     ) -> Option<FuncId> {
-        let key = get_type_method_key(typ)?;
-
-        let methods = self.methods.get(&key).and_then(|h| h.get(method_name))?;
-        methods.find_direct_method(typ, check_self_param, self)
+        self.lookup_direct_methods(typ, method_name, check_self_param).into_iter().next()
     }
 
     /// Returns every direct (inherent) method named `method_name` that applies to `typ`.
@@ -1094,11 +1127,8 @@ impl NodeInterner {
         method_name: &str,
         check_self_param: bool,
     ) -> Vec<FuncId> {
-        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
-        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
-            return Vec::new();
-        };
-        methods.find_direct_methods(typ, check_self_param, self)
+        let direct = self.applicable_methods(typ, method_name, check_self_param).direct;
+        vecmap(direct, |method| method.method)
     }
 
     /// Returns true if any method (direct or trait impl) is registered under `method_name`
@@ -1123,12 +1153,9 @@ impl NodeInterner {
     /// path: `Foo<i32>` and `Foo<u64>` both match `Foo<_>`, but only `u8` matches `u8` even though
     /// the integers share a method key.
     pub fn matching_direct_method_types(&self, typ: &Type, method_name: &str) -> Vec<Type> {
-        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
-        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
-            return Vec::new();
-        };
         let check_self_param = false;
-        methods.matching_direct_method_types(typ, check_self_param, self)
+        let direct = self.applicable_methods(typ, method_name, check_self_param).direct;
+        vecmap(direct, |method| method.typ)
     }
 
     /// Returns the `FuncId`s of all direct (inherent) methods already registered for
@@ -1146,25 +1173,15 @@ impl NodeInterner {
     /// its own impls are exactly the impls for all types `T`.
     ///
     /// The third tuple element is the impl's self type as it was recorded when the impl was
-    /// registered (see [`Self::add_method`]). This is the concrete type the impl applies to,
-    /// not the trait's `Self` type variable — useful for callers that need to pin `Self`
-    /// for shared trait-method `FuncId`s (default methods inherited from the trait).
+    /// registered (see [`Self::add_method`]): the type the impl applies to, which is a type
+    /// variable for an impl for all types.
     pub fn lookup_trait_methods(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        let key = get_type_method_key(typ);
-        if let Some(key) = key {
-            self.methods
-                .get(&key)
-                .and_then(|h| h.get(method_name))
-                .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
-                .unwrap_or_default()
-        } else {
-            Vec::new()
-        }
+        self.applicable_methods(typ, method_name, has_self_arg).own_trait_methods
     }
 
     /// Returns every `FuncId` registered as either a direct or trait-impl method
@@ -1182,6 +1199,50 @@ impl NodeInterner {
             .map(|m| m.method)
             .chain(methods.trait_impl_methods.iter().map(|m| m.method))
             .collect()
+    }
+
+    /// The methods named `method_name` that apply to `typ`: its inherent methods, the trait
+    /// methods of its own impls, and those of impls for all types `T`. For a generic type (`T`),
+    /// its own impls are the impls for all types, so they are only its own. A method of an impl
+    /// whose where clause fails for `typ` is left out when another method applies, so that one is
+    /// chosen. When none applies, the failing methods stay candidates and the unmet bound is the
+    /// reported error.
+    ///
+    /// Reading a method's meta, this needs the metas of the candidates defined, which
+    /// `Elaborator::applicable_methods` does first.
+    pub(crate) fn applicable_methods(
+        &self,
+        typ: &Type,
+        method_name: &str,
+        check_self_param: bool,
+    ) -> ApplicableMethods {
+        let key = get_type_method_key(typ);
+        let own = key.and_then(|key| self.methods.get(&key)?.get(method_name));
+        let generic =
+            self.generic_methods(method_name).filter(|_| key != Some(TypeMethodKey::Generic));
+        let may_hold = |method: FuncId| self.method_impl_where_clause_may_hold(method, typ);
+        let (direct, failing_direct): (Vec<_>, Vec<_>) = own
+            .map_or_else(Vec::new, |own| own.find_direct_methods(typ, check_self_param, self))
+            .into_iter()
+            .partition(|method| may_hold(method.method));
+        let partition_trait_methods = |methods: Option<&Methods>| {
+            methods
+                .map_or_else(Vec::new, |methods| {
+                    methods.find_trait_methods(typ, check_self_param, self)
+                })
+                .into_iter()
+                .partition::<Vec<_>, _>(|(method, ..)| may_hold(*method))
+        };
+        let (own_trait_methods, failing_own) = partition_trait_methods(own);
+        let (generic_trait_methods, failing_generic) = partition_trait_methods(generic);
+        if direct.is_empty() && own_trait_methods.is_empty() && generic_trait_methods.is_empty() {
+            return ApplicableMethods {
+                direct: failing_direct,
+                own_trait_methods: failing_own,
+                generic_trait_methods: failing_generic,
+            };
+        }
+        ApplicableMethods { direct, own_trait_methods, generic_trait_methods }
     }
 
     /// The methods named `method_name` of impls for all types `T`, e.g. `impl<T> Foo for T`.
@@ -1213,9 +1274,7 @@ impl NodeInterner {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        self.generic_methods(method_name)
-            .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
-            .unwrap_or_default()
+        self.applicable_methods(typ, method_name, has_self_arg).for_all_types(typ)
     }
 
     /// Tags the given identifier with the selected `trait_impl` so that monomorphization

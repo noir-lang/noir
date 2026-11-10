@@ -223,6 +223,8 @@ pub enum ResolverError {
     UnreachableStatement { location: Location, break_or_continue_location: Location },
     #[error("Associated item constraints are not allowed here")]
     AssociatedItemConstraintsNotAllowedInGenerics { location: Location },
+    #[error("Parent traits fix an associated type to different types")]
+    ConflictingParentAssociatedType { item: String, types: Vec<String>, location: Location },
     #[error("Ambiguous associated type")]
     AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
     #[error("Cannot define a trait impl on associated types")]
@@ -343,6 +345,7 @@ impl ResolverError {
             | ResolverError::LowLevelFunctionOutsideOfStdlib { location }
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
+            | ResolverError::ConflictingParentAssociatedType { location, .. }
             | ResolverError::AmbiguousAssociatedType { location, .. }
             | ResolverError::TraitImplOnAssociatedType { location }
             | ResolverError::WildcardTypeDisallowed { location, .. }
@@ -1016,6 +1019,14 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
+            ResolverError::ConflictingParentAssociatedType { item, types, location } => {
+                let types = types.iter().map(|typ| format!("`{typ}`")).collect::<Vec<_>>().join(", ");
+                Diagnostic::simple_error(
+                    format!("The parent traits fix `{item}` to different types: {types}"),
+                    "No type can implement this trait".to_string(),
+                    *location,
+                )
+            }
             ResolverError::AmbiguousAssociatedType { trait_name, associated_type_name, location } => {
                 Diagnostic::simple_error(
                     "Ambiguous associated type".to_string(),
@@ -1058,6 +1069,9 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 let context = match context {
                     crate::elaborator::types::ImplTraitDisallowedContext::StructField => {
                         "struct field types"
+                    }
+                    crate::elaborator::types::ImplTraitDisallowedContext::NestedType => {
+                        "this position, only as a whole parameter or return type"
                     }
                     crate::elaborator::types::ImplTraitDisallowedContext::EnumVariant => {
                         "enum variant types"

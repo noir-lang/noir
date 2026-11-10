@@ -107,6 +107,8 @@ pub enum TypeCheckError {
     GenericCountMismatch { item: String, expected: usize, found: usize, location: Location },
     #[error("{item} has incompatible `unconstrained`")]
     UnconstrainedMismatch { item: String, expected: bool, location: Location },
+    #[error("{item} is expected to be comptime")]
+    ComptimeMismatch { item: String, location: Location },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { location: Location },
     #[error("Only unsigned integer types may be casted to Field")]
@@ -352,6 +354,7 @@ impl TypeCheckError {
             | TypeCheckError::AssertionParameterCountMismatch { location, .. }
             | TypeCheckError::GenericCountMismatch { location, .. }
             | TypeCheckError::UnconstrainedMismatch { location, .. }
+            | TypeCheckError::ComptimeMismatch { location, .. }
             | TypeCheckError::UnsupportedCast { location }
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
@@ -578,6 +581,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     format!("{item} is not expected to be unconstrained")
                 };
                 Diagnostic::simple_error(msg, String::new(), *location)
+            }
+            TypeCheckError::ComptimeMismatch { location, .. } => {
+                Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             TypeCheckError::InvalidCast { location, reason, .. } => {
                 Diagnostic::simple_error(error.to_string(), reason.clone(), *location)
