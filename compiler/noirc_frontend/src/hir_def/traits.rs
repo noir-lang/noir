@@ -42,6 +42,14 @@ pub struct NamedType {
     pub typ: Type,
 }
 
+impl NamedType {
+    /// Whether the bound this belongs to fixes the associated type (`Bar<Out = Field>`). An item
+    /// the bound leaves out (`Bar`) is a placeholder: a bare type variable.
+    pub fn is_fixed(&self) -> bool {
+        !matches!(self.typ, Type::TypeVariable(_))
+    }
+}
+
 impl std::fmt::Display for NamedType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} = {}", self.name, self.typ)
@@ -337,8 +345,29 @@ impl ParentBound {
     ) -> ResolvedTraitBound {
         let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
         for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
-            if let Type::TypeVariable(placeholder) = &declared.typ {
-                named.typ = fresh_placeholder(placeholder.kind().into_owned());
+            if !declared.is_fixed() {
+                named.typ = fresh_placeholder(declared.typ.kind().into_owned());
+            }
+        }
+        ResolvedTraitBound { trait_generics, ..self.0 }
+    }
+
+    /// The bound where the declaring trait reaches it through its parent bounds, inside that
+    /// declaration. `bindings` is as in [`ParentBound::instantiate`]. An associated item the bound
+    /// leaves out stays the parent's own (`<Self as Bar>::Out`): every implementor has one, which
+    /// the declaration may only treat as unknown.
+    pub fn instantiate_in_declaration(
+        &self,
+        bindings: &TypeBindings,
+        parent: &Trait,
+    ) -> ResolvedTraitBound {
+        let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
+        for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
+            if !declared.is_fixed()
+                && let Some(own) = parent.get_associated_type(named.name.as_str())
+            {
+                let parent_name = parent.name.as_str();
+                named.typ = own.clone().into_named_generic(Some((SELF_TYPE_NAME, parent_name)));
             }
         }
         ResolvedTraitBound { trait_generics, ..self.0 }
