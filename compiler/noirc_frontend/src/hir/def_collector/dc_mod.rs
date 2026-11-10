@@ -1620,6 +1620,19 @@ pub(crate) fn collect_trait_impl_items(
                 // to the trait's visibility.
                 impl_method.def.visibility = ItemVisibility::Private;
 
+                // Deprecation belongs to the trait method, which every impl has to provide for as
+                // long as the trait requires it, so an impl method's own attribute means nothing.
+                impl_method.def.attributes.secondary.retain(|attribute| {
+                    let is_deprecated =
+                        matches!(attribute.kind, SecondaryAttributeKind::Deprecated(..));
+                    if is_deprecated {
+                        let location = attribute.location;
+                        errors
+                            .push(DefCollectorErrorKind::DeprecatedOnTraitImplMethod { location });
+                    }
+                    !is_deprecated
+                });
+
                 let func_id = interner.push_empty_fn();
                 let location = impl_method.location();
                 interner.push_function(func_id, &impl_method.def, module, location);

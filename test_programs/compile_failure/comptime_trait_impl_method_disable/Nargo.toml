@@ -1,0 +1,6 @@
+[package]
+name = "comptime_trait_impl_method_disable"
+type = "bin"
+authors = [""]
+
+[dependencies]
