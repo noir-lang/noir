@@ -215,7 +215,7 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_expression(&mut self, expr: &Expression) -> Result<Values, RuntimeError> {
-        match expr {
+        let values = match expr {
             Expression::Ident(ident) => Ok(self.codegen_ident(ident)),
             Expression::Literal(literal) => self.codegen_literal(literal),
             Expression::Block(block) => self.codegen_block(block),
@@ -243,7 +243,14 @@ impl FunctionContext<'_> {
             Expression::Continue => self.codegen_continue(),
             Expression::Clone(expr) => self.codegen_clone(expr),
             Expression::Drop(expr) => self.codegen_drop(expr),
-        }
+        }?;
+        // A `Value::Mutable` leaf is loaded only when it is used, which can be after later
+        // expressions have stored to its cell, so every expression returns its value loaded.
+        debug_assert!(
+            values.is_evaluated(),
+            "codegen_expression returned an unloaded `Value::Mutable` for {expr}"
+        );
+        Ok(values)
     }
 
     /// Codegen any non-tuple expression so that we can unwrap the Values
@@ -277,7 +284,7 @@ impl FunctionContext<'_> {
 
     /// Codegen an identifier, automatically loading its value if it is mutable.
     fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
-        self.codegen_ident_reference(ident).map(|value| value.eval(self).into())
+        self.codegen_ident_reference(ident).eval_now(self)
     }
 
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError> {
@@ -468,7 +475,7 @@ impl FunctionContext<'_> {
                 // loaded here: the borrow is taken when it is evaluated, even if the cell is
                 // reassigned before the value is used.
                 if unary.skip {
-                    return Ok(rhs.map(|value| value.eval(self).into()));
+                    return Ok(rhs.eval_now(self));
                 }
                 let ast::Type::Reference(element_type, _) = &unary.result_type else {
                     panic!(
@@ -1372,7 +1379,7 @@ impl FunctionContext<'_> {
         {
             let references = self.codegen_ident_reference(ident);
             let field = Self::get_field(references, field_index);
-            return Ok(field.map(|value| value.eval(self).into()));
+            return Ok(field.eval_now(self));
         }
 
         let tuple = self.codegen_expression(tuple)?;
