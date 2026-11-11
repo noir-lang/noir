@@ -1,0 +1,6 @@
+[package]
+name = "field_borrow_in_tuple_evaluation_order"
+type = "bin"
+authors = [""]
+
+[dependencies]

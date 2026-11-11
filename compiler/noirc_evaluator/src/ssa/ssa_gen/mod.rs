@@ -463,9 +463,12 @@ impl FunctionContext<'_> {
             }
             UnaryOp::Reference { mutable: _ } => {
                 let rhs = self.codegen_reference(&unary.rhs)?;
-                // If skip is set then `rhs` is a member access expression which is already a reference
+                // If skip is set then `rhs` is a member access expression which is already a
+                // reference. A `Value::Mutable` leaf is a cell holding that reference, so it is
+                // loaded here: the borrow is taken when it is evaluated, even if the cell is
+                // reassigned before the value is used.
                 if unary.skip {
-                    return Ok(rhs);
+                    return Ok(rhs.map(|value| value.eval(self).into()));
                 }
                 let ast::Type::Reference(element_type, _) = &unary.result_type else {
                     panic!(

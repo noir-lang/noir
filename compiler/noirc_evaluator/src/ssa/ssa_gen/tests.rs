@@ -1386,8 +1386,8 @@ fn field_borrow_through_mutable_local_reference_is_taken_in_tuple_order() {
         store Field 10 at v2
         v4 = allocate -> &mut &mut Field
         store v0 at v4
-        store v2 at v4
         v5 = load v4 -> &mut Field
+        store v2 at v4
         store Field 5 at v5
         v7 = load v0 -> Field
         v8 = load v2 -> Field
@@ -1433,8 +1433,8 @@ fn field_borrow_through_dereference_is_taken_in_tuple_order() {
         store Field 10 at v2
         v4 = allocate -> &mut &mut Field
         store v0 at v4
-        store v2 at v4
         v5 = load v4 -> &mut Field
+        store v2 at v4
         store Field 5 at v5
         v7 = load v0 -> Field
         v8 = load v2 -> Field
