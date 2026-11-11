@@ -640,7 +640,8 @@ impl Elaborator<'_> {
         if let UnaryOp::Reference { mutable } = operator
             && mutable
         {
-            // If skip_op is set we already know we have a mutable reference
+            // If skip_op is set the borrow goes through a reference, whose mutability is
+            // checked below
             if !skip_op {
                 self.check_can_mutate(rhs, rhs_location);
             }
@@ -654,11 +655,25 @@ impl Elaborator<'_> {
         });
         let expr_id = self.intern_expr(expr, location);
 
-        // If `skip_op` is set we already know we have a mutable reference due to a member access on a mutable reference.
-        // The prefix operand type rules will return the result of a prefix operation.
-        // We do not want to check the prefix operand type rules as we will then get a type mismatch.
+        // If `skip_op` is set the rhs is a member access that already borrows the field through
+        // a reference, so the prefix operand type rules (which would add another reference) do
+        // not apply. The borrow has the requested mutability, which the reference the field was
+        // reached through must allow.
         let typ = if skip_op {
-            rhs_type
+            let UnaryOp::Reference { mutable } = operator else {
+                unreachable!("skip_op is only set for reference operators")
+            };
+            match rhs_type.follow_bindings_shallow().as_ref() {
+                Type::Reference(element, rhs_mutable) => {
+                    if mutable && !rhs_mutable {
+                        self.push_err(TypeCheckError::MutableReferenceBehindImmutableReference {
+                            location: rhs_location,
+                        });
+                    }
+                    Type::Reference(element.clone(), mutable)
+                }
+                _ => rhs_type,
+            }
         } else {
             let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
             let not_ord = false;

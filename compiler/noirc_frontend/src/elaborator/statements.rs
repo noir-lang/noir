@@ -714,7 +714,8 @@ impl Elaborator<'_> {
                         &lhs_type,
                         name,
                         field_name.location(),
-                        Some(dereference_lhs),
+                        dereference_lhs,
+                        false,
                     )
                     .unwrap_or((Type::Error, 0));
 

@@ -1,0 +1,39 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Foo {
+    x: Field,
+}
+
+struct Holder {
+    foo: &mut Foo,
+}
+
+fn main(x: Field) {
+    check(x);
+    // Safety: comment added by `nargo expand`
+    unsafe { check_unconstrained(x) };
+}
+
+unconstrained fn check_unconstrained(x: Field) {
+    check(x);
+}
+
+fn check(x: Field) {
+    let mut inner: &mut Foo = &mut Foo { x: x };
+    let outer: &mut &mut Foo = &mut inner;
+    let m: &mut Field = &mut outer.x;
+    *m = x + 1_Field;
+    let r: &Field = &outer.x;
+    assert(*r == (x + 1_Field));
+    assert(inner.x == (x + 1_Field));
+    let holder: &mut Holder = &mut Holder { foo: &mut Foo { x: x } };
+    let m: &mut Field = &mut holder.foo.x;
+    *m = x + 2_Field;
+    assert(holder.foo.x == (x + 2_Field));
+    let foo: &mut Foo = &mut Foo { x: x };
+    let r: &Field = &foo.x;
+    foo.x = x + 3_Field;
+    assert(*r == (x + 3_Field));
+}
