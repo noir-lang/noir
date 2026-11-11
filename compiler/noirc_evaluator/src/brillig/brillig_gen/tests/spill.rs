@@ -687,3 +687,97 @@ fn brillig_spill_jmpif_with_then_args_fits_full_frame_of_reloaded_live_ins() {
     );
     assert_eq!(result, vec![FieldElement::from(1007u32)]);
 }
+
+fn execute_at_eight_slots(src: &str, inputs: &[u32]) -> Vec<FieldElement> {
+    let layout = LayoutConfig::new(8, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+    execute_brillig_from_ssa_with_options(
+        src,
+        inputs.iter().map(|&input| FieldElement::from(input)).collect(),
+        &options,
+    )
+}
+
+fn field_elements(values: &[u32]) -> Vec<FieldElement> {
+    values.iter().map(|&value| FieldElement::from(value)).collect()
+}
+
+/// A self-loop `jmpif` swaps its own spilled parameters `v3` and `v4`. Making room for the
+/// predicate copy evicts both, so each must be read before its slot is overwritten.
+#[test]
+fn brillig_spill_jmpif_then_edge_swaps_own_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        jmp b1(v0, v1, u1 1, u32 0)
+      b1(v3: u32, v4: u32, v5: u1, v6: u32):
+        v8 = unchecked_add v3, v4
+        v9 = not v5
+        v10 = unchecked_add v6, v6
+        jmpif v5 then: b1(v4, v3, v9, v10), else: b2(v3, v4)
+      b2(v11: u32, v12: u32):
+        return v11, v12
+    }
+    ";
+    assert_eq!(execute_at_eight_slots(src, &[1, 2]), field_elements(&[2, 1]));
+}
+
+/// A loop latch `jmp b1(v3, v2, v6)` swaps the header's spilled parameters `v2` and `v3`:
+/// storing `v3` into `v2`'s slot must not happen before `v2` has been read from it.
+#[test]
+fn brillig_spill_jmp_swaps_spilled_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        jmp b1(v0, v1, u32 0)
+      b1(v2: u32, v3: u32, v4: u32):
+        v20 = unchecked_add v2, u32 1
+        v21 = unchecked_add v2, u32 2
+        v22 = unchecked_add v2, u32 3
+        v23 = unchecked_add v2, u32 4
+        v24 = unchecked_add v2, u32 5
+        v25 = unchecked_add v20, v21
+        v26 = unchecked_add v25, v22
+        v27 = unchecked_add v26, v23
+        v28 = unchecked_add v27, v24
+        v5 = lt v4, u32 1
+        jmpif v5 then: b2(), else: b3()
+      b2():
+        v6 = unchecked_add v4, u32 1
+        jmp b1(v3, v2, v6)
+      b3():
+        return v2, v3, v28
+    }
+    ";
+    // One swap, then exit: v28 = (2+1) + (2+2) + (2+3) + (2+4) + (2+5) = 25.
+    assert_eq!(execute_at_eight_slots(src, &[1, 2]), field_elements(&[2, 1, 25]));
+}
+
+/// A three-way rotation of spilled parameters forms a cycle of slot stores that no
+/// ordering can satisfy without a temporary.
+#[test]
+fn brillig_spill_jmp_rotates_spilled_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32):
+        jmp b1(v0, v1, v2, u32 0)
+      b1(v3: u32, v4: u32, v5: u32, v6: u32):
+        v20 = unchecked_add v3, u32 1
+        v21 = unchecked_add v3, u32 2
+        v22 = unchecked_add v3, u32 3
+        v23 = unchecked_add v3, u32 4
+        v24 = unchecked_add v20, v21
+        v25 = unchecked_add v24, v22
+        v26 = unchecked_add v25, v23
+        v7 = lt v6, u32 1
+        jmpif v7 then: b2(), else: b3()
+      b2():
+        v8 = unchecked_add v6, u32 1
+        jmp b1(v4, v5, v3, v8)
+      b3():
+        return v3, v4, v5, v26
+    }
+    ";
+    // One rotation, then exit: v26 = (2+1) + (2+2) + (2+3) + (2+4) = 18.
+    assert_eq!(execute_at_eight_slots(src, &[1, 2, 3]), field_elements(&[2, 3, 1, 18]));
+}
