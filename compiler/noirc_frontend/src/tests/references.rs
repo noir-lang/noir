@@ -409,6 +409,172 @@ fn disallows_mutable_reference_to_member_behind_immutable_reference() {
 }
 
 #[test]
+fn disallows_writing_through_immutable_reference_to_field_of_mutable_reference() {
+    // `&foo.bar` borrows the field in place, but it is still a `&` borrow: the `&mut` that
+    // `foo` grants must not carry over to it.
+    let src = r#"
+    struct Foo { bar: Bar }
+    struct Bar { x: Field }
+
+    fn main() {
+        let foo = &mut Foo { bar: Bar { x: 0 } };
+        let bar = &foo.bar;
+        bar.x = 32;
+        ^^^ `bar` is a `&` reference, so it cannot be written to
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn disallows_passing_immutable_reference_to_field_of_mutable_reference_as_mutable() {
+    let src = r#"
+    struct Foo { bar: Bar }
+    struct Bar { x: Field }
+
+    fn main() {
+        let foo = &mut Foo { bar: Bar { x: 0 } };
+        takes_mut(&foo.bar);
+                  ^^^^^^^^ Expected type &mut Bar, found type &Bar
+    }
+
+    fn takes_mut(bar: &mut Bar) {
+        bar.x = 7;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn immutable_reference_to_field_of_mutable_reference_aliases_the_field() {
+    let src = r#"
+    struct Foo { x: Field }
+
+    fn main() {
+        comptime {
+            let foo = &mut Foo { x: 1 };
+            let x: &Field = &foo.x;
+            foo.x = 5;
+            assert(*x == 5);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn disallows_mutable_reference_to_field_of_immutable_reference() {
+    let src = r#"
+    struct Foo { x: Field }
+
+    fn main() {
+        let r: &Foo = &Foo { x: 1 };
+        let m = &mut r.x;
+                     ^^^ Cannot take a mutable reference to a value behind a `&` reference
+                     ~~~ A `&` reference grants read-only access to the value behind it
+        let _ = m;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn reference_to_field_through_nested_mutable_references_is_a_single_reference() {
+    // Only the innermost reference is offset into; the outer ones are dereferenced, so the
+    // result is a reference to the field itself. Outside `comptime` the borrows are only type
+    // checked; `execution_success/reference_to_field_through_references` runs them.
+    let src = r#"
+    struct Foo { x: Field }
+
+    fn main() {
+        let mut inner = &mut Foo { x: 1 };
+        let outer = &mut inner;
+        let _m: &mut Field = &mut outer.x;
+        let _r: &Field = &outer.x;
+
+        comptime {
+            let mut inner = &mut Foo { x: 1 };
+            let outer = &mut inner;
+            let m: &mut Field = &mut outer.x;
+            *m = 2;
+            let r: &Field = &outer.x;
+            assert(*r == 2);
+            assert(inner.x == 2);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_to_field_of_reference_stored_in_struct_field() {
+    // Outside `comptime` the borrow is only type checked;
+    // `execution_success/reference_to_field_through_references` runs it.
+    let src = r#"
+    struct Foo { x: Field }
+    struct Holder { foo: &mut Foo }
+
+    fn main() {
+        let holder = &mut Holder { foo: &mut Foo { x: 1 } };
+        let _m: &mut Field = &mut holder.foo.x;
+
+        comptime {
+            let holder = &mut Holder { foo: &mut Foo { x: 1 } };
+            let m: &mut Field = &mut holder.foo.x;
+            *m = 2;
+            assert(holder.foo.x == 2);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_to_tuple_field_through_nested_mutable_references_is_a_single_reference() {
+    // Outside `comptime` the borrows are only type checked;
+    // `execution_success/reference_to_field_through_references` runs them.
+    let src = r#"
+    fn main() {
+        let mut inner = &mut (1, 2);
+        let outer = &mut inner;
+        let _m: &mut Field = &mut outer.0;
+        let _r: &Field = &outer.1;
+
+        comptime {
+            let mut inner = &mut (1, 2);
+            let outer = &mut inner;
+            let m: &mut Field = &mut outer.0;
+            *m = 3;
+            let r: &Field = &outer.1;
+            inner.1 = 4;
+            assert(inner.0 == 3);
+            assert(*r == 4);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn disallows_mutable_reference_to_field_behind_inner_immutable_reference() {
+    // The innermost reference decides mutability, as it does for assignments
+    // (see `disallows_mutating_non_mutable_reference_inside_mutable_reference`).
+    let src = r#"
+    struct Foo { x: Field }
+
+    fn main() {
+        let mut inner: &Foo = &Foo { x: 1 };
+        let outer = &mut inner;
+        let m = &mut outer.x;
+                     ^^^^^^^ Cannot take a mutable reference to a value behind a `&` reference
+                     ~~~~~~~ A `&` reference grants read-only access to the value behind it
+        let _ = m;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn allows_reborrows_that_do_not_upgrade_mutability() {
     // The two legal reborrow directions: `&mut *m` on a `&mut T` preserves mutability and
     // `&*m` downgrades it. Only the upgrade (`&mut *r` on a `&T`) is banned.

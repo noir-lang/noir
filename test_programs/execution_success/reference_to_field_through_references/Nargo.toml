@@ -1,0 +1,6 @@
+[package]
+name = "reference_to_field_through_references"
+type = "bin"
+authors = [""]
+
+[dependencies]

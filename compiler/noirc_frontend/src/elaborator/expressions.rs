@@ -610,15 +610,15 @@ impl Elaborator<'_> {
         let rhs_location = prefix.rhs.location;
         let operator = prefix.operator;
 
-        let (rhs, rhs_type, skip_op) = if matches!(operator, UnaryOp::Reference { .. }) {
+        // `skipped_borrow` holds the requested mutability of a `&`/`&mut` whose rhs is a member
+        // access that already borrows the field through a reference. Such a prefix is skipped
+        // since the expression is already a reference.
+        let (rhs, rhs_type, skipped_borrow) = if let UnaryOp::Reference { mutable } = operator {
             let (rhs, rhs_type, needs_deref) = self.elaborate_reference_expression(prefix.rhs);
-
-            // If the reference expression delayed a needed deref, we can skip the `&mut _`
-            // operation since the expression is already a reference.
-            (rhs, rhs_type, needs_deref)
+            (rhs, rhs_type, needs_deref.then_some(mutable))
         } else {
             let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
-            (rhs, rhs_type, false)
+            (rhs, rhs_type, None)
         };
 
         // Simplify `&*x` and `&mut *x` to just `x` when the reborrow preserves mutability:
@@ -637,29 +637,20 @@ impl Elaborator<'_> {
 
         let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
-        if let UnaryOp::Reference { mutable } = operator
-            && mutable
-        {
-            // If skip_op is set we already know we have a mutable reference
-            if !skip_op {
-                self.check_can_mutate(rhs, rhs_location);
-            }
-        }
-
         let expr = HirExpression::Prefix(HirPrefixExpression {
             operator,
             rhs,
             trait_method_id,
-            skip: skip_op,
+            skip: skipped_borrow.is_some(),
         });
         let expr_id = self.intern_expr(expr, location);
 
-        // If `skip_op` is set we already know we have a mutable reference due to a member access on a mutable reference.
-        // The prefix operand type rules will return the result of a prefix operation.
-        // We do not want to check the prefix operand type rules as we will then get a type mismatch.
-        let typ = if skip_op {
-            rhs_type
+        let typ = if let Some(mutable) = skipped_borrow {
+            self.field_borrow_type(rhs_type, mutable, rhs_location)
         } else {
+            if let UnaryOp::Reference { mutable: true } = operator {
+                self.check_can_mutate(rhs, rhs_location);
+            }
             let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
             let not_ord = false;
             self.handle_operand_type_rules_result(
@@ -674,6 +665,31 @@ impl Elaborator<'_> {
 
         let expr_id = self.intern_expr_type(expr_id, typ.clone());
         (expr_id, typ)
+    }
+
+    /// The type of `&field_access` or `&mut field_access` when the member access already borrows
+    /// the field through a reference, given that reference's type as `field_reference_type`.
+    ///
+    /// The borrow has the requested mutability, which the reference the field was reached
+    /// through must allow.
+    fn field_borrow_type(
+        &mut self,
+        field_reference_type: Type,
+        mutable: bool,
+        location: Location,
+    ) -> Type {
+        match field_reference_type.follow_bindings_shallow().as_ref() {
+            Type::Reference(element, reference_mutable) => {
+                if mutable && !reference_mutable {
+                    self.push_err(TypeCheckError::MutableReferenceBehindImmutableReference {
+                        location,
+                    });
+                }
+                Type::Reference(element.clone(), mutable)
+            }
+            // Otherwise the member access failed to type check and its type is `Type::Error`
+            _ => field_reference_type,
+        }
     }
 
     /// Check whether we can create a mutable reference over an expression.
