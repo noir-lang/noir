@@ -28,6 +28,11 @@ fn check(x: Field) {
     let r: &Field = &outer.x;
     assert(*r == (x + 1_Field));
     assert(inner.x == (x + 1_Field));
+    let mut inner: &mut (Field, Field) = &mut (x, x);
+    let outer: &mut &mut (Field, Field) = &mut inner;
+    let m: &mut Field = &mut outer.0;
+    *m = x + 4_Field;
+    assert(inner.0 == (x + 4_Field));
     let holder: &mut Holder = &mut Holder { foo: &mut Foo { x: x } };
     let m: &mut Field = &mut holder.foo.x;
     *m = x + 2_Field;

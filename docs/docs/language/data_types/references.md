@@ -165,13 +165,34 @@ fn main() {
     let m = &mut foo.x; // m: &mut Field
     *m = 3;
     assert_eq(foo.x, 3);
-
-    let frozen: &Foo = &Foo { x: 1 };
-    let _ = &mut frozen.x; // Error: Cannot take a mutable reference to a value behind a `&` reference
 }
 ```
 
-If the struct is behind several references, the field is borrowed through the innermost one.
+Taking a `&mut` to a field of a struct behind a `&` is an error:
+
+```rust
+struct Foo {
+    x: Field,
+}
+
+fn main() {
+    let frozen: &Foo = &Foo { x: 1 };
+    let _ = &mut frozen.x;
+}
+```
+
+```
+error: Cannot take a mutable reference to a value behind a `&` reference
+  ┌─ src/main.nr:7:18
+  │
+7 │     let _ = &mut frozen.x;
+  │                  -------- A `&` reference grants read-only access to the value behind it
+  │
+```
+
+If the struct is behind several references, the field is borrowed through the innermost one,
+and that reference alone decides whether `&mut` is allowed. With `outer: &mut &Foo`,
+`&mut outer.x` is an error, while with `outer: &&mut Foo` it is allowed.
 
 ### References to Array Elements
 

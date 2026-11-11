@@ -481,18 +481,16 @@ fn disallows_mutable_reference_to_field_of_immutable_reference() {
 #[test]
 fn reference_to_field_through_nested_mutable_references_is_a_single_reference() {
     // Only the innermost reference is offset into; the outer ones are dereferenced, so the
-    // result is a reference to the field itself.
+    // result is a reference to the field itself. Outside `comptime` the borrows are only type
+    // checked; `execution_success/reference_to_field_through_references` runs them.
     let src = r#"
     struct Foo { x: Field }
 
     fn main() {
         let mut inner = &mut Foo { x: 1 };
         let outer = &mut inner;
-        let m: &mut Field = &mut outer.x;
-        *m = 2;
-        let r: &Field = &outer.x;
-        assert(*r == 2);
-        assert(inner.x == 2);
+        let _m: &mut Field = &mut outer.x;
+        let _r: &Field = &outer.x;
 
         comptime {
             let mut inner = &mut Foo { x: 1 };
@@ -510,21 +508,47 @@ fn reference_to_field_through_nested_mutable_references_is_a_single_reference() 
 
 #[test]
 fn reference_to_field_of_reference_stored_in_struct_field() {
+    // Outside `comptime` the borrow is only type checked;
+    // `execution_success/reference_to_field_through_references` runs it.
     let src = r#"
     struct Foo { x: Field }
     struct Holder { foo: &mut Foo }
 
     fn main() {
         let holder = &mut Holder { foo: &mut Foo { x: 1 } };
-        let m: &mut Field = &mut holder.foo.x;
-        *m = 2;
-        assert(holder.foo.x == 2);
+        let _m: &mut Field = &mut holder.foo.x;
 
         comptime {
             let holder = &mut Holder { foo: &mut Foo { x: 1 } };
             let m: &mut Field = &mut holder.foo.x;
             *m = 2;
             assert(holder.foo.x == 2);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn reference_to_tuple_field_through_nested_mutable_references_is_a_single_reference() {
+    // Outside `comptime` the borrows are only type checked;
+    // `execution_success/reference_to_field_through_references` runs them.
+    let src = r#"
+    fn main() {
+        let mut inner = &mut (1, 2);
+        let outer = &mut inner;
+        let _m: &mut Field = &mut outer.0;
+        let _r: &Field = &outer.1;
+
+        comptime {
+            let mut inner = &mut (1, 2);
+            let outer = &mut inner;
+            let m: &mut Field = &mut outer.0;
+            *m = 3;
+            let r: &Field = &outer.1;
+            inner.1 = 4;
+            assert(inner.0 == 3);
+            assert(*r == 4);
         }
     }
     "#;

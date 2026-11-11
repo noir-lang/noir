@@ -26,6 +26,13 @@ fn check(x: Field) {
     assert_eq(*r, x + 1);
     assert_eq(inner.x, x + 1);
 
+    // A tuple field borrowed through two mutable references
+    let mut inner = &mut (x, x);
+    let outer = &mut inner;
+    let m: &mut Field = &mut outer.0;
+    *m = x + 4;
+    assert_eq(inner.0, x + 4);
+
     // A field of a reference stored in a struct field
     let holder = &mut Holder { foo: &mut Foo { x } };
     let m: &mut Field = &mut holder.foo.x;
