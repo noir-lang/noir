@@ -157,8 +157,9 @@ pub(crate) struct SpillRecord {
 /// Invariant: the LRU only ever holds register-resident values, so `SpillManager::lru_victim`
 /// never hands back a spilled one. It is guarded at both ends: `SpillManager::touch` (the only
 /// way a value enters) asserts the value is in a register, and every method that moves a value
-/// out of a register — the slot-recording methods (`record_spill`, `record_permanent_spill`,
-/// `ensure_permanent_spill`) and `remove_spill` — drops it from the LRU. `lru_victim` re-checks
+/// out of a register — the slot-recording methods (`record_spill`, `record_permanent_spill`),
+/// `remove_spill`, and `BrilligBlock::spill_value` when a promotion frees the register — drops
+/// it from the LRU. `lru_victim` re-checks
 /// this as a backstop, so a future spill path that forgets to remove trips immediately rather
 /// than silently dishing out a spilled value.
 #[derive(Default)]
@@ -306,7 +307,7 @@ impl SpillManager {
     }
 
     /// Remove a value from LRU tracking entirely.
-    fn remove_from_lru(&mut self, value_id: &ValueId) {
+    pub(crate) fn remove_from_lru(&mut self, value_id: &ValueId) {
         self.lru.remove(value_id);
     }
 
@@ -473,11 +474,13 @@ impl SpillManager {
         self.records.get(value_id).map(|r| r.offset)
     }
 
-    /// Promote an existing spill record to a permanent slot, dropping it from the LRU.
+    /// Promote an existing spill record to a permanent slot.
     ///
     /// The permanent slot becomes the value's authoritative copy across block boundaries. This
-    /// updates slot bookkeeping only; whether the value still occupies a register is the caller's
-    /// concern — see `BrilligBlock::spill_value`.
+    /// updates slot bookkeeping only and leaves the LRU alone: a value that still occupies a
+    /// register stays an eviction candidate, and one that is not in a register is not in the
+    /// LRU. Whether the value keeps its register is the caller's concern — a caller that frees
+    /// it must also drop it from the LRU, see `BrilligBlock::spill_value`.
     ///
     /// # Returns
     /// * `true` — a record already existed, so the value already owns a permanent slot; the
@@ -489,7 +492,6 @@ impl SpillManager {
             return false;
         };
         record.permanent = true;
-        self.remove_from_lru(value_id);
         true
     }
 }
@@ -930,12 +932,11 @@ mod tests {
         assert!(sm.has_permanent_slot(&v1));
     }
 
-    /// Promoting a reloaded permanent value back to spilled must drop it from the LRU, otherwise
-    /// a spilled value lingers as an eviction candidate. In real codegen this happens for a
-    /// JmpIf condition re-spilled by `spill_non_param_live_ins` then reloaded, with
-    /// `ensure_register_capacity` querying `lru_victim` in between.
+    /// Promoting a value that still holds a register keeps it an eviction candidate: its
+    /// register is only reclaimable through the LRU, so dropping it there would leave that
+    /// register held for the rest of the block and starve `ensure_register_capacity`.
     #[test]
-    fn ensure_permanent_spill_drops_reloaded_value_from_lru() {
+    fn ensure_permanent_spill_keeps_register_resident_value_in_lru() {
         let mut sm = SpillManager::new();
         let mut regs = MockRegisters::default();
         let v0 = Id::test_new(0);
@@ -948,8 +949,7 @@ mod tests {
         assert!(!sm.is_transient_reloaded(&v0, &regs)); // it is permanent, not transient
         assert_eq!(sm.lru_victim(&regs), Some(v0));
 
-        // ensure_permanent_spill drops it from the LRU, so it is no longer a victim.
         assert!(sm.ensure_permanent_spill(&v0));
-        assert_eq!(sm.lru_victim(&regs), None);
+        assert_eq!(sm.lru_victim(&regs), Some(v0));
     }
 }
