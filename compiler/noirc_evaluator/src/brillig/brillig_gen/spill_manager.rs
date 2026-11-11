@@ -171,9 +171,8 @@ pub(crate) struct SpillRecord {
 /// way a value enters) asserts the value is in a register, and every method that moves a value
 /// out of a register — the slot-recording methods (`record_spill`, `record_permanent_spill`,
 /// `ensure_permanent_spill` when the promotion frees the register) and `remove_spill` — drops it
-/// from the LRU. `lru_victim` re-checks
-/// this as a backstop, so a future spill path that forgets to remove trips immediately rather
-/// than silently dishing out a spilled value.
+/// from the LRU. `lru_victim` re-checks this as a backstop, so a future spill path that forgets
+/// to remove trips immediately rather than silently dishing out a spilled value.
 #[derive(Default)]
 struct Lru {
     /// Logical clock, incremented once per `touch`. Strictly increasing, so no two entries
@@ -280,11 +279,7 @@ impl SpillManager {
     }
 
     /// Whether a value was transiently spilled and has since been reloaded into a register.
-    pub(crate) fn is_transient_reloaded(
-        &self,
-        value_id: &ValueId,
-        registers: &impl RegisterState,
-    ) -> bool {
+    fn is_transient_reloaded(&self, value_id: &ValueId, registers: &impl RegisterState) -> bool {
         self.has_transient_slot(value_id) && registers.is_in_register(value_id)
     }
 
@@ -933,14 +928,14 @@ mod tests {
         // Case 1: No record
         assert_eq!(sm.ensure_permanent_spill(&v3, &regs), Promotion::NoRecord);
 
-        // Case 2: Already permanent -> returns true, stays permanent
+        // Case 2: Already permanent -> stays permanent
         let off0 = sm.allocate_spill_offset();
         sm.record_permanent_spill(v0, off0, test_var(0));
         assert!(sm.has_permanent_slot(&v0));
         assert_eq!(sm.ensure_permanent_spill(&v0, &regs), Promotion::KeepsRegister);
         assert!(sm.has_permanent_slot(&v0));
 
-        // Case 3: Transient -> returns true, promoted to permanent
+        // Case 3: Transient -> promoted to permanent
         let off1 = sm.allocate_spill_offset();
         sm.record_spill(v1, off1, test_var(1), &regs);
         assert!(!sm.has_permanent_slot(&v1));

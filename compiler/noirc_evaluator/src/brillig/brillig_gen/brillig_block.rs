@@ -672,9 +672,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
         }
 
-        // Param was spilled — write arg directly to param's spill slot.
-        // Guard the store with `condition` for JmpIf then-args so an
-        // else-taken branch leaves the slot intact.
         self.codegen_param_slot_stores(dfg, slot_stores, condition);
 
         let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
@@ -759,9 +756,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let mut ready: VecDeque<usize> =
             (0..stores.len()).filter(|&i| !is_blocked(&readers, &stores[i].param)).collect();
         let mut remaining = stores.len();
-        // Cycle-breaking copies; `Allocated` frees each register when the vector is dropped,
-        // after the last store has read it.
-        let mut copies = Vec::new();
+        // The current cycle-breaking copy. When every pending store is blocked, each pending
+        // parameter is read by exactly one pending store, so the pending stores form disjoint
+        // cycles; the ready loop then emits a broken cycle completely, including the copy's only
+        // reader, before the next break. One copy at a time is therefore enough.
+        let mut copy: Option<Allocated<MemoryAddress, Registers>> = None;
 
         while remaining > 0 {
             while let Some(index) = ready.pop_front() {
@@ -799,16 +798,19 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             // Every pending store is blocked by another pending store reading its parameter.
             let blocked = pending.iter().position(Option::is_some).expect("a store is pending");
             let param = stores[blocked].param;
+            // Release the previous cycle's copy before taking room for this one.
+            drop(copy.take());
+            // One register for a possible reload of `param`, one for the copy.
+            self.ensure_register_capacity(2);
             let value = self.convert_ssa_value(param, dfg).extract_register();
-            self.ensure_register_capacity(1);
-            let copy = self.brillig_context.allocate_register();
-            self.brillig_context.mov_instruction(*copy, value);
+            let new_copy = self.brillig_context.allocate_register();
+            self.brillig_context.mov_instruction(*new_copy, value);
             for reader in readers.remove(&param).unwrap_or_default() {
                 if let Some((source, _)) = &mut pending[reader] {
-                    *source = Source::Register(*copy);
+                    *source = Source::Register(*new_copy);
                 }
             }
-            copies.push(copy);
+            copy = Some(new_copy);
             ready.push_back(blocked);
         }
     }
