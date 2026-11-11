@@ -1359,6 +1359,99 @@ fn mutable_tuple_self_assign_loads_before_stores() {
     ");
 }
 
+/// `&mut r.x` borrows the field of the struct `r` points to when the borrow is evaluated, so a
+/// later tuple element that repoints `r` must not change which field was borrowed.
+#[test]
+fn field_borrow_through_mutable_local_reference_is_taken_in_tuple_order() {
+    let src = "
+    struct Foo { x: Field }
+    unconstrained fn main() -> pub (Field, Field) {
+        let mut a = Foo { x: 1 };
+        let mut b = Foo { x: 10 };
+        let mut r = &mut a;
+        let t = (&mut r.x, { r = &mut b; 0 });
+        *t.0 = 5;
+        (a.x, b.x)
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    let results = ssa.interpret(Vec::new()).unwrap();
+
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut Field
+        store Field 1 at v0
+        v2 = allocate -> &mut Field
+        store Field 10 at v2
+        v4 = allocate -> &mut &mut Field
+        store v0 at v4
+        v5 = load v4 -> &mut Field
+        store v2 at v4
+        store Field 5 at v5
+        v7 = load v0 -> Field
+        v8 = load v2 -> Field
+        return v7, v8
+    }
+    ");
+
+    assert_eq!(
+        results,
+        vec![
+            InterpreterValue::field(FieldElement::from(5u128)),
+            InterpreterValue::field(FieldElement::from(10u128))
+        ],
+        "the write must land in `a`, which `r` pointed to when `&mut r.x` was evaluated"
+    );
+}
+
+/// Same as `field_borrow_through_mutable_local_reference_is_taken_in_tuple_order`, with the
+/// field reached through an explicit dereference of a reference to a reference.
+#[test]
+fn field_borrow_through_dereference_is_taken_in_tuple_order() {
+    let src = "
+    struct Foo { x: Field }
+    unconstrained fn main() -> pub (Field, Field) {
+        let mut a = Foo { x: 1 };
+        let mut b = Foo { x: 10 };
+        let mut inner = &mut a;
+        let outer = &mut inner;
+        let t = (&mut (*outer).x, { *outer = &mut b; 0 });
+        *t.0 = 5;
+        (a.x, b.x)
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    let results = ssa.interpret(Vec::new()).unwrap();
+
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0():
+        v0 = allocate -> &mut Field
+        store Field 1 at v0
+        v2 = allocate -> &mut Field
+        store Field 10 at v2
+        v4 = allocate -> &mut &mut Field
+        store v0 at v4
+        v5 = load v4 -> &mut Field
+        store v2 at v4
+        store Field 5 at v5
+        v7 = load v0 -> Field
+        v8 = load v2 -> Field
+        return v7, v8
+    }
+    ");
+
+    assert_eq!(
+        results,
+        vec![
+            InterpreterValue::field(FieldElement::from(5u128)),
+            InterpreterValue::field(FieldElement::from(10u128))
+        ],
+        "the write must land in `a`, which `*outer` was when `&mut (*outer).x` was evaluated"
+    );
+}
+
 /// Soundness tripwire for noir-claude issue #754.
 ///
 /// An enum's tag is lowered to an unconstrained `Field` and `codegen_match` skips the final
