@@ -590,8 +590,28 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // predecessor's terminator.
                 self.spill_non_param_live_ins(*then_destination, dfg);
                 self.spill_non_param_live_ins(*else_destination, dfg);
-                let condition = self.convert_ssa_single_addr_value(*condition, dfg);
-                self.jmpif_to_then_block(dfg, condition, *then_destination, then_arguments);
+                // The then-edge reads the condition repeatedly: as the guard of every
+                // conditional spill store and conditional move, and finally in `JumpIf`.
+                // The condition's own register is not safe across those reads: a then-move
+                // targets it when the condition is a parameter of the then-destination, and a
+                // then-argument reload can evict it and hand its register to the reloaded value.
+                // So the then-edge is guarded by a private copy instead, which is neither an SSA
+                // value (the spill LRU cannot evict it) nor a block parameter (no move targets it).
+                // An edge without arguments reads the condition only once, in `JumpIf`.
+                // `predicate_copy` keeps the copy allocated until `JumpIf` has been emitted.
+                let mut predicate_copy = None;
+                let predicate = if then_arguments.is_empty() {
+                    self.convert_ssa_single_addr_value(*condition, dfg).address
+                } else {
+                    // One register for a possible reload of the condition, one for the copy.
+                    self.ensure_register_capacity(2);
+                    let condition = self.convert_ssa_single_addr_value(*condition, dfg);
+                    let copy = predicate_copy.insert(self.brillig_context.allocate_register());
+                    self.brillig_context.mov_instruction(**copy, condition.address);
+                    **copy
+                };
+                self.jmpif_to_then_block(dfg, predicate, *then_destination, then_arguments);
+                drop(predicate_copy);
                 self.jmp(dfg, *else_destination, else_arguments);
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
@@ -724,22 +744,29 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// arguments can be moved unconditionally. The same applies to spill-slot writes for
     /// then-arguments whose destination param was eagerly spilled — those writes are guarded
     /// by `condition` inside [`Self::jmp_setup`].
+    ///
+    /// `condition` is read after every move and spill reload, so it must be a register
+    /// that holds no SSA value: neither a move nor a spill eviction may reuse it.
     fn jmpif_to_then_block(
         &mut self,
         dfg: &DataFlowGraph,
-        condition: SingleAddrVariable,
+        condition: MemoryAddress,
         then_destination: BasicBlockId,
         then_arguments: &[ValueId],
     ) {
-        let moves = self.jmp_setup(dfg, then_destination, then_arguments, Some(condition.address));
+        let moves = self.jmp_setup(dfg, then_destination, then_arguments, Some(condition));
         for (src, dst) in &moves {
+            assert_ne!(
+                *dst, condition,
+                "ICE: JmpIf then-argument move would overwrite the branch condition register"
+            );
             // The else_address is the same as the destination here to avoid modification if the
             // condition is false.
-            self.brillig_context.conditional_move_instruction(condition.address, *src, *dst, *dst);
+            self.brillig_context.conditional_move_instruction(condition, *src, *dst, *dst);
         }
 
         self.brillig_context.jump_if_instruction(
-            condition.address,
+            condition,
             self.create_block_label_for_current_function(then_destination),
         );
     }

@@ -1,0 +1,31 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: bool, y: u32) {
+    // Safety: comment added by `nargo expand`
+    let result: u32 = unsafe { run(x, y) };
+    assert(result == 106_u32);
+}
+
+unconstrained fn run(x: bool, y: u32) -> u32 {
+    let mut flag: bool = x;
+    let mut n: u32 = 0_u32;
+    step(&mut flag, &mut n, y);
+    n
+}
+
+unconstrained fn step(flag: &mut bool, n: &mut u32, y: u32) {
+    loop {
+        let old: bool = *flag;
+        *flag = *n < y;
+        *n = *n + 1_u32;
+        if *n > 20_u32 { break; };
+        while !old {
+            *n = *n + 100_u32;
+            if *n > y {
+                break;
+            }
+        }
+    }
+}

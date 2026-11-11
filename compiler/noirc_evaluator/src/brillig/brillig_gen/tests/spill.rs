@@ -577,3 +577,82 @@ fn spilling_with_minimum_scratch_space_compiles() {
     let brillig = ssa_to_brillig_artifacts_with_options(SPILLING_SRC, &options);
     assert!(!brillig.ssa_function_to_brillig[&Id::test_new(0)].byte_code.is_empty());
 }
+
+/// The `JmpIf` condition `v2` is a parameter of its own then-destination `b1`, and
+/// the then-edge passes it a new value. The conditional move into `v2`'s register
+/// must not change the predicate used by the remaining then-moves and the `JumpIf`.
+#[test]
+fn brillig_jmpif_then_move_does_not_overwrite_condition() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u1, v1: u32):
+        jmp b1(v0, v1)
+      b1(v2: u1, v3: u32):
+        v4 = unchecked_add v3, u32 10
+        v5 = unchecked_add v3, u32 1
+        v6 = not v2
+        jmpif v2 then: b1(v6, v5), else: b2(v4)
+      b2(v7: u32):
+        return v7
+    }
+    ";
+
+    // b1(true, 0) takes the then-edge to b1(false, 1), which returns 1 + 10.
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(true), FieldElement::from(0u32)],
+        &BrilligOptions::default(),
+    );
+    assert_eq!(result, vec![FieldElement::from(11u32)]);
+}
+
+/// With an 8-slot frame every then-argument of the `JmpIf` must be reloaded, and the
+/// condition `v8` is the least recently used value when the last reload (`v2`) needs
+/// a register. Evicting it must not change the predicate used by the `JumpIf`.
+#[test]
+fn brillig_spill_jmpif_condition_survives_then_argument_reload() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = lt v0, v1
+        v3 = unchecked_add v0, v1
+        v4 = unchecked_add v3, v1
+        v5 = unchecked_add v4, v1
+        v6 = unchecked_add v5, v1
+        v7 = unchecked_add v6, v1
+        v8 = lt v1, v0
+        jmpif v8 then: b1(v3, v4, v5, v6, v7, v2), else: b2()
+      b1(v9: u32, v10: u32, v11: u32, v12: u32, v13: u32, v14: u1):
+        v15 = unchecked_add v9, v10
+        v16 = unchecked_add v15, v11
+        v17 = unchecked_add v16, v12
+        v18 = unchecked_add v17, v13
+        v19 = cast v14 as u32
+        v20 = unchecked_add v18, v19
+        jmp b3(v20)
+      b2():
+        jmp b3(u32 7777)
+      b3(v21: u32):
+        return v21
+    }
+    ";
+
+    let layout = LayoutConfig::new(8, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+
+    // v8 = 1 < 2 is true: then-edge, 3 + 4 + 5 + 6 + 7 + cast(2 < 1) = 25.
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(2u32), FieldElement::from(1u32)],
+        &options,
+    );
+    assert_eq!(result, vec![FieldElement::from(25u32)]);
+
+    // v8 = 2 < 1 is false: else-edge.
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(1u32), FieldElement::from(2u32)],
+        &options,
+    );
+    assert_eq!(result, vec![FieldElement::from(7777u32)]);
+}
