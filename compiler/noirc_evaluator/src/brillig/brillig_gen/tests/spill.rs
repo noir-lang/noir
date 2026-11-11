@@ -577,3 +577,367 @@ fn spilling_with_minimum_scratch_space_compiles() {
     let brillig = ssa_to_brillig_artifacts_with_options(SPILLING_SRC, &options);
     assert!(!brillig.ssa_function_to_brillig[&Id::test_new(0)].byte_code.is_empty());
 }
+
+/// With an 8-slot frame every then-argument of the `JmpIf` must be reloaded, and the
+/// condition `v8` is the least recently used value when the last reload (`v2`) needs
+/// a register. Evicting it must not change the predicate used by the `JumpIf`.
+#[test]
+fn brillig_spill_jmpif_condition_survives_then_argument_reload() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        v2 = lt v0, v1
+        v3 = unchecked_add v0, v1
+        v4 = unchecked_add v3, v1
+        v5 = unchecked_add v4, v1
+        v6 = unchecked_add v5, v1
+        v7 = unchecked_add v6, v1
+        v8 = lt v1, v0
+        jmpif v8 then: b1(v3, v4, v5, v6, v7, v2), else: b2()
+      b1(v9: u32, v10: u32, v11: u32, v12: u32, v13: u32, v14: u1):
+        v15 = unchecked_add v9, v10
+        v16 = unchecked_add v15, v11
+        v17 = unchecked_add v16, v12
+        v18 = unchecked_add v17, v13
+        v19 = cast v14 as u32
+        v20 = unchecked_add v18, v19
+        jmp b3(v20)
+      b2():
+        jmp b3(u32 7777)
+      b3(v21: u32):
+        return v21
+    }
+    ";
+
+    let layout = LayoutConfig::new(8, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+
+    // v8 = 1 < 2 is true: then-edge, 3 + 4 + 5 + 6 + 7 + cast(2 < 1) = 25.
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(2u32), FieldElement::from(1u32)],
+        &options,
+    );
+    assert_eq!(result, vec![FieldElement::from(25u32)]);
+
+    // v8 = 2 < 1 is false: else-edge.
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(1u32), FieldElement::from(2u32)],
+        &options,
+    );
+    assert_eq!(result, vec![FieldElement::from(7777u32)]);
+}
+
+/// At the `jmpif` the frame is full: `v3`..`v6` were reloaded from their permanent slots for
+/// the constraints and are live into both successors, and `v10` is the condition. Promoting
+/// those reloaded live-ins must leave them evictable, so the then-edge can still get a register
+/// for its private copy of the condition.
+#[test]
+fn brillig_spill_jmpif_with_then_args_fits_full_frame_of_reloaded_live_ins() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u1, v1: u32):
+        v3 = unchecked_add v1, u32 1
+        v4 = unchecked_add v1, u32 1
+        v5 = unchecked_add v1, u32 2
+        v6 = unchecked_add v1, u32 2
+        jmp b1()
+      b1():
+        constrain v3 == v4
+        constrain v5 == v6
+        v10 = not v0
+        jmpif v10 then: b2(v0), else: b3()
+      b2(v11: u1):
+        v12 = cast v11 as u32
+        v13 = unchecked_add v3, v4
+        v14 = unchecked_add v13, v5
+        v15 = unchecked_add v14, v6
+        v16 = unchecked_add v15, v12
+        jmp b4(v16)
+      b3():
+        v17 = cast v0 as u32
+        v18 = unchecked_add v3, v4
+        v19 = unchecked_add v18, v5
+        v20 = unchecked_add v19, v6
+        v21 = unchecked_add v20, v17
+        v22 = unchecked_add v21, u32 1000
+        jmp b4(v22)
+      b4(v23: u32):
+        return v23
+    }
+    ";
+
+    let layout = LayoutConfig::new(8, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+
+    // v0 = false: then-edge, 1 + 1 + 2 + 2 + cast(false) = 6.
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(false), FieldElement::from(0u32)],
+        &options,
+    );
+    assert_eq!(result, vec![FieldElement::from(6u32)]);
+
+    // v0 = true: else-edge, 1 + 1 + 2 + 2 + cast(true) + 1000 = 1007.
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(true), FieldElement::from(0u32)],
+        &options,
+    );
+    assert_eq!(result, vec![FieldElement::from(1007u32)]);
+}
+
+fn execute_at_eight_slots(src: &str, inputs: &[u32]) -> Vec<FieldElement> {
+    let layout = LayoutConfig::new(8, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+    execute_brillig_from_ssa_with_options(
+        src,
+        inputs.iter().map(|&input| FieldElement::from(input)).collect(),
+        &options,
+    )
+}
+
+fn field_elements(values: &[u32]) -> Vec<FieldElement> {
+    values.iter().map(|&value| FieldElement::from(value)).collect()
+}
+
+/// A self-loop `jmpif` swaps its own spilled parameters `v3` and `v4`. Making room for the
+/// predicate copy evicts both, so each must be read before its slot is overwritten.
+#[test]
+fn brillig_spill_jmpif_then_edge_swaps_own_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        jmp b1(v0, v1, u1 1, u32 0)
+      b1(v3: u32, v4: u32, v5: u1, v6: u32):
+        v8 = unchecked_add v3, v4
+        v9 = not v5
+        v10 = unchecked_add v6, v6
+        jmpif v5 then: b1(v4, v3, v9, v10), else: b2(v3, v4)
+      b2(v11: u32, v12: u32):
+        return v11, v12
+    }
+    ";
+    assert_eq!(execute_at_eight_slots(src, &[1, 2]), field_elements(&[2, 1]));
+}
+
+/// A loop latch `jmp b1(v3, v2, v6)` swaps the header's spilled parameters `v2` and `v3`:
+/// storing `v3` into `v2`'s slot must not happen before `v2` has been read from it.
+#[test]
+fn brillig_spill_jmp_swaps_spilled_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        jmp b1(v0, v1, u32 0)
+      b1(v2: u32, v3: u32, v4: u32):
+        v20 = unchecked_add v2, u32 1
+        v21 = unchecked_add v2, u32 2
+        v22 = unchecked_add v2, u32 3
+        v23 = unchecked_add v2, u32 4
+        v24 = unchecked_add v2, u32 5
+        v25 = unchecked_add v20, v21
+        v26 = unchecked_add v25, v22
+        v27 = unchecked_add v26, v23
+        v28 = unchecked_add v27, v24
+        v5 = lt v4, u32 1
+        jmpif v5 then: b2(), else: b3()
+      b2():
+        v6 = unchecked_add v4, u32 1
+        jmp b1(v3, v2, v6)
+      b3():
+        return v2, v3, v28
+    }
+    ";
+    // One swap, then exit: v28 = (2+1) + (2+2) + (2+3) + (2+4) + (2+5) = 25.
+    assert_eq!(execute_at_eight_slots(src, &[1, 2]), field_elements(&[2, 1, 25]));
+}
+
+/// A three-way rotation of spilled parameters forms a cycle of slot stores that no
+/// ordering can satisfy without a temporary.
+#[test]
+fn brillig_spill_jmp_rotates_spilled_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32):
+        jmp b1(v0, v1, v2, u32 0)
+      b1(v3: u32, v4: u32, v5: u32, v6: u32):
+        v20 = unchecked_add v3, u32 1
+        v21 = unchecked_add v3, u32 2
+        v22 = unchecked_add v3, u32 3
+        v23 = unchecked_add v3, u32 4
+        v24 = unchecked_add v20, v21
+        v25 = unchecked_add v24, v22
+        v26 = unchecked_add v25, v23
+        v7 = lt v6, u32 1
+        jmpif v7 then: b2(), else: b3()
+      b2():
+        v8 = unchecked_add v6, u32 1
+        jmp b1(v4, v5, v3, v8)
+      b3():
+        return v3, v4, v5, v26
+    }
+    ";
+    // One rotation, then exit: v26 = (2+1) + (2+2) + (2+3) + (2+4) = 18.
+    assert_eq!(execute_at_eight_slots(src, &[1, 2, 3]), field_elements(&[2, 3, 1, 18]));
+}
+
+/// A `jmpif` self-loop whose then-edge swaps five disjoint pairs of its spilled parameters:
+/// five cycles of slot stores on one edge. Each cycle's temporary must be released before
+/// the next one is taken, or the copies alone exhaust the 6 usable registers.
+/// Pack the 4-bit parameter values into a single return value to fit the tiny frame.
+#[test]
+fn brillig_spill_jmpif_then_edge_swaps_five_pairs_of_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u1):
+        jmp b1(u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, v0)
+      b1(v1: u32, v2: u32, v3: u32, v4: u32, v5: u32, v6: u32, v7: u32, v8: u32, v9: u32, v10: u32, v11: u1):
+        v12 = not v11
+        jmpif v11 then: b1(v2, v1, v4, v3, v6, v5, v8, v7, v10, v9, v12), else: b2()
+      b2():
+        v30 = cast v1 as u64
+        v31 = unchecked_mul v30, u64 16
+        v32 = cast v2 as u64
+        v33 = unchecked_add v31, v32
+        v34 = unchecked_mul v33, u64 16
+        v35 = cast v3 as u64
+        v36 = unchecked_add v34, v35
+        v37 = unchecked_mul v36, u64 16
+        v38 = cast v4 as u64
+        v39 = unchecked_add v37, v38
+        v40 = unchecked_mul v39, u64 16
+        v41 = cast v5 as u64
+        v42 = unchecked_add v40, v41
+        v43 = unchecked_mul v42, u64 16
+        v44 = cast v6 as u64
+        v45 = unchecked_add v43, v44
+        v46 = unchecked_mul v45, u64 16
+        v47 = cast v7 as u64
+        v48 = unchecked_add v46, v47
+        v49 = unchecked_mul v48, u64 16
+        v50 = cast v8 as u64
+        v51 = unchecked_add v49, v50
+        v52 = unchecked_mul v51, u64 16
+        v53 = cast v9 as u64
+        v54 = unchecked_add v52, v53
+        v55 = unchecked_mul v54, u64 16
+        v56 = cast v10 as u64
+        v57 = unchecked_add v55, v56
+        return v57
+    }
+    ";
+    assert_eq!(execute_at_eight_slots(src, &[1]), vec![FieldElement::from(0x21436587a9u64)]);
+    assert_eq!(execute_at_eight_slots(src, &[0]), vec![FieldElement::from(0x123456789au64)]);
+}
+
+/// A loop latch `jmp` that swaps six disjoint pairs of the header's spilled parameters.
+/// The result packs each 4-bit value in parameter order.
+#[test]
+fn brillig_spill_jmp_swaps_six_pairs_of_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0():
+        jmp b1(u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, u32 11, u32 12, u1 1)
+      b1(v1: u32, v2: u32, v3: u32, v4: u32, v5: u32, v6: u32, v7: u32, v8: u32, v9: u32, v10: u32, v11: u32, v12: u32, v13: u1):
+        jmpif v13 then: b2(), else: b3()
+      b2():
+        v14 = not v13
+        jmp b1(v2, v1, v4, v3, v6, v5, v8, v7, v10, v9, v12, v11, v14)
+      b3():
+        v30 = cast v1 as u64
+        v31 = unchecked_mul v30, u64 16
+        v32 = cast v2 as u64
+        v33 = unchecked_add v31, v32
+        v34 = unchecked_mul v33, u64 16
+        v35 = cast v3 as u64
+        v36 = unchecked_add v34, v35
+        v37 = unchecked_mul v36, u64 16
+        v38 = cast v4 as u64
+        v39 = unchecked_add v37, v38
+        v40 = unchecked_mul v39, u64 16
+        v41 = cast v5 as u64
+        v42 = unchecked_add v40, v41
+        v43 = unchecked_mul v42, u64 16
+        v44 = cast v6 as u64
+        v45 = unchecked_add v43, v44
+        v46 = unchecked_mul v45, u64 16
+        v47 = cast v7 as u64
+        v48 = unchecked_add v46, v47
+        v49 = unchecked_mul v48, u64 16
+        v50 = cast v8 as u64
+        v51 = unchecked_add v49, v50
+        v52 = unchecked_mul v51, u64 16
+        v53 = cast v9 as u64
+        v54 = unchecked_add v52, v53
+        v55 = unchecked_mul v54, u64 16
+        v56 = cast v10 as u64
+        v57 = unchecked_add v55, v56
+        v58 = unchecked_mul v57, u64 16
+        v59 = cast v11 as u64
+        v60 = unchecked_add v58, v59
+        v61 = unchecked_mul v60, u64 16
+        v62 = cast v12 as u64
+        v63 = unchecked_add v61, v62
+        return v63
+    }
+    ";
+    assert_eq!(execute_at_eight_slots(src, &[]), vec![FieldElement::from(0x21436587a9cbu64)]);
+}
+
+/// A latch `jmp b1(v3, v4, v6)` into `b1(v2, v3, v4, ..)` is a chain, not a cycle: `v2`'s
+/// slot can be written first, then `v3`'s, then `v4`'s, with no temporary.
+#[test]
+fn brillig_spill_jmp_shifts_spilled_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        jmp b1(v0, v1, u32 3, u32 0)
+      b1(v2: u32, v3: u32, v4: u32, v5: u32):
+        v20 = unchecked_add v2, u32 1
+        v21 = unchecked_add v2, u32 2
+        v22 = unchecked_add v2, u32 3
+        v23 = unchecked_add v2, u32 4
+        v24 = unchecked_add v20, v21
+        v25 = unchecked_add v24, v22
+        v26 = unchecked_add v25, v23
+        v7 = lt v5, u32 1
+        jmpif v7 then: b2(), else: b3()
+      b2():
+        v6 = unchecked_add v5, u32 1
+        jmp b1(v3, v4, u32 9, v6)
+      b3():
+        return v2, v3, v4, v26
+    }
+    ";
+    // One shift, then exit: v26 = (2+1) + (2+2) + (2+3) + (2+4) = 18.
+    assert_eq!(execute_at_eight_slots(src, &[1, 2]), field_elements(&[2, 3, 9, 18]));
+}
+
+/// A latch `jmp b1(v3, v2, v2, ..)` reads `v2` from two stores: one in the `v2`/`v3` swap
+/// and one into `v4`. `v2`'s slot may only be written after both have read it.
+#[test]
+fn brillig_spill_jmp_param_read_by_two_stores() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        jmp b1(v0, v1, u32 3, u32 0)
+      b1(v2: u32, v3: u32, v4: u32, v5: u32):
+        v20 = unchecked_add v2, u32 1
+        v21 = unchecked_add v2, u32 2
+        v22 = unchecked_add v2, u32 3
+        v23 = unchecked_add v2, u32 4
+        v24 = unchecked_add v20, v21
+        v25 = unchecked_add v24, v22
+        v26 = unchecked_add v25, v23
+        v7 = lt v5, u32 1
+        jmpif v7 then: b2(), else: b3()
+      b2():
+        v6 = unchecked_add v5, u32 1
+        jmp b1(v3, v2, v2, v6)
+      b3():
+        return v2, v3, v4, v26
+    }
+    ";
+    assert_eq!(execute_at_eight_slots(src, &[1, 2]), field_elements(&[2, 1, 1, 18]));
+}
