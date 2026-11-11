@@ -289,18 +289,18 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // For a permanent spill, try to promote an existing record first.
         if permanent {
             // A reloaded transient value holds a register that must be freed when promoted to a
-            // permanent spill. A value not currently in a register must not have its register
-            // freed here — it may still be live (e.g. the condition register of a jmpif when
-            // spill_non_param_live_ins fires multiple times). Capture this before promoting.
+            // permanent spill. Any other promoted value keeps its register state: one already in
+            // a register stays there (and in the LRU, so the register can still be reclaimed),
+            // and one not in a register has none to free. Capture this before promoting.
             let was_transient_reloaded = self.is_transient_reloaded(&value_id);
-            let promoted = self
+            let sm = self
                 .function_context
                 .spill_manager
                 .as_mut()
-                .expect("ICE: spill_value called without spill manager")
-                .ensure_permanent_spill(&value_id);
-            if promoted {
+                .expect("ICE: spill_value called without spill manager");
+            if sm.ensure_permanent_spill(&value_id) {
                 if was_transient_reloaded {
+                    sm.remove_from_lru(&value_id);
                     self.variables.remove_variable(
                         &value_id,
                         self.function_context,
@@ -598,20 +598,17 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // So the then-edge is guarded by a private copy instead, which is neither an SSA
                 // value (the spill LRU cannot evict it) nor a block parameter (no move targets it).
                 // An edge without arguments reads the condition only once, in `JumpIf`.
-                // `predicate_copy` keeps the copy allocated until `JumpIf` has been emitted.
-                let mut predicate_copy = None;
-                let predicate = if then_arguments.is_empty() {
-                    self.convert_ssa_single_addr_value(*condition, dfg).address
+                if then_arguments.is_empty() {
+                    let condition = self.convert_ssa_single_addr_value(*condition, dfg).address;
+                    self.jmpif_to_then_block(dfg, condition, *then_destination, then_arguments);
                 } else {
                     // One register for a possible reload of the condition, one for the copy.
                     self.ensure_register_capacity(2);
-                    let condition = self.convert_ssa_single_addr_value(*condition, dfg);
-                    let copy = predicate_copy.insert(self.brillig_context.allocate_register());
-                    self.brillig_context.mov_instruction(**copy, condition.address);
-                    **copy
-                };
-                self.jmpif_to_then_block(dfg, predicate, *then_destination, then_arguments);
-                drop(predicate_copy);
+                    let condition = self.convert_ssa_single_addr_value(*condition, dfg).address;
+                    let copy = self.brillig_context.allocate_register();
+                    self.brillig_context.mov_instruction(*copy, condition);
+                    self.jmpif_to_then_block(dfg, *copy, *then_destination, then_arguments);
+                }
                 self.jmp(dfg, *else_destination, else_arguments);
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
@@ -745,8 +742,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// then-arguments whose destination param was eagerly spilled — those writes are guarded
     /// by `condition` inside [`Self::jmp_setup`].
     ///
-    /// `condition` is read after every move and spill reload, so it must be a register
-    /// that holds no SSA value: neither a move nor a spill eviction may reuse it.
+    /// When `then_arguments` is non-empty, `condition` is read after every move and spill
+    /// reload, so it must be a register that holds no SSA value: neither a move nor a spill
+    /// eviction may reuse it. With no then-arguments it is read only by the `JumpIf`, so the
+    /// condition's own register is fine.
     fn jmpif_to_then_block(
         &mut self,
         dfg: &DataFlowGraph,
