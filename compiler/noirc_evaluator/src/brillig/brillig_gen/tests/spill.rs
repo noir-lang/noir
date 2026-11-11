@@ -781,3 +781,163 @@ fn brillig_spill_jmp_rotates_spilled_params() {
     // One rotation, then exit: v26 = (2+1) + (2+2) + (2+3) + (2+4) = 18.
     assert_eq!(execute_at_eight_slots(src, &[1, 2, 3]), field_elements(&[2, 3, 1, 18]));
 }
+
+/// A `jmpif` self-loop whose then-edge swaps five disjoint pairs of its spilled parameters:
+/// five cycles of slot stores on one edge. Each cycle's temporary must be released before
+/// the next one is taken, or the copies alone exhaust the 6 usable registers.
+/// Pack the 4-bit parameter values into a single return value to fit the tiny frame.
+#[test]
+fn brillig_spill_jmpif_then_edge_swaps_five_pairs_of_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u1):
+        jmp b1(u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, v0)
+      b1(v1: u32, v2: u32, v3: u32, v4: u32, v5: u32, v6: u32, v7: u32, v8: u32, v9: u32, v10: u32, v11: u1):
+        v12 = not v11
+        jmpif v11 then: b1(v2, v1, v4, v3, v6, v5, v8, v7, v10, v9, v12), else: b2()
+      b2():
+        v30 = cast v1 as u64
+        v31 = unchecked_mul v30, u64 16
+        v32 = cast v2 as u64
+        v33 = unchecked_add v31, v32
+        v34 = unchecked_mul v33, u64 16
+        v35 = cast v3 as u64
+        v36 = unchecked_add v34, v35
+        v37 = unchecked_mul v36, u64 16
+        v38 = cast v4 as u64
+        v39 = unchecked_add v37, v38
+        v40 = unchecked_mul v39, u64 16
+        v41 = cast v5 as u64
+        v42 = unchecked_add v40, v41
+        v43 = unchecked_mul v42, u64 16
+        v44 = cast v6 as u64
+        v45 = unchecked_add v43, v44
+        v46 = unchecked_mul v45, u64 16
+        v47 = cast v7 as u64
+        v48 = unchecked_add v46, v47
+        v49 = unchecked_mul v48, u64 16
+        v50 = cast v8 as u64
+        v51 = unchecked_add v49, v50
+        v52 = unchecked_mul v51, u64 16
+        v53 = cast v9 as u64
+        v54 = unchecked_add v52, v53
+        v55 = unchecked_mul v54, u64 16
+        v56 = cast v10 as u64
+        v57 = unchecked_add v55, v56
+        return v57
+    }
+    ";
+    assert_eq!(execute_at_eight_slots(src, &[1]), vec![FieldElement::from(0x21436587a9u64)]);
+    assert_eq!(execute_at_eight_slots(src, &[0]), vec![FieldElement::from(0x123456789au64)]);
+}
+
+/// A loop latch `jmp` that swaps six disjoint pairs of the header's spilled parameters.
+/// The result packs each 4-bit value in parameter order.
+#[test]
+fn brillig_spill_jmp_swaps_six_pairs_of_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0():
+        jmp b1(u32 1, u32 2, u32 3, u32 4, u32 5, u32 6, u32 7, u32 8, u32 9, u32 10, u32 11, u32 12, u1 1)
+      b1(v1: u32, v2: u32, v3: u32, v4: u32, v5: u32, v6: u32, v7: u32, v8: u32, v9: u32, v10: u32, v11: u32, v12: u32, v13: u1):
+        jmpif v13 then: b2(), else: b3()
+      b2():
+        v14 = not v13
+        jmp b1(v2, v1, v4, v3, v6, v5, v8, v7, v10, v9, v12, v11, v14)
+      b3():
+        v30 = cast v1 as u64
+        v31 = unchecked_mul v30, u64 16
+        v32 = cast v2 as u64
+        v33 = unchecked_add v31, v32
+        v34 = unchecked_mul v33, u64 16
+        v35 = cast v3 as u64
+        v36 = unchecked_add v34, v35
+        v37 = unchecked_mul v36, u64 16
+        v38 = cast v4 as u64
+        v39 = unchecked_add v37, v38
+        v40 = unchecked_mul v39, u64 16
+        v41 = cast v5 as u64
+        v42 = unchecked_add v40, v41
+        v43 = unchecked_mul v42, u64 16
+        v44 = cast v6 as u64
+        v45 = unchecked_add v43, v44
+        v46 = unchecked_mul v45, u64 16
+        v47 = cast v7 as u64
+        v48 = unchecked_add v46, v47
+        v49 = unchecked_mul v48, u64 16
+        v50 = cast v8 as u64
+        v51 = unchecked_add v49, v50
+        v52 = unchecked_mul v51, u64 16
+        v53 = cast v9 as u64
+        v54 = unchecked_add v52, v53
+        v55 = unchecked_mul v54, u64 16
+        v56 = cast v10 as u64
+        v57 = unchecked_add v55, v56
+        v58 = unchecked_mul v57, u64 16
+        v59 = cast v11 as u64
+        v60 = unchecked_add v58, v59
+        v61 = unchecked_mul v60, u64 16
+        v62 = cast v12 as u64
+        v63 = unchecked_add v61, v62
+        return v63
+    }
+    ";
+    assert_eq!(execute_at_eight_slots(src, &[]), vec![FieldElement::from(0x21436587a9cbu64)]);
+}
+
+/// A latch `jmp b1(v3, v4, v6)` into `b1(v2, v3, v4, ..)` is a chain, not a cycle: `v2`'s
+/// slot can be written first, then `v3`'s, then `v4`'s, with no temporary.
+#[test]
+fn brillig_spill_jmp_shifts_spilled_params() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        jmp b1(v0, v1, u32 3, u32 0)
+      b1(v2: u32, v3: u32, v4: u32, v5: u32):
+        v20 = unchecked_add v2, u32 1
+        v21 = unchecked_add v2, u32 2
+        v22 = unchecked_add v2, u32 3
+        v23 = unchecked_add v2, u32 4
+        v24 = unchecked_add v20, v21
+        v25 = unchecked_add v24, v22
+        v26 = unchecked_add v25, v23
+        v7 = lt v5, u32 1
+        jmpif v7 then: b2(), else: b3()
+      b2():
+        v6 = unchecked_add v5, u32 1
+        jmp b1(v3, v4, u32 9, v6)
+      b3():
+        return v2, v3, v4, v26
+    }
+    ";
+    // One shift, then exit: v26 = (2+1) + (2+2) + (2+3) + (2+4) = 18.
+    assert_eq!(execute_at_eight_slots(src, &[1, 2]), field_elements(&[2, 3, 9, 18]));
+}
+
+/// A latch `jmp b1(v3, v2, v2, ..)` reads `v2` from two stores: one in the `v2`/`v3` swap
+/// and one into `v4`. `v2`'s slot may only be written after both have read it.
+#[test]
+fn brillig_spill_jmp_param_read_by_two_stores() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32):
+        jmp b1(v0, v1, u32 3, u32 0)
+      b1(v2: u32, v3: u32, v4: u32, v5: u32):
+        v20 = unchecked_add v2, u32 1
+        v21 = unchecked_add v2, u32 2
+        v22 = unchecked_add v2, u32 3
+        v23 = unchecked_add v2, u32 4
+        v24 = unchecked_add v20, v21
+        v25 = unchecked_add v24, v22
+        v26 = unchecked_add v25, v23
+        v7 = lt v5, u32 1
+        jmpif v7 then: b2(), else: b3()
+      b2():
+        v6 = unchecked_add v5, u32 1
+        jmp b1(v3, v2, v2, v6)
+      b3():
+        return v2, v3, v4, v26
+    }
+    ";
+    assert_eq!(execute_at_eight_slots(src, &[1, 2]), field_elements(&[2, 1, 1, 18]));
+}
