@@ -617,7 +617,14 @@ impl<'a> TestRunner<'a> {
             evaluation_tracker: tracker_after_elaboration.clone(),
         };
 
-        let result = context.interpret_function(test_function.id, Vec::new(), &mut comptime_io);
+        let force_unconstrained =
+            self.args.compile_options.force_brillig || self.args.compile_options.minimal_ssa;
+        let result = context.interpret_function(
+            test_function.id,
+            Vec::new(),
+            force_unconstrained,
+            &mut comptime_io,
+        );
         let status = nargo::ops::test_status_comptime_interpret_result(result, test_function);
 
         let evaluation_tracker = comptime_io.evaluation_tracker.take();
