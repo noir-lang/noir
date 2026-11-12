@@ -138,6 +138,10 @@ pub struct Interpreter<'local, 'interner> {
     /// an unconstrained function, and it keeps being true in nested calls regardless of
     /// them being constrained or unconstrained.
     in_unconstrained: bool,
+
+    /// Whether this interpreter is executing a test entry point. Tests respect runtime
+    /// boundaries for `is_unconstrained`, while ordinary comptime evaluation returns true.
+    in_test: bool,
 }
 
 impl<'local, 'interner> Interpreter<'local, 'interner> {
@@ -157,6 +161,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             in_loop: false,
             evaluation_depth: 0,
             in_unconstrained,
+            in_test: false,
         }
     }
 
@@ -1286,12 +1291,35 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         })?;
         let location = self.elaborator.interner.expr_location(&id);
 
-        let (result, solves) = match function {
+        // A constrained function or lambda can be coerced to an unconstrained function type.
+        // Evaluate arguments in the caller's context, then respect the callee's type for the call.
+        let previous_in_unconstrained = self.in_unconstrained;
+        self.in_unconstrained |=
+            matches!(self.expr_type(call.func).follow_bindings(), Type::Function(_, _, _, true));
+        let result =
+            self.evaluate_call_inner(function, arguments, call.is_macro_call, id, location);
+        self.in_unconstrained = previous_in_unconstrained;
+
+        let (result, solves) = result?;
+        self.call_bindings.insert(id, solves);
+        Ok(result)
+    }
+
+    /// Dispatch a call after entering the runtime context of the callee.
+    fn evaluate_call_inner(
+        &mut self,
+        function: Value,
+        arguments: Vec<(Value, Location)>,
+        is_macro_call: bool,
+        id: ExprId,
+        location: Location,
+    ) -> IResult<(Value, Vec<TypeVariableId>)> {
+        match function {
             Value::Function(function_id, _, bindings) => {
                 let bindings = unwrap_rc(bindings);
                 let (mut result, mut solves) =
                     self.call_function_taking_solves(function_id, arguments, bindings, location)?;
-                if call.is_macro_call {
+                if is_macro_call {
                     let expr = result.into_expression(self.elaborator, location)?;
                     let expr = self.elaborator.elaborate_item_from_comptime_in_function(
                         self.current_function,
@@ -1305,21 +1333,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 } else {
                     solves.extend(self.solve_call_type_from_result(id, &result));
                 }
-                (result, solves)
+                Ok((result, solves))
             }
             Value::Closure(closure) => {
                 let (result, mut solves) = self.call_closure(*closure, arguments, location)?;
                 solves.extend(self.solve_call_type_from_result(id, &result));
-                (result, solves)
+                Ok((result, solves))
             }
             value => {
                 let typ = value.get_type().into_owned();
-                return Err(InterpreterError::NonFunctionCalled { typ, location });
+                Err(InterpreterError::NonFunctionCalled { typ, location })
             }
-        };
-
-        self.call_bindings.insert(id, solves);
-        Ok(result)
+        }
     }
 
     /// Macro calls are typed as type variables during type checking. Once the call has produced
@@ -1495,10 +1520,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Bool(true) => Ok(Value::Unit),
             Value::Bool(false) => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);
-                let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
-                let message = message.map(|value| {
-                    value.display(self.elaborator.interner, self.elaborator.files).to_string()
-                });
+                let message = if constrain.2.is_none() && self.in_test && !self.in_unconstrained {
+                    // Match ACIR's default message when simulating a constrained test.
+                    Some("Failed constraint".to_string())
+                } else {
+                    let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
+                    message.map(|value| {
+                        value.display(self.elaborator.interner, self.elaborator.files).to_string()
+                    })
+                };
                 let call_stack = self.elaborator.interpreter_call_stack().clone();
                 Err(InterpreterError::FailingConstraint { location, message, call_stack })
             }
@@ -2048,6 +2078,7 @@ impl CheckedContext {
         let crate_id = func_meta.source_crate;
         let local_id = func_meta.source_module;
         let location = func_meta.location;
+        let is_test = self.def_interner.function_attributes(&main_id).is_test_function();
         let enabled_unstable_features =
             &self.required_unstable_features.get(&crate_id).cloned().unwrap_or_default();
         let cli_options = ElaboratorOptions {
@@ -2069,6 +2100,7 @@ impl CheckedContext {
             &mut state,
         );
         elaborator.setup_interpreter_for(module_id, |interpreter| {
+            interpreter.in_test = is_test;
             let instantiation_bindings = TypeBindings::default();
             interpreter.call_function(main_id, args, instantiation_bindings, location)
         })
