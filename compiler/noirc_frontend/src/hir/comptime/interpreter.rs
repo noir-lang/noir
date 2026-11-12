@@ -1520,14 +1520,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Value::Bool(true) => Ok(Value::Unit),
             Value::Bool(false) => {
                 let location = self.elaborator.interner.expr_location(&constrain.0);
-                let message = if constrain.2.is_none() && self.in_test && !self.in_unconstrained {
-                    // Match ACIR's default message when simulating a constrained test.
-                    Some("Failed constraint".to_string())
+                let message = if let Some(expr) = constrain.2 {
+                    let value = self.evaluate(expr)?;
+                    Some(value.display(self.elaborator.interner, self.elaborator.files).to_string())
+                } else if self.in_test {
+                    // Match the native test runner's default message for the current runtime.
+                    let message = if self.in_unconstrained {
+                        "Failed to solve program: 'Failed to solve brillig function'"
+                    } else {
+                        "Failed constraint"
+                    };
+                    Some(message.to_string())
                 } else {
-                    let message = constrain.2.and_then(|expr| self.evaluate(expr).ok());
-                    message.map(|value| {
-                        value.display(self.elaborator.interner, self.elaborator.files).to_string()
-                    })
+                    None
                 };
                 let call_stack = self.elaborator.interpreter_call_stack().clone();
                 Err(InterpreterError::FailingConstraint { location, message, call_stack })
@@ -2064,7 +2069,10 @@ fn to_i128(value: &Value) -> Option<i128> {
 }
 
 impl CheckedContext {
-    /// Interprets (as comptime code) the given function in the give crate, with the given arguments.
+    /// Interprets the given function with the given arguments.
+    ///
+    /// When `force_unconstrained` is set, interpreted tests run in an unconstrained context
+    /// regardless of the entry point's declaration, just as when forcing Brillig compilation.
     ///
     /// This is the one operation which mutates a checked context: what the function defines or
     /// instantiates while it runs is added to the analysis.
@@ -2072,6 +2080,7 @@ impl CheckedContext {
         &mut self,
         main_id: FuncId,
         args: Vec<(Value, Location)>,
+        force_unconstrained: bool,
         comptime_io: &mut ComptimeIo,
     ) -> IResult<Value> {
         let func_meta = self.def_interner.function_meta(&main_id);
@@ -2101,6 +2110,7 @@ impl CheckedContext {
         );
         elaborator.setup_interpreter_for(module_id, |interpreter| {
             interpreter.in_test = is_test;
+            interpreter.in_unconstrained |= force_unconstrained;
             let instantiation_bindings = TypeBindings::default();
             interpreter.call_function(main_id, args, instantiation_bindings, location)
         })

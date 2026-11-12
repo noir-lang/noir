@@ -138,6 +138,7 @@ fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
                         let result = context.interpret_function(
                             test_function.id,
                             Vec::new(),
+                            false,
                             &mut ComptimeIo::stdout(),
                         );
                         test_status_comptime_interpret_result(result, &test_function)
