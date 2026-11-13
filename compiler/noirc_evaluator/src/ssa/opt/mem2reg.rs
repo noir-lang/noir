@@ -43,6 +43,39 @@ impl Ssa {
         self
     }
 
+    /// Alternate DIE and mem2reg until no `allocate` remains or a round removes none.
+    ///
+    /// Mem2reg cannot promote a reference held in a `make_array`, even an unused one, and only
+    /// DIE removes unused arrays. Each round therefore unwraps one level of a nested aggregate
+    /// of references such as `&[&[&x]]`.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn dead_instruction_elimination_and_mem2reg(mut self) -> Ssa {
+        let count_allocates = |ssa: &Ssa| -> usize {
+            ssa.functions
+                .values()
+                .flat_map(|function| {
+                    function.reachable_blocks().into_iter().map(move |b| (function, b))
+                })
+                .map(|(function, block)| {
+                    function.dfg[block]
+                        .instructions()
+                        .iter()
+                        .filter(|id| matches!(function.dfg[**id], Instruction::Allocate))
+                        .count()
+                })
+                .sum()
+        };
+        let mut allocates = count_allocates(&self);
+        loop {
+            self = self.dead_instruction_elimination().mem2reg();
+            let remaining = count_allocates(&self);
+            if remaining == 0 || remaining == allocates {
+                return self;
+            }
+            allocates = remaining;
+        }
+    }
+
     /// Run mem2reg only on Brillig functions.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn mem2reg_brillig(mut self) -> Ssa {
@@ -1557,6 +1590,31 @@ brillig(inline) fn main f0 {
           b0():
             constrain u1 0 == u1 1
             unreachable
+        }
+        ");
+    }
+
+    #[test]
+    fn die_and_mem2reg_promotes_nested_unused_references() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [v0] : [&mut Field; 1]
+            v2 = allocate -> &mut [&mut Field; 1]
+            store v1 at v2
+            v3 = make_array [v2] : [&mut [&mut Field; 1]; 1]
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.dead_instruction_elimination_and_mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) pure fn main f0 {
+          b0():
+            return
         }
         ");
     }
