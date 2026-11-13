@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 430
+expression: expanded_code
+---
+fn main() {
+    let _nested: &[&[&[&Field; 1]; 1]; 1] = &[&[&[&1_Field]]];
+}

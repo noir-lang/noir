@@ -1562,6 +1562,78 @@ brillig(inline) fn main f0 {
     }
 
     #[test]
+    fn promotes_references_held_only_by_an_unused_make_array() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [v0] : [&mut Field; 1]
+            v2 = allocate -> &mut [&mut Field; 1]
+            store v1 at v2
+            v3 = make_array [v2] : [&mut [&mut Field; 1]; 1]
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
+            v3 = allocate -> &mut [&mut Field; 1]
+            store v2 at v3
+            v4 = make_array [v3] : [&mut [&mut Field; 1]; 1]
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn keeps_references_held_by_a_used_make_array() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = make_array [v0] : [&mut Field; 1]
+            v2 = array_get v1, index u32 0 -> &mut Field
+            v3 = load v2 -> Field
+            return v3
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn keeps_call_data_make_array_not_read_by_any_instruction() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          call_data(0): array: v2, indices: [v0: 0]
+          b0(v0: Field):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            v2 = make_array [v0] : [Field; 1]
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) pure fn main f0 {
+          call_data(0): array: v1, indices: [v0: 0]
+          b0(v0: Field):
+            v1 = make_array [v0] : [Field; 1]
+            return
+        }
+        ");
+    }
+
+    #[test]
     fn regression_11482() {
         // An allocate with no stores (an orphan, as earlier passes can leave behind) must be
         // left untouched and not promoted: there is no stored value to forward, and treating it
