@@ -23,7 +23,7 @@ use crate::ssa::{
         dom::{DominanceQueries, DominatorTree},
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{Instruction, TerminatorInstruction},
+        instruction::{Instruction, InstructionId, TerminatorInstruction},
         post_order::PostOrder,
         value::ValueId,
     },
@@ -99,8 +99,13 @@ impl Function {
             // instruction result. These are iterated on in key order when adding block
             // parameters and terminator arguments, so the maps must have a deterministic ordering
             // for arguments to line up with parameters.
+            let dead_make_arrays = find_dead_make_arrays(inserter.function, &blocks);
             let (variables, def_sites, has_ineligible_variables) =
-                collect_eligible_variables_and_def_sites(inserter.function, &blocks);
+                collect_eligible_variables_and_def_sites(
+                    inserter.function,
+                    &blocks,
+                    &dead_make_arrays,
+                );
 
             if variables.is_empty() {
                 break;
@@ -142,7 +147,7 @@ impl Function {
                 &block_states,
                 &cfg,
             );
-            commit(&mut inserter, &variables, &blocks);
+            commit(&mut inserter, &variables, &dead_make_arrays, &blocks);
 
             if !has_ineligible_variables {
                 // mem2reg can no longer simplify the program.
@@ -474,6 +479,7 @@ fn abstract_interpret_block(
 fn collect_eligible_variables_and_def_sites(
     function: &Function,
     blocks: &[BasicBlockId],
+    dead_make_arrays: &HashSet<InstructionId>,
 ) -> (BTreeMap<ValueId, BasicBlockId>, HashMap<ValueId, HashSet<BasicBlockId>>, bool) {
     // Map each variable to the block it was declared in
     let mut variables = BTreeMap::default();
@@ -493,6 +499,10 @@ fn collect_eligible_variables_and_def_sites(
     for block_id in blocks.iter().copied() {
         let block = &function.dfg[block_id];
         for instruction_id in block.instructions() {
+            // A `make_array` nothing reads cannot expose the references it holds.
+            if dead_make_arrays.contains(instruction_id) {
+                continue;
+            }
             let instruction = &function.dfg[*instruction_id];
             match instruction {
                 Instruction::Allocate => {
@@ -546,12 +556,64 @@ fn collect_eligible_variables_and_def_sites(
     (variables, def_sites, has_ineligible_variables)
 }
 
+/// Return the `make_array` instructions whose results are never used, directly or through
+/// other `make_array`s that are themselves used.
+///
+/// A reference held only by such an array is never read through it, so the array does not
+/// count as a first-class use of the reference. Without this, every level of a nested
+/// aggregate of references (e.g. `&[&[&x]]`) would need a separate DIE run to remove the
+/// array before the next mem2reg run could promote the allocation inside it.
+fn find_dead_make_arrays(function: &Function, blocks: &[BasicBlockId]) -> HashSet<InstructionId> {
+    let dfg = &function.dfg;
+    let mut used = HashSet::default();
+    let mut make_arrays = HashMap::default();
+
+    // Databus arrays are read through `dfg.data_bus` rather than by any instruction.
+    dfg.data_bus.map_values(|value| {
+        used.insert(value);
+        value
+    });
+    for block_id in blocks.iter().copied() {
+        let block = &dfg[block_id];
+        for instruction_id in block.instructions() {
+            let instruction = &dfg[*instruction_id];
+            if matches!(instruction, Instruction::MakeArray { .. }) {
+                make_arrays.insert(dfg.instruction_results(*instruction_id)[0], *instruction_id);
+            } else {
+                instruction.for_each_value(|value| {
+                    used.insert(value);
+                });
+            }
+        }
+        block.unwrap_terminator().for_each_value(|value| {
+            used.insert(value);
+        });
+    }
+
+    // A used `make_array` uses its elements, which may themselves be `make_array` results.
+    let mut worklist: Vec<ValueId> =
+        make_arrays.keys().filter(|result| used.contains(*result)).copied().collect();
+    while let Some(result) = worklist.pop() {
+        let instruction_id = make_arrays.remove(&result).expect("make_array result is tracked");
+        dfg[instruction_id].for_each_value(|value| {
+            if used.insert(value) && make_arrays.contains_key(&value) {
+                worklist.push(value);
+            }
+        });
+    }
+
+    make_arrays.into_values().collect()
+}
+
 /// Commit to all changes made by the pass:
 /// - Map any values mapped from the inserter to their new values in the function
 /// - Remove all Allocate, Load, and Store instructions from the eligible variables
+/// - Remove the unused `make_array`s found by [`find_dead_make_arrays`], which may hold
+///   eligible variables whose `allocate` is removed here
 fn commit(
     inserter: &mut FunctionInserter,
     variables: &BTreeMap<ValueId, BasicBlockId>,
+    dead_make_arrays: &HashSet<InstructionId>,
     blocks: &[BasicBlockId],
 ) {
     for &block in blocks {
@@ -559,6 +621,9 @@ fn commit(
 
         // Remove any allocate, load, or store instructions for variables which were optimized out
         instructions.retain(|instruction_id| {
+            if dead_make_arrays.contains(instruction_id) {
+                return false;
+            }
             let instruction = &inserter.function.dfg[*instruction_id];
             let keep = match instruction {
                 Instruction::Allocate => {
@@ -1581,12 +1646,6 @@ brillig(inline) fn main f0 {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) pure fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            store Field 1 at v0
-            v2 = make_array [v0] : [&mut Field; 1]
-            v3 = allocate -> &mut [&mut Field; 1]
-            store v2 at v3
-            v4 = make_array [v3] : [&mut [&mut Field; 1]; 1]
             return
         }
         ");
