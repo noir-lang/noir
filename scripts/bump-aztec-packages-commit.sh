@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 AZTEC_REPO="https://github.com/AztecProtocol/aztec-packages.git"
 AZTEC_BRANCH="next"

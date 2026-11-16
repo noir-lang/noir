@@ -1,4 +1,7 @@
 define: &AZ_COMMIT 3614971ee06151494e4265bfb1b4b634fbb2f524
+# The head of aztec-node `main`, bumped weekly with `AZ_COMMIT`. It is not the `labs/` submodule
+# commit that aztec-packages pins, which the aztec-node contract compile job in
+# `test-js-packages.yml` builds, so the two jobs can compile different aztec-node code.
 define_aztec_node: &AZ_NODE_COMMIT 9898599e079e54b5db945b734fa8a3065c52496a
 projects:
   private-kernel-inner:
