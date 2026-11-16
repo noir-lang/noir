@@ -24,9 +24,7 @@ impl TypeRecursionContext {
     ///
     /// Panics if it would go beyond [`TYPE_RECURSION_LIMIT`].
     pub(crate) fn recur(mut self) -> Self {
-        if self.depth >= TYPE_RECURSION_LIMIT {
-            panic!("Type recursion limit reached - types are too large");
-        }
+        check_type_recursion_depth(self.depth);
         self.depth += 1;
         self
     }
@@ -39,6 +37,43 @@ impl TypeRecursionContext {
     /// Tracks an alias and its generics. Returns whether the alias wasn't already being tracked.
     pub(crate) fn insert_alias(&mut self, alias_id: TypeAliasId, generics: Vec<Type>) -> bool {
         self.aliases.insert((alias_id, generics)).is_none()
+    }
+}
+
+/// Panics if a walk that is `depth` types deep would go deeper than [`TYPE_RECURSION_LIMIT`].
+pub(crate) fn check_type_recursion_depth(depth: u32) {
+    if depth >= TYPE_RECURSION_LIMIT {
+        panic!("Type recursion limit reached - types are too large");
+    }
+}
+
+/// The data types on the path from the root of a walk to the type being visited, each with its
+/// generic arguments borrowed from the walked type. A data type that is already on the path with
+/// the same generics is a cycle.
+///
+/// This is the data type half of [`TypeRecursionContext`] without cloning or hashing: each entry
+/// lives in the stack frame that visits its data type and points to the entry of the frame above
+/// it. Siblings share their parent's entry, so they never see each other's.
+pub(crate) struct TypePath<'a> {
+    id: TypeId,
+    generics: &'a [Type],
+    parent: Option<&'a TypePath<'a>>,
+}
+
+impl<'a> TypePath<'a> {
+    pub(crate) fn new(id: TypeId, generics: &'a [Type], parent: Option<&'a TypePath<'a>>) -> Self {
+        Self { id, generics, parent }
+    }
+
+    /// Whether the data type `id` with `generics` is on `path`.
+    pub(crate) fn contains(mut path: Option<&TypePath>, id: TypeId, generics: &[Type]) -> bool {
+        while let Some(entry) = path {
+            if entry.id == id && entry.generics == generics {
+                return true;
+            }
+            path = entry.parent;
+        }
+        false
     }
 }
 

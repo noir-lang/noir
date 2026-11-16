@@ -1806,6 +1806,51 @@ fn unbounded_monomorphization_queue() {
     assert!(get_monomorphized(&src).is_ok());
 }
 
+/// The complexity of the type of `main`'s first parameter in `src`.
+fn type_complexity_of_main_parameter(src: &str, allow_elaborator_errors: bool) -> usize {
+    use crate::test_utils::get_program_with_options;
+
+    let options = GetProgramOptions { allow_elaborator_errors, ..Default::default() };
+    let (_, context, _) = get_program_with_options(src, options);
+    let main = context.get_main_function(context.root_crate_id()).expect("program has a main");
+    let meta = context.def_interner.function_meta(&main);
+    Monomorphizer::type_complexity(&meta.parameters.0[0].1)
+}
+
+#[test]
+fn type_complexity_counts_sibling_fields_of_the_same_type() {
+    // Pair (1) + S (1) + Field (1) + S (1) + Field (1): the second `S` is not a cycle.
+    let src = "
+    struct S { x: Field }
+    struct Pair { a: S, b: S }
+    fn main(_p: Pair) {}
+    ";
+    assert_eq!(type_complexity_of_main_parameter(src, false), 5);
+}
+
+#[test]
+fn type_complexity_stops_at_a_cycle() {
+    // A (1) + B (1) + A (1, already on the path, so its fields are not counted).
+    let src = "
+    struct A { b: B }
+    struct B { a: A }
+    fn main(_a: A) {}
+    ";
+    assert_eq!(type_complexity_of_main_parameter(src, true), 3);
+}
+
+#[test]
+fn type_complexity_counts_a_data_type_nested_with_other_generics() {
+    // Wrap<Wrap<Field>> (1), its field Wrap<Field> (1) with field Field (1) and generic Field (1),
+    // then its generic Wrap<Field> (1) with field Field (1) and generic Field (1). The inner
+    // `Wrap` has different generics from the outer one, so it is not a cycle.
+    let src = "
+    struct Wrap<T> { inner: T }
+    fn main(_w: Wrap<Wrap<Field>>) {}
+    ";
+    assert_eq!(type_complexity_of_main_parameter(src, false), 7);
+}
+
 #[test]
 fn exponential_type_complexity_should_fail() {
     // This test verifies that exponentially growing types are caught by the complexity limit.

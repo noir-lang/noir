@@ -55,7 +55,7 @@ use crate::lint::Lint;
 use crate::node_interner::{
     ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId, TraitLookupMode,
 };
-use crate::node_interner::{TypeAliasId, TypeId};
+use crate::recursion::{TypePath, check_type_recursion_depth};
 use crate::shared::{Builtin, ForeignCall, Visibility};
 use crate::token::FunctionAttributeKind;
 use crate::{
@@ -69,7 +69,7 @@ use crate::{
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
-use crate::{NamedGeneric, TYPE_RECURSION_LIMIT, TypeVariableId};
+use crate::{NamedGeneric, TypeVariableId};
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
 use iter_extended::{btree_map, try_vecmap, vecmap};
@@ -1909,37 +1909,11 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Estimate the complexity of a type by counting all the types in it (with repetition).
     fn type_complexity(typ: &Type) -> usize {
-        /// A data type or alias, with its generic arguments, on the path from the root of the
-        /// walk to the type being counted. A data type or alias already on the path is a cycle,
-        /// which is counted once. Types at the same level are counted separately, so only the
-        /// path matters, and it lives on the call stack.
-        struct PathEntry<'a> {
-            item: PathItem,
-            generics: &'a [HirType],
-            parent: Option<&'a PathEntry<'a>>,
-        }
-
-        #[derive(PartialEq, Eq, Clone, Copy)]
-        enum PathItem {
-            DataType(TypeId),
-            Alias(TypeAliasId),
-        }
-
-        fn on_path(mut path: Option<&PathEntry>, item: PathItem, generics: &[HirType]) -> bool {
-            while let Some(entry) = path {
-                if entry.item == item && entry.generics == generics {
-                    return true;
-                }
-                path = entry.parent;
-            }
-            false
-        }
-
         fn go_fold<'a, I, T>(
             types: I,
             acc: usize,
             depth: u32,
-            path: Option<&'a PathEntry<'a>>,
+            path: Option<&'a TypePath<'a>>,
         ) -> usize
         where
             I: IntoIterator<Item = T>,
@@ -1949,7 +1923,7 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         /// `depth` is the number of types on the path above `typ`.
-        fn go(typ: &HirType, mut acc: usize, depth: u32, path: Option<&PathEntry>) -> usize {
+        fn go(typ: &HirType, mut acc: usize, depth: u32, path: Option<&TypePath>) -> usize {
             // Every type increases it by one, even if seen already.
             acc += 1;
 
@@ -1961,9 +1935,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             // This will prevent a stack overflow on overly deep and skinny types,
             // where we might be well below the MAX_TYPE_COMPLEXITY.
-            if depth >= TYPE_RECURSION_LIMIT {
-                panic!("Type recursion limit reached - types are too large");
-            }
+            check_type_recursion_depth(depth);
             let depth = depth + 1;
 
             let typ = typ.follow_bindings_shallow();
@@ -1977,11 +1949,11 @@ impl<'interner> Monomorphizer<'interner> {
                     // We count every type multiple times in the complexity, but if we are dealing
                     // with a recursive type, we have more specific errors than the inevitable max
                     // complexity we will hit.
-                    let item = PathItem::DataType(def.borrow().id);
-                    if on_path(path, item, generics) {
+                    let id = def.borrow().id;
+                    if TypePath::contains(path, id, generics) {
                         return acc;
                     }
-                    let entry = PathEntry { item, generics, parent: path };
+                    let entry = TypePath::new(id, generics, path);
                     let path = Some(&entry);
                     if let Some(fields) = def.borrow().get_fields(generics) {
                         let types = fields.iter().map(|(_, typ, _)| typ);
@@ -1997,16 +1969,8 @@ impl<'interner> Monomorphizer<'interner> {
                     go_fold(types, acc, depth, path)
                 }
                 HirType::Reference(inner, _) => go(inner, acc, depth, path),
-                HirType::Alias(alias, generics) => {
-                    let item = PathItem::Alias(alias.borrow().id);
-                    if on_path(path, item, generics) {
-                        return acc;
-                    }
-                    let entry = PathEntry { item, generics, parent: path };
-                    let path = Some(&entry);
-                    let typ = alias.borrow().get_type(generics);
-                    let types = std::iter::once(&typ).chain(generics);
-                    go_fold(types, acc, depth, path)
+                HirType::Alias(..) => {
+                    unreachable!("follow_bindings_shallow expands aliases")
                 }
                 Type::String(len) => go(len, acc, depth, path),
                 Type::FmtString(len, args) => {
