@@ -29,7 +29,7 @@ setup_repo() {
 compile_project() {
     echo "Compiling program (ACIR)"
     for ((i = 1; i <= NUM_COMPILE_RUNS; i++)); do
-      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO compile --force --silence-warnings 2>> /dev/null
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO --target-dir "$TARGET_DIR" compile --force --silence-warnings 2>> /dev/null
     done
 
     mv ./tmp/* $OUTPUT_DIR/compilation.jsonl
@@ -38,7 +38,7 @@ compile_project() {
 execute_project() {
     echo "Executing program (ACIR)"
     for ((i = 1; i <= NUM_EXECUTE_RUNS; i++)); do
-      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO execute --silence-warnings >> /dev/null
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO --target-dir "$TARGET_DIR" execute --silence-warnings >> /dev/null
     done
 
     mv ./tmp/* $OUTPUT_DIR/execution.jsonl
@@ -46,13 +46,13 @@ execute_project() {
 
 save_artifact() {
     echo "Copying artifact (ACIR)"
-    mv ./target/*.json $OUTPUT_DIR/artifact.json
+    mv "$TARGET_DIR"/*.json $OUTPUT_DIR/artifact.json
 }
 
 compile_brillig_project() {
     echo "Compiling program (Brillig)"
     for ((i = 1; i <= NUM_COMPILE_RUNS; i++)); do
-      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO compile --force --force-brillig --silence-warnings 2>> /dev/null
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO --target-dir "$TARGET_DIR" compile --force --force-brillig --silence-warnings 2>> /dev/null
     done
 
     mv ./tmp/* $OUTPUT_DIR/brillig_compilation.jsonl
@@ -61,7 +61,7 @@ compile_brillig_project() {
 execute_brillig_project() {
     echo "Executing program (Brillig)"
     for ((i = 1; i <= NUM_EXECUTE_RUNS; i++)); do
-      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO execute --force-brillig --silence-warnings >> /dev/null
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO --target-dir "$TARGET_DIR" execute --force-brillig --silence-warnings >> /dev/null
     done
 
     mv ./tmp/* $OUTPUT_DIR/brillig_execution.jsonl
@@ -69,7 +69,7 @@ execute_brillig_project() {
 
 save_brillig_artifact() {
     echo "Copying artifact (Brillig)"
-    mv ./target/*.json $OUTPUT_DIR/brillig_artifact.json
+    mv "$TARGET_DIR"/*.json $OUTPUT_DIR/brillig_artifact.json
 }
 
 if [ -z "${REPO_DIR:-}" ]; then
@@ -81,6 +81,10 @@ fi
 
 REPO_DIR=${REPO_DIR:-$TMP_DIR}
 cd "$REPO_DIR/$PROJECT_DIR"
+
+# Build into the project's own `target` directory. A package that is a workspace member would
+# otherwise write its artifacts to the workspace's `target` directory.
+TARGET_DIR="$(pwd)/target"
 
 [[ -f ./Prover.toml ]] && HAS_PROVER_INPUTS=true
 

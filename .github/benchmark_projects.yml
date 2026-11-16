@@ -176,3 +176,14 @@ projects:
     brillig-execution-timeout: 5
     compilation-memory-limit: 450
     execution-memory-limit: 400
+  token-contract:
+    repo: aztec-labs-eng/aztec-node
+    ref: 9898599e079e54b5db945b734fa8a3065c52496a
+    path: noir-projects/noir-contracts/contracts/app/token_contract
+    cannot_execute: true
+    cannot_execute_brillig: true
+    num_compile_runs: 1
+    num_execute_runs: 1
+    compilation-timeout: 150
+    brillig-compilation-timeout: 120
+    compilation-memory-limit: 1000
