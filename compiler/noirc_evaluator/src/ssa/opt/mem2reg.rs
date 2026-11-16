@@ -96,9 +96,8 @@ impl Function {
             let mut inserter = FunctionInserter::new(self);
 
             // `variables` and `def_sites` are both keyed by the original ValueId of the `allocate`
-            // instruction result. These are iterated on in key order when adding block
-            // parameters and terminator arguments, so the maps must have a deterministic ordering
-            // for arguments to line up with parameters.
+            // instruction result. `variables` is a `BTreeMap`, so variables are visited, and block
+            // parameters added, in a deterministic order.
             let (variables, def_sites, has_ineligible_variables) =
                 collect_eligible_variables_and_def_sites(inserter.function, &blocks);
 
@@ -114,8 +113,11 @@ impl Function {
                 dom_frontiers = Some(dom_tree.compute_dominance_frontiers_with_back_edges(&cfg));
             }
 
-            let param_locations =
-                compute_param_locations(&variables, &def_sites, dom_frontiers.as_ref().unwrap());
+            let param_vars_by_block = compute_param_vars_by_block(
+                &variables,
+                &def_sites,
+                dom_frontiers.as_ref().unwrap(),
+            );
 
             let vars_by_decl_block = group_by_decl_block(&variables);
 
@@ -131,8 +133,9 @@ impl Function {
             add_block_params_and_find_exit_states(
                 &blocks,
                 &visible_vars,
+                &variables,
                 &vars_by_decl_block,
-                &param_locations,
+                &param_vars_by_block,
                 &mut inserter,
                 &mut block_states,
                 &cfg,
@@ -166,9 +169,9 @@ struct BlockState {
 /// For each block, the eligible variables that may need a block parameter there, in variable
 /// order. Block parameters are added in this order and terminator arguments are pushed in the
 /// order the parameters were added, so the two line up.
-type ParamLocations = HashMap<BasicBlockId, Vec<ValueId>>;
+type ParamVarsByBlock = HashMap<BasicBlockId, Vec<ValueId>>;
 
-/// Compute where block parameters are needed for each variable.
+/// For each block, compute the variables that may need a block parameter there.
 ///
 /// A variable needs a block parameter at block B if B is in the iterated dominance frontier
 /// of the blocks where the variable is stored to. This is the minimal set of blocks where
@@ -178,12 +181,12 @@ type ParamLocations = HashMap<BasicBlockId, Vec<ValueId>>;
 /// variable is not defined at its entry, so there is nothing to merge there. An IDF block need
 /// not be dominated by the declaration, so `compute_entry_state` still skips variables that are
 /// not visible in the block.
-fn compute_param_locations(
+fn compute_param_vars_by_block(
     variables: &BTreeMap<ValueId, BasicBlockId>,
     def_sites: &HashMap<ValueId, HashSet<BasicBlockId>>,
     dom_frontiers: &HashMap<BasicBlockId, HashSet<BasicBlockId>>,
-) -> ParamLocations {
-    let mut result = ParamLocations::default();
+) -> ParamVarsByBlock {
+    let mut result = ParamVarsByBlock::default();
     for (var, decl_block) in variables {
         let sites = def_sites.get(var).expect("def_sites has an entry for every eligible variable");
         for block in iterated_dominance_frontier(sites, dom_frontiers) {
@@ -259,13 +262,15 @@ fn compute_visible_vars(
 
 /// Find the exit state of each block, adding block parameters where variables merge.
 ///
-/// Block parameters are only added at blocks in the variable's IDF (`param_locations`).
+/// Block parameters are only added at blocks in the variable's IDF (`param_vars_by_block`).
 /// For all other blocks, the entry value is inherited from the predecessor's exit state.
+#[allow(clippy::too_many_arguments)]
 fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
     visible_vars: &HashMap<BasicBlockId, imbl::OrdMap<ValueId, BasicBlockId>>,
+    variables: &BTreeMap<ValueId, BasicBlockId>,
     vars_by_decl_block: &HashMap<BasicBlockId, Vec<ValueId>>,
-    param_locations: &ParamLocations,
+    param_vars_by_block: &ParamVarsByBlock,
     inserter: &mut FunctionInserter,
     block_states: &mut BlockStates,
     cfg: &ControlFlowGraph,
@@ -275,21 +280,22 @@ fn add_block_params_and_find_exit_states(
         let (entry_state, params) = compute_entry_state(
             visible_here,
             vars_by_decl_block.get(&block).map(Vec::as_slice).unwrap_or_default(),
-            param_locations.get(&block).map(Vec::as_slice).unwrap_or_default(),
+            param_vars_by_block.get(&block).map(Vec::as_slice).unwrap_or_default(),
             block,
             &mut inserter.function.dfg,
             block_states,
             cfg,
         );
-        let exit_state = abstract_interpret_block(inserter, block, &entry_state, visible_here);
+        let exit_state =
+            abstract_interpret_block(inserter, block, &entry_state, variables, visible_here);
         block_states.insert(block, BlockState { exit_state, params });
     }
 }
 
 /// Compute the entry state for a block, and the variables given a block parameter in it.
 ///
-/// The state starts as the exit state of the first visited predecessor, shared rather than
-/// copied. Since blocks are processed in RPO, a reachable block has at least one visited
+/// The state starts as the exit state of a visited predecessor, the one with the lowest block id
+/// (`ControlFlowGraph::predecessors` yields them in id order), shared rather than copied. Since blocks are processed in RPO, a reachable block has at least one visited
 /// predecessor that is not a back edge, and all visited predecessors agree on the value of every
 /// variable visible here (otherwise this block would be in that variable's IDF). Sharing the
 /// whole exit state costs O(1), so the state may also hold variables that are not visible in
@@ -338,7 +344,7 @@ fn compute_entry_state(
     (state, params)
 }
 
-/// Link entry & exit states by adding terminator arguments for variables at IDF blocks.
+/// Wire terminator arguments for the block parameters recorded in each block's `params`.
 ///
 /// Only the variables recorded in a block's `params` have block parameters there, so only they
 /// need arguments wired, one per incoming edge, in parameter order. Every predecessor of such a
@@ -413,8 +419,8 @@ fn for_each_terminator_edge_mut(
 }
 
 /// Abstractly interpret a block, returning the value of each variable at the end of the block:
-/// `entry_state` with the block's stores applied. Only variables visible in the block are read
-/// or updated; the state may hold others, which this block cannot legally use.
+/// `entry_state` with the block's stores applied. Only eligible `variables` visible in the block
+/// are read or updated; the state may hold others, which this block cannot legally use.
 ///
 /// This function is very simple and will produce incorrect results for first-class references
 /// that are aliased, passed to functions, or stored in arrays, etc.
@@ -426,42 +432,42 @@ fn abstract_interpret_block(
     inserter: &mut FunctionInserter,
     block: BasicBlockId,
     entry_state: &StateVec,
+    variables: &BTreeMap<ValueId, BasicBlockId>,
     visible_vars: &imbl::OrdMap<ValueId, BasicBlockId>,
 ) -> StateVec {
     let mut exit_state = entry_state.clone();
     let instructions = inserter.function.dfg[block].take_instructions();
 
-    // Whether `address` is an eligible variable that this block may load from or store to. A
-    // variable in the state that is not visible here means the SSA uses a value in a block its
-    // definition does not dominate. Release builds then leave the access alone, as if the
-    // variable were not tracked.
-    let is_tracked = |address: &ValueId, state: &StateVec| {
-        if !state.contains_key(address) {
-            return false;
+    // The current value of `address`, if it is an eligible variable this block may load from or
+    // store to. An eligible variable that is not visible here means the SSA uses a value in a
+    // block its definition does not dominate. Release builds then leave the access alone, as if
+    // the variable were not eligible.
+    let tracked_value = |address: &ValueId, state: &StateVec| -> Option<ValueId> {
+        if !variables.contains_key(address) {
+            return None;
         }
         let visible = visible_vars.contains_key(address);
         debug_assert!(
             visible,
             "mem2reg: {address} is accessed in {block}, which its allocate does not dominate"
         );
-        visible
+        if !visible {
+            return None;
+        }
+        state.get(address).copied()
     };
 
     for instruction_id in &instructions {
         match &inserter.function.dfg[*instruction_id] {
             Instruction::Store { address, value } => {
-                // Only addresses in the state are eligible for mem2reg optimization.
-                if is_tracked(address, &exit_state) {
+                if tracked_value(address, &exit_state).is_some() {
                     exit_state.insert(*address, *value);
                 }
             }
             Instruction::Load { address } => {
-                if !is_tracked(address, &exit_state) {
-                    continue;
-                }
-                if let Some(value) = exit_state.get(address) {
+                if let Some(value) = tracked_value(address, &exit_state) {
                     let result = inserter.function.dfg.instruction_results(*instruction_id)[0];
-                    inserter.map_value(result, *value);
+                    inserter.map_value(result, value);
                 }
             }
             _ => (),
@@ -593,7 +599,11 @@ fn commit(
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
+        ssa::{
+            interpreter::value::Value,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+            ssa_gen::Ssa,
+        },
     };
 
     #[test]
@@ -632,8 +642,9 @@ mod tests {
 
     #[test]
     fn variable_declared_in_a_branch_gets_no_parameter_at_the_merge() {
-        // b3 inherits the state of b1, which holds v2. v2 is declared in b1, which does not
-        // dominate b3, so b3 gets a block parameter for v1 only.
+        // b3 inherits the state of b1, its visited predecessor with the lowest id, which holds v2.
+        // v2 is declared in b1, which does not dominate b3, so b3 gets a block parameter for v1
+        // only. Declaring v2 in b2 instead would leave it out of b3's inherited state.
         let src = "
         brillig(inline) fn func f0 {
           b0(v0: u1):
@@ -653,6 +664,12 @@ mod tests {
             return v4
         }
         ";
+        for (input, expected) in [(true, 1_u128), (false, 0)] {
+            let ssa = Ssa::from_str(src).unwrap();
+            let (_, result) =
+                assert_pass_does_not_affect_execution(ssa, vec![Value::bool(input)], Ssa::mem2reg);
+            assert_eq!(result, Ok(vec![Value::field(expected.into())]));
+        }
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
@@ -692,6 +709,12 @@ mod tests {
             return v3, v4
         }
         ";
+        for (input, field, integer) in [(true, 1_u128, 1), (false, 0, 2)] {
+            let ssa = Ssa::from_str(src).unwrap();
+            let (_, result) =
+                assert_pass_does_not_affect_execution(ssa, vec![Value::bool(input)], Ssa::mem2reg);
+            assert_eq!(result, Ok(vec![Value::field(field.into()), Value::u32(integer)]));
+        }
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
         assert_ssa_snapshot!(ssa, @r"
@@ -722,6 +745,31 @@ mod tests {
             store Field 1 at v1
             jmp b3()
           b2():
+            jmp b3()
+          b3():
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.mem2reg();
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "which its allocate does not dominate")]
+    fn panics_on_a_load_its_allocate_does_not_dominate_when_inherited_state_lacks_it() {
+        // Ill-formed: v1 is allocated in b2, which does not dominate the load in b3. b3 inherits
+        // the state of b1, which does not hold v1.
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3()
+          b2():
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
             jmp b3()
           b3():
             v2 = load v1 -> Field
