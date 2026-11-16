@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794234926389,
+  "lastUpdate": 1794856600525,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22946,48 +22946,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2c22344a0d76f2456d017859a8f59d4dcd7b1208",
-          "message": "chore: Release Noir(1.0.0-rc.6) (#14001)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2026-10-20T14:31:54Z",
-          "tree_id": "b05839490aac16bca2d149eabcea6e779ff3cca0",
-          "url": "https://github.com/noir-lang/noir/commit/2c22344a0d76f2456d017859a8f59d4dcd7b1208"
-        },
-        "date": 1792508116073,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167870,
-            "range": "± 1433",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137077,
-            "range": "± 1701",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645847,
-            "range": "± 2373",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25039,6 +24997,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2402834,
             "range": "± 5044",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6d1e477cd790135888af9889b977e35a81cc372a",
+          "message": "chore(ci): benchmark compiling aztec-node's token_contract (#14171)",
+          "timestamp": "2026-11-16T18:53:21Z",
+          "tree_id": "31ac8b370d60dbe85a0e37442a9e6130d3d5b7ac",
+          "url": "https://github.com/noir-lang/noir/commit/6d1e477cd790135888af9889b977e35a81cc372a"
+        },
+        "date": 1794856593426,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98651,
+            "range": "± 491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87883,
+            "range": "± 1277",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2361849,
+            "range": "± 10832",
             "unit": "ns/iter"
           }
         ]
