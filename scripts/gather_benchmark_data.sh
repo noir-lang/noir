@@ -26,22 +26,65 @@ setup_repo() {
     git -C $temp_dir -c advice.detachedHead=false checkout $repo_tag
 }
 
+# The callers of `run_nargo` silence its output, so warnings go to the script's own stdout.
+exec 3>&1
+
+# Runs `nargo` with the given arguments, logging to `./tmp`. The first argument is the run number.
+#
+# When `NARGO_BASELINE` is set, the baseline binary runs too, logging to `./tmp_baseline` and with
+# its own target directory. Both binaries are then timed on the same machine, so their ratio doesn't
+# depend on which runner the job landed on. The baseline goes first on odd runs and second on even
+# ones; the Brillig phases start counting at 2, so a phase with a single run doesn't always put the
+# same binary first.
+run_nargo() {
+    local run=$1
+    shift
+    if [ -z "${NARGO_BASELINE:-}" ]; then
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO "$@"
+    elif ((run % 2 == 1)); then
+      run_baseline "$@"
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO "$@"
+    else
+      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO "$@"
+      run_baseline "$@"
+    fi
+}
+
+# Runs the baseline binary. It may fail where the PR's doesn't, for example on a project that needs
+# the PR's compiler, so a failure drops the baseline for the rest of the project rather than the
+# PR's own results. Phases saved before then keep their baseline logs.
+run_baseline() {
+    if ! NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp_baseline $NARGO_BASELINE --target-dir ./target_baseline "$@"; then
+      echo "::warning::The baseline nargo failed on \`nargo $*\`; reporting this project without it from here on" >&3
+      unset NARGO_BASELINE
+      rm -rf ./tmp_baseline
+    fi
+}
+
+save_logs() {
+    local name=$1
+    mv ./tmp/* $OUTPUT_DIR/$name.jsonl
+    if [ -n "${NARGO_BASELINE:-}" ]; then
+      mv ./tmp_baseline/* $OUTPUT_DIR/baseline_$name.jsonl
+    fi
+}
+
 compile_project() {
     echo "Compiling program (ACIR)"
     for ((i = 1; i <= NUM_COMPILE_RUNS; i++)); do
-      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO compile --force --silence-warnings 2>> /dev/null
+      run_nargo $i compile --force --silence-warnings 2>> /dev/null
     done
 
-    mv ./tmp/* $OUTPUT_DIR/compilation.jsonl
+    save_logs compilation
 }
 
 execute_project() {
     echo "Executing program (ACIR)"
     for ((i = 1; i <= NUM_EXECUTE_RUNS; i++)); do
-      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO execute --silence-warnings >> /dev/null
+      run_nargo $i execute --silence-warnings >> /dev/null
     done
 
-    mv ./tmp/* $OUTPUT_DIR/execution.jsonl
+    save_logs execution
 }
 
 save_artifact() {
@@ -52,19 +95,19 @@ save_artifact() {
 compile_brillig_project() {
     echo "Compiling program (Brillig)"
     for ((i = 1; i <= NUM_COMPILE_RUNS; i++)); do
-      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO compile --force --force-brillig --silence-warnings 2>> /dev/null
+      run_nargo $((i + 1)) compile --force --force-brillig --silence-warnings 2>> /dev/null
     done
 
-    mv ./tmp/* $OUTPUT_DIR/brillig_compilation.jsonl
+    save_logs brillig_compilation
 }
 
 execute_brillig_project() {
     echo "Executing program (Brillig)"
     for ((i = 1; i <= NUM_EXECUTE_RUNS; i++)); do
-      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO execute --force-brillig --silence-warnings >> /dev/null
+      run_nargo $((i + 1)) execute --force-brillig --silence-warnings >> /dev/null
     done
 
-    mv ./tmp/* $OUTPUT_DIR/brillig_execution.jsonl
+    save_logs brillig_execution
 }
 
 save_brillig_artifact() {
