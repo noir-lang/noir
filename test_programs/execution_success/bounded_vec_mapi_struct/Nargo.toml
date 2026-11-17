@@ -1,6 +1,0 @@
-[package]
-name = "bounded_vec_mapi_struct"
-type = "bin"
-authors = [""]
-
-[dependencies]
