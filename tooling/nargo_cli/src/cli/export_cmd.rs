@@ -80,10 +80,12 @@ fn compile_exported_functions(
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
 
-    let exported_programs = try_vecmap(
-        exported_functions,
-        |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
-            // TODO: We should to refactor how to deal with compilation errors to avoid this.
+    // Each exported function is compiled on its own, reading `context` without writing to it, so
+    // they are compiled in parallel. Errors are then reported in declaration order, stopping at
+    // the first function that fails.
+    let compiled: Vec<_> = exported_functions
+        .into_par_iter()
+        .map(|(function_name, function_id)| {
             let program = compile_no_check(
                 &context,
                 compile_options,
@@ -92,8 +94,16 @@ fn compile_exported_functions(
                 function_id,
                 None,
                 false,
-            )
-            .map_err(|error| vec![CustomDiagnostic::from(error)]);
+            );
+            (function_name, program)
+        })
+        .collect();
+
+    let exported_programs = try_vecmap(
+        compiled,
+        |(function_name, program)| -> Result<(String, CompiledProgram), CompileError> {
+            // TODO: We should to refactor how to deal with compilation errors to avoid this.
+            let program = program.map_err(|error| vec![CustomDiagnostic::from(error)]);
 
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),
