@@ -394,9 +394,8 @@ fn fully_qualified_function_name(
 
 // A type-checked context can be read from several threads at once, for example to monomorphize
 // several functions in parallel, so the context has to stay `Send + Sync`.
-#[allow(dead_code)]
-fn assert_context_is_send_and_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<Context>();
     assert_send_sync::<CheckedContext>();
-}
+};

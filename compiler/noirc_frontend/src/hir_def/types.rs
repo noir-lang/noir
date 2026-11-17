@@ -952,8 +952,9 @@ pub struct TraitAssociatedType {
 /// A shared, mutable reference to some T.
 ///
 /// Borrowing follows `RefCell`'s rules: any number of shared borrows or one mutable borrow at a
-/// time, and a conflicting borrow panics rather than waiting. A lock rather than a `RefCell` holds
-/// the value so that a `Shared<T>` is `Send + Sync` whenever `T` is.
+/// time. Borrows never wait: a conflicting borrow panics, so a borrow bug shows up as a panic with
+/// a backtrace and a re-entrant read can never deadlock behind a queued writer. The value sits
+/// behind an `RwLock` so that `Shared<T>` is `Send + Sync` whenever `T` is.
 pub struct Shared<T>(Arc<RwLock<T>>);
 
 impl<T: std::fmt::Debug> std::fmt::Debug for Shared<T> {
@@ -1005,13 +1006,6 @@ impl<T> Shared<T> {
         Shared(Arc::new(RwLock::new(thing)))
     }
 
-    /// A pointer identifying the shared allocation itself, for identity comparisons.
-    /// Two `Shared` handles observe each other's mutations exactly when their
-    /// `as_ptr` results are equal (note that `PartialEq` compares contents instead).
-    pub fn as_ptr(&self) -> *const RwLock<T> {
-        Arc::as_ptr(&self.0)
-    }
-
     /// Borrow the value. Panics if it is currently mutably borrowed.
     pub fn borrow(&self) -> RwLockReadGuard<'_, T> {
         match self.0.try_read() {
@@ -1027,6 +1021,17 @@ impl<T> Shared<T> {
             Ok(guard) => guard,
             Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
             Err(TryLockError::WouldBlock) => panic!("Shared value already borrowed"),
+        }
+    }
+
+    /// Takes the value, cloning it only if other handles to it remain.
+    pub fn unwrap_or_clone(self) -> T
+    where
+        T: Clone,
+    {
+        match Arc::try_unwrap(self.0) {
+            Ok(lock) => lock.into_inner().unwrap_or_else(|poisoned| poisoned.into_inner()),
+            Err(arc) => Shared(arc).borrow().clone(),
         }
     }
 }

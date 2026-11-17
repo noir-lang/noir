@@ -131,7 +131,7 @@ pub struct NodeInterner {
     // Struct and Enum map.
     //
     // Each type definition is possibly shared across multiple type nodes.
-    // It is also mutated through the RefCell during name resolution to append
+    // It is also mutated through its `Shared` handle during name resolution to append
     // methods from impls to the type.
     data_types: HashMap<TypeId, Shared<DataType>>,
 
@@ -151,8 +151,7 @@ pub struct NodeInterner {
     // Trait map.
     //
     // Each trait definition is possibly shared across multiple type nodes.
-    // It is also mutated through the RefCell during name resolution to append
-    // methods from impls to the type.
+    // It is also mutated during name resolution to append methods from impls to the type.
     pub(crate) traits: HashMap<TraitId, Trait>,
 
     // Trait implementation map
