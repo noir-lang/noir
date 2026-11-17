@@ -26,6 +26,7 @@ acvm.workspace = true
 iter-extended.workspace = true
 fm.workspace = true
 rustc-hash.workspace = true
+rayon.workspace = true
 # `debug-embed` compiles the stdlib (the only `RustEmbed` asset) into the binary
 # in debug builds too. Without it, debug builds read `noir_stdlib/src` from disk
 # at the build-time path, so a debug `nargo` run away from its build tree finds no

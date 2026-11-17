@@ -3602,6 +3602,7 @@ dependencies = [
  "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
+ "rayon",
  "rust-embed",
  "rustc-hash",
  "tracing",
