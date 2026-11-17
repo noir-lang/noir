@@ -1399,8 +1399,8 @@ impl<'f> Context<'f> {
                     // Any index we tried for safe merging would be unsafe.
                     return None;
                 }
-                if let Some(index) = self.inserter.function.dfg.get_numeric_constant(index)
-                    && index.to_u128() >= u128::from(length.0)
+                if self.inserter.function.dfg.get_numeric_constant(index).is_some()
+                    && !self.inserter.function.dfg.is_safe_index(index, array)
                 {
                     // This index is known to be OOB; if we insert the "safe index" fallback machinery,
                     // it will result in worse opcode count than the base case.
@@ -3418,12 +3418,23 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u1, v1: [(Field, u32); 2]):
             enable_side_effects v0
-            v4 = array_set v1, index u32 2, value Field 42
-            v7 = array_set v4, index u32 3, value u32 7
-            v8 = not v0
+            v2 = not v0
             enable_side_effects u1 1
-            v10 = if v0 then v7 else (if v8) v1
-            return v10
+            v5 = array_get v1, index u32 2 -> Field
+            v6 = cast v0 as Field
+            v7 = cast v2 as Field
+            v9 = mul v6, Field 42
+            v10 = mul v7, v5
+            v11 = add v9, v10
+            v12 = array_set v1, index u32 2, value v11
+            v14 = array_get v12, index u32 3 -> u32
+            v15 = cast v0 as u32
+            v16 = cast v2 as u32
+            v18 = unchecked_mul v15, u32 7
+            v19 = unchecked_mul v16, v14
+            v20 = unchecked_add v18, v19
+            v21 = array_set v12, index u32 3, value v20
+            return v21
         }
         ");
     }
