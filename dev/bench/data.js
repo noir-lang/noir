@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1794947072868,
+  "lastUpdate": 1794947501017,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "dc94d703c56767aa1ea1094325c2df597ad7b6e2",
-          "message": "fix(nargo): make `nargo doc --deny-warnings` fail on broken links, and use it on the stdlib in CI (#14067)",
-          "timestamp": "2026-10-20T14:53:58Z",
-          "tree_id": "036c9180c5803189e638b43863068c6d83cab374",
-          "url": "https://github.com/noir-lang/noir/commit/dc94d703c56767aa1ea1094325c2df597ad7b6e2"
-        },
-        "date": 1792510318701,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 295.44,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 358.86,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 335.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 392.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 392.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 392.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 392.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 7950,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 7950,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 392.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 600.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 533.39,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 392.44,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 86.24,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 101.16,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4949,6 +4850,110 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 101.17,
+            "unit": "MB"
+          },
+          {
+            "name": "token_contract",
+            "value": 507.59,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d4b8ba360038253d9d61cea028471f73dcd7c6c5",
+          "message": "chore: add BoundedVec map/mapi struct-output test programs (#14182)",
+          "timestamp": "2026-11-17T19:48:53Z",
+          "tree_id": "ed6895615bebcbe96eeb1726e980f536ae8a654a",
+          "url": "https://github.com/noir-lang/noir/commit/d4b8ba360038253d9d61cea028471f73dcd7c6c5"
+        },
+        "date": 1794947499787,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.26,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 359.58,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 336.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 7960,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 7960,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 608.74,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 546.59,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 86.24,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 101.21,
             "unit": "MB"
           },
           {
