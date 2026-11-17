@@ -45,6 +45,7 @@ use noirc_frontend::monomorphization::{
 };
 use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
+use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use tracing::info;
@@ -333,6 +334,20 @@ impl Default for CompileOptions {
 }
 
 impl CompileOptions {
+    /// Whether compiling a function prints or writes out its intermediate steps (SSA, Brillig,
+    /// ACIR, the monomorphized program, per-pass timings). Functions compiled in parallel would
+    /// interleave that output, so they are compiled one at a time instead.
+    fn prints_compilation_steps(&self) -> bool {
+        self.show_ssa
+            || !self.show_ssa_pass.is_empty()
+            || self.show_brillig
+            || self.show_brillig_opcode_advisories
+            || self.print_acir
+            || self.show_monomorphized
+            || self.emit_ssa
+            || self.benchmark_codegen
+    }
+
     /// Where comptime code prints to under these options.
     pub fn comptime_io(&self) -> ComptimeIo {
         if self.disable_comptime_printing { ComptimeIo::silent() } else { ComptimeIo::stdout() }
@@ -708,6 +723,9 @@ fn has_errors(errors: &[CustomDiagnostic], deny_warnings: bool) -> bool {
     if deny_warnings { !errors.is_empty() } else { errors.iter().any(|error| error.is_error()) }
 }
 
+/// Stack size of the threads that compile a contract's functions in parallel.
+const CONTRACT_FUNCTION_THREAD_STACK_SIZE: usize = 16 * 1024 * 1024;
+
 /// Compile all of the functions associated with a Noir contract.
 fn compile_contract_inner(
     context: &CheckedContext,
@@ -715,45 +733,58 @@ fn compile_contract_inner(
     options: &CompileOptions,
     package_build_path: &Path,
 ) -> Result<CompiledContract, ErrorsAndWarnings> {
-    let mut functions = Vec::new();
-    let mut errors = Vec::new();
-    let mut warnings = Vec::new();
-    for contract_function in &contract.functions {
-        let function_id = contract_function.function_id;
-        let is_entry_point = contract_function.is_entry_point;
-
-        let name = context.function_name(&function_id).to_owned();
-
+    // The entry points to compile, each with the options it is compiled with.
+    let entry_points: Vec<(FuncId, String, CompileOptions)> = contract
+        .functions
+        .iter()
         // We assume that functions have already been type checked.
         // This is the exact same assumption that compile_no_check makes.
         // If it is not an entry-point point, we can then just skip the
         // compilation step. It will also not be added to the ABI.
-        if !is_entry_point {
-            continue;
-        }
+        .filter(|contract_function| contract_function.is_entry_point)
+        .map(|contract_function| {
+            let function_id = contract_function.function_id;
+            let name = context.function_name(&function_id).to_owned();
 
-        let mut options = options.clone();
-        if name == "public_dispatch" {
-            options.inliner_aggressiveness = 0;
-        }
-
-        if let Some(ref name_filter) = options.show_contract_fn {
-            let show = name == *name_filter;
-            options.show_ssa &= show;
-            if !show {
-                options.show_ssa_pass.clear();
+            let mut options = options.clone();
+            if name == "public_dispatch" {
+                options.inliner_aggressiveness = 0;
             }
-        }
 
-        let function = match compile_no_check(
-            context,
-            &options,
-            package_build_path,
-            false,
-            function_id,
-            None,
-            true,
-        ) {
+            if let Some(ref name_filter) = options.show_contract_fn {
+                let show = name == *name_filter;
+                options.show_ssa &= show;
+                if !show {
+                    options.show_ssa_pass.clear();
+                }
+            }
+            (function_id, name, options)
+        })
+        .collect();
+
+    // Each entry point is monomorphized and compiled on its own, reading `context` without
+    // writing to it, so they can be compiled in parallel. The results are collected in
+    // declaration order, so warnings, errors and the artifact come out the same either way.
+    let compile = |(function_id, _, options): &(FuncId, String, CompileOptions)| {
+        compile_no_check(context, options, package_build_path, false, *function_id, None, true)
+    };
+    let results: Vec<_> = if options.prints_compilation_steps() || entry_points.len() < 2 {
+        entry_points.iter().map(compile).collect()
+    } else {
+        // Monomorphization and SSA passes recurse deeply on large programs, so the worker
+        // threads get more stack than rayon's default.
+        let pool = rayon::ThreadPoolBuilder::new()
+            .stack_size(CONTRACT_FUNCTION_THREAD_STACK_SIZE)
+            .build()
+            .expect("failed to build the contract function thread pool");
+        pool.install(|| entry_points.par_iter().map(compile).collect())
+    };
+
+    let mut functions = Vec::new();
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+    for ((function_id, name, _), result) in entry_points.into_iter().zip(results) {
+        let function = match result {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(new_error.into());
