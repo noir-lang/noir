@@ -834,7 +834,8 @@ impl DataFlowGraph {
         String::from_utf8(bytes).ok()
     }
 
-    /// A constant index less than the array length is safe
+    /// A constant index is safe when it is below the array's semi-flattened length
+    /// (element count × element size). Dynamic indices and vectors are never safe.
     pub(crate) fn is_safe_index(&self, index: ValueId, array: ValueId) -> bool {
         #[allow(clippy::match_like_matches_macro)]
         match (&*self.type_of_value(array), self.get_numeric_constant(index)) {

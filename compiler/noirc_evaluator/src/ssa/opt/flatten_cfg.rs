@@ -3440,6 +3440,39 @@ mod tests {
     }
 
     #[test]
+    fn conditional_array_set_composite_merge_oob_index() {
+        // `[(Field, [u8; 3]); 2]` has 2 elements, 4 semi-flattened slots and 8 fully flattened
+        // values. Index 4 is past the last slot, so the chain is not merged slot by slot.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [(Field, [u8; 3]); 2]):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index u32 4, value Field 42
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [(Field, [u8; 3]); 2]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [(Field, [u8; 3]); 2]):
+            enable_side_effects v0
+            v4 = array_set v1, index u32 4, value Field 42
+            v5 = not v0
+            enable_side_effects u1 1
+            v7 = if v0 then v4 else (if v5) v1
+            return v7
+        }
+        ");
+    }
+
+    #[test]
     fn conditional_array_set_scalar_merge_non_binary_cond() {
         // Similar to conditional_array_set_scalar_merge_safe_index and
         // conditional_array_set_scalar_merge_non_safe_index, but using
