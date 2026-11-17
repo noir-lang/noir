@@ -1,9 +1,7 @@
 use std::{
     borrow::Cow,
-    cell::RefCell,
     collections::BTreeSet,
-    rc::Rc,
-    sync::{Arc, OnceLock},
+    sync::{Arc, OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError},
 };
 
 use acvm::FieldElement;
@@ -103,7 +101,7 @@ pub enum Type {
     /// `impl Trait` when used in a type position.
     /// These are only matched based on the `TraitId`. The trait name parameter is only
     /// used for displaying error messages using the name of the trait.
-    TraitAsType(TraitId, Rc<String>, TraitGenerics),
+    TraitAsType(TraitId, Arc<String>, TraitGenerics),
 
     /// `NamedGenerics` are the 'T' or 'U' in a user-defined generic function
     /// like `fn foo<T, U>(...) {}`. Unlike `TypeVariables`, they cannot be bound over.
@@ -168,7 +166,7 @@ pub struct NamedGeneric {
     ///
     /// If this is an associated type, then it has the format `"<{object} as {trait}>::{name}"`
     /// to disambiguate from other generics in scope.
-    pub name: Rc<String>,
+    pub name: Arc<String>,
     /// Was this named generic implicitly added?
     ///
     /// We add implicit named generics for associated types which aren't specified in trait constraints.
@@ -188,15 +186,15 @@ impl NamedGeneric {
     pub fn new(
         type_var: TypeVariable,
         implicit: bool,
-        name: &Rc<String>,
+        name: &Arc<String>,
         as_trait: Option<(&str, &str)>,
         original_type_var_id: Option<TypeVariableId>,
     ) -> Self {
         let name = match as_trait {
             // TODO(#10858): The compiler rejects `trait Foo { fn foo_bar() -> <Self as Foo>::Bar; }` (unlike Rust),
             // so in order to be able to parse back expanded code, we have to format it as `Self::Bar`.
-            Some((object, _)) if object == SELF_TYPE_NAME => Rc::new(format!("{object}::{name}")),
-            Some((object, trait_name)) => Rc::new(format!("<{object} as {trait_name}>::{name}")),
+            Some((object, _)) if object == SELF_TYPE_NAME => Arc::new(format!("{object}::{name}")),
+            Some((object, trait_name)) => Arc::new(format!("<{object} as {trait_name}>::{name}")),
             None => name.clone(),
         };
         Self { type_var, name, implicit, original_type_var_id }
@@ -539,7 +537,7 @@ pub type ResolvedGenerics = Vec<ResolvedGeneric>;
 /// its name, the type variable it binds, and where it was declared.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedGeneric {
-    pub name: Rc<String>,
+    pub name: Arc<String>,
     pub type_var: TypeVariable,
     pub location: Location,
 }
@@ -952,21 +950,41 @@ pub struct TraitAssociatedType {
 }
 
 /// A shared, mutable reference to some T.
-/// Wrapper is required for Hash impl of `RefCell`.
-#[derive(Debug, Eq, PartialOrd, Ord)]
-pub struct Shared<T>(Rc<RefCell<T>>);
+///
+/// Borrowing follows `RefCell`'s rules: any number of shared borrows or one mutable borrow at a
+/// time, and a conflicting borrow panics rather than waiting. A lock rather than a `RefCell` holds
+/// the value so that a `Shared<T>` is `Send + Sync` whenever `T` is.
+pub struct Shared<T>(Arc<RwLock<T>>);
+
+impl<T: std::fmt::Debug> std::fmt::Debug for Shared<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Shared").field(&*self.borrow()).finish()
+    }
+}
 
 impl<T: std::hash::Hash> std::hash::Hash for Shared<T> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.borrow().hash(state);
+        self.borrow().hash(state);
     }
 }
 
 impl<T: PartialEq> PartialEq for Shared<T> {
     fn eq(&self, other: &Self) -> bool {
-        let ref1 = self.0.borrow();
-        let ref2 = other.0.borrow();
-        *ref1 == *ref2
+        *self.borrow() == *other.borrow()
+    }
+}
+
+impl<T: Eq> Eq for Shared<T> {}
+
+impl<T: PartialOrd> PartialOrd for Shared<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.borrow().partial_cmp(&*other.borrow())
+    }
+}
+
+impl<T: Ord> Ord for Shared<T> {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.borrow().cmp(&*other.borrow())
     }
 }
 
@@ -984,22 +1002,32 @@ impl<T> From<T> for Shared<T> {
 
 impl<T> Shared<T> {
     pub fn new(thing: T) -> Shared<T> {
-        Shared(Rc::new(RefCell::new(thing)))
+        Shared(Arc::new(RwLock::new(thing)))
     }
 
     /// A pointer identifying the shared allocation itself, for identity comparisons.
     /// Two `Shared` handles observe each other's mutations exactly when their
     /// `as_ptr` results are equal (note that `PartialEq` compares contents instead).
-    pub fn as_ptr(&self) -> *const T {
-        self.0.as_ptr()
+    pub fn as_ptr(&self) -> *const RwLock<T> {
+        Arc::as_ptr(&self.0)
     }
 
-    pub fn borrow(&self) -> std::cell::Ref<T> {
-        self.0.borrow()
+    /// Borrow the value. Panics if it is currently mutably borrowed.
+    pub fn borrow(&self) -> RwLockReadGuard<'_, T> {
+        match self.0.try_read() {
+            Ok(guard) => guard,
+            Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+            Err(TryLockError::WouldBlock) => panic!("Shared value already mutably borrowed"),
+        }
     }
 
-    pub fn borrow_mut(&self) -> std::cell::RefMut<T> {
-        self.0.borrow_mut()
+    /// Mutably borrow the value. Panics if it is currently borrowed.
+    pub fn borrow_mut(&self) -> RwLockWriteGuard<'_, T> {
+        match self.0.try_write() {
+            Ok(guard) => guard,
+            Err(TryLockError::Poisoned(poisoned)) => poisoned.into_inner(),
+            Err(TryLockError::WouldBlock) => panic!("Shared value already borrowed"),
+        }
     }
 }
 
@@ -1045,21 +1073,6 @@ struct BindingCell {
 }
 
 impl BindingCell {
-    // `clippy::arc_with_non_send_sync` fires because `BindingCell` holds a `Type`, and `Type` is
-    // not `Send + Sync` (it reaches `Rc`s and `RefCell`s through `Shared`). Allowing it is sound:
-    //
-    // - The lint is about wasted cost, not memory safety. `Arc<T>` is only `Send` or `Sync` when
-    //   `T: Send + Sync`, so the compiler derives `Arc<BindingCell>`, and with it `TypeVariable`
-    //   and `Type`, as neither. Any attempt to move or share one across threads is a compile
-    //   error, exactly as it would be with an `Rc`.
-    // - That guarantee cannot be overridden from within this crate: it is `#![forbid(unsafe_code)]`,
-    //   so there is no `unsafe impl Send`/`Sync` to make the auto traits lie.
-    // - The cell's own interior mutability is a `OnceLock`, which is thread-safe by itself. The
-    //   only thing keeping the cell off other threads is its `Type` payload, so it becomes
-    //   `Send + Sync` with no further change as soon as `Type` does.
-    //
-    // What the `Arc` costs over an `Rc` in the meantime is an atomic refcount on clone and drop.
-    #[allow(clippy::arc_with_non_send_sync)]
     fn new(unbound: TypeBinding, bound: OnceLock<TypeBinding>) -> Arc<Self> {
         Arc::new(BindingCell { unbound, bound })
     }
@@ -1247,7 +1260,7 @@ impl TypeVariable {
     /// to disambiguate from other generics in scope.
     pub(crate) fn into_named_generic(
         self,
-        name: &Rc<String>,
+        name: &Arc<String>,
         as_trait: Option<(&str, &str)>,
     ) -> Type {
         Type::NamedGeneric(NamedGeneric::new(self, false, name, as_trait, None))
@@ -1260,7 +1273,7 @@ impl TypeVariable {
     /// to disambiguate from other generics in scope.
     pub(crate) fn into_implicit_named_generic(
         self,
-        name: &Rc<String>,
+        name: &Arc<String>,
         as_trait: Option<(&str, &str)>,
         original_type_var_id: TypeVariableId,
     ) -> Type {
@@ -3521,7 +3534,13 @@ mod tests {
 
         let unbound = TypeVariable::unbound(TypeVariableId(0), Kind::Normal);
         let named = |var: TypeVariable| {
-            Type::NamedGeneric(NamedGeneric::new(var, false, &Rc::new("T".to_string()), None, None))
+            Type::NamedGeneric(NamedGeneric::new(
+                var,
+                false,
+                &Arc::new("T".to_string()),
+                None,
+                None,
+            ))
         };
         let bound = |id, typ| Type::TypeVariable(TypeVariable::bound(TypeVariableId(id), typ));
 
@@ -3690,7 +3709,7 @@ mod tests {
         // gives both of the associated constants it desugars the name `<T as Tr>::N`. They are
         // separate unknowns, and equality (and so hashing) must go by type variable instead,
         // or the arithmetic simplifier cancels one against the other.
-        let name = Rc::new("N".to_owned());
+        let name = Arc::new("N".to_owned());
         let as_trait = Some(("T", "Tr"));
         let associated_constant = TypeVariableId(0);
 

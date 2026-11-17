@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc};
+use std::{collections::HashSet, sync::Arc};
 
 use iter_extended::vecmap;
 use noirc_frontend::{
@@ -175,18 +175,18 @@ where
 {
     if let Type::Reference(typ, _) = typ {
         // One
-        *typ = Rc::new(unref_mut_helper(typ.as_ref(), f));
+        *typ = Arc::new(unref_mut_helper(typ.as_ref(), f));
     } else {
         *typ = f(typ.clone());
     }
 }
 
-/// Similar to [`unref_mut`] but for `&mut Rc<Type>`.
-pub(crate) fn unref_mut_rc<F>(typ: &mut Rc<Type>, f: F)
+/// Similar to [`unref_mut`] but for `&mut Arc<Type>`.
+pub(crate) fn unref_mut_rc<F>(typ: &mut Arc<Type>, f: F)
 where
     F: FnOnce(Type) -> Type,
 {
-    *typ = Rc::new(unref_mut_helper(typ.as_ref(), f));
+    *typ = Arc::new(unref_mut_helper(typ.as_ref(), f));
 }
 
 fn unref_mut_helper<F>(typ: &Type, f: F) -> Type
@@ -194,7 +194,7 @@ where
     F: FnOnce(Type) -> Type,
 {
     if let Type::Reference(typ, mutable) = typ {
-        Type::Reference(Rc::new(unref_mut_helper(typ.as_ref(), f)), *mutable)
+        Type::Reference(Arc::new(unref_mut_helper(typ.as_ref(), f)), *mutable)
     } else {
         f(typ.clone())
     }
@@ -336,7 +336,7 @@ pub fn ref_mut(typ: Type) -> Type {
 
 /// Reference an expression into a target type
 pub fn ref_with_mut(typ: Type, mutable: bool) -> Type {
-    Type::Reference(Rc::new(typ), mutable)
+    Type::Reference(Arc::new(typ), mutable)
 }
 
 /// Convert the type back into a HIR equivalent (not necessarily the original HIR type).

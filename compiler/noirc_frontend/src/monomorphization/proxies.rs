@@ -16,7 +16,7 @@
 //! which, after creating wrappers for function values, would only present an inconvenience for users
 //! if they have to keep creating wrappers themselves.
 
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, sync::Arc};
 
 use iter_extended::vecmap;
 use noirc_errors::Location;
@@ -236,7 +236,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         let mutable = false;
         let name = format!("p{i}");
         let vis = Visibility::Private;
-        (id, mutable, name, Rc::new(typ), vis)
+        (id, mutable, name, Arc::new(typ), vis)
     });
 
     let call = {

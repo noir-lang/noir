@@ -298,7 +298,7 @@ fn is_special_call(call: &Call) -> bool {
 
 /// Metamorphic transformation rules.
 mod rules {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use crate::targets::orig_vs_morph::{
         VariableContext,
@@ -566,7 +566,7 @@ mod rules {
                         definition: Definition::Local(*id),
                         mutable: *mutable,
                         name: name.clone(),
-                        typ: Rc::new(typ.clone()),
+                        typ: Arc::new(typ.clone()),
                         id: vars.next_ident_id(),
                     })
                 };
