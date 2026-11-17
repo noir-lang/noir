@@ -77,6 +77,12 @@ artifact_size() {
 }
 
 num_opcodes() {
+  # A contract artifact holds one program per contract function, so the first function's opcode
+  # count says nothing about the contract as a whole. Report no opcode count for contracts.
+  if jq -e 'has("functions")' "$INPUT_DIR/artifact.json" > /dev/null; then
+    return
+  fi
+
   num_opcodes=$(noir-inspector info --json "$INPUT_DIR/artifact.json" | jq ".programs[0].functions[0].opcodes")
 
   jq -rc "{name: \"$PROJECT_NAME\", metric: \"num_opcodes\", value: \""$num_opcodes"\" | tonumber, unit: \"opcodes\"}" --null-input
