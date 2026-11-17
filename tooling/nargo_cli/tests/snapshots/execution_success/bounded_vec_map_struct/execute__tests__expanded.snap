@@ -1,0 +1,41 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Entry {
+    amount: u64,
+    small: u32,
+    value: Field,
+    tag: u8,
+    is_three: bool,
+}
+
+fn main(xs: [Field; 32], len: u32) -> pub Field {
+    let vec: BoundedVec<Field, 32> = BoundedVec::<Field, 32>::from_parts(xs, len);
+    let mapped: BoundedVec<Entry, 32> = vec.map(|x: Field| -> Entry {
+        Entry {
+            amount: x as u64,
+            small: x as u32,
+            value: x * 2_Field,
+            tag: x as u8,
+            is_three: x == 3_Field,
+        }
+    });
+    assert(mapped.len() == len);
+    let mut acc: Field = 0_Field;
+    for i in 0_u32..32_u32 {
+        let e: Entry = mapped.get_unchecked(i);
+        if i < len {
+            assert(e.value == (xs[i] * 2_Field));
+        } else {
+            assert(e.value == 0_Field);
+            assert(e.amount == 0_u64);
+        };
+        acc = acc
+            + (
+                ((((e.amount as Field) + (e.small as Field)) + e.value) + (e.tag as Field))
+                    + (e.is_three as Field)
+            );
+    }
+    acc
+}
