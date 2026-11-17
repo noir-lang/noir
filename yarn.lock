@@ -2564,14 +2564,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@playwright/test@npm:^1.64.0":
-  version: 1.64.0
-  resolution: "@playwright/test@npm:1.64.0"
+"@playwright/test@npm:^1.65.0":
+  version: 1.65.0
+  resolution: "@playwright/test@npm:1.65.0"
   dependencies:
-    playwright: "npm:1.64.0"
+    playwright: "npm:1.65.0"
   bin:
     playwright: cli.js
-  checksum: 10/150071109a165e413f390bea574c2d6508788b713dbc0ae58ba3bfed7d5befa621f862b4a818fab502e409365f465bf90641dc1da7a64ccd4910a0124e8cd3bf
+  checksum: 10/12837b3c866d27b5aeed0f8f581fccba805377f581e97bcfe0cb2fe1d77236c6e7d52dd23c7607235e8e346d1b97821c38959b5c0dd0eab576596a13e1efe2cc
   languageName: node
   linkType: hard
 
@@ -4531,7 +4531,7 @@ __metadata:
   dependencies:
     "@aztec-foundation/bb.js": "npm:6.0.0"
     "@noir-lang/noir_js": "workspace:*"
-    "@playwright/test": "npm:^1.64.0"
+    "@playwright/test": "npm:^1.65.0"
     "@types/node": "npm:^22.20.5"
     typescript: "npm:^6.0.3"
     vite: "npm:^8.3.4"
@@ -9522,7 +9522,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"playwright@npm:1.64.0, playwright@npm:^1.53.0":
+"playwright-core@npm:1.65.0":
+  version: 1.65.0
+  resolution: "playwright-core@npm:1.65.0"
+  bin:
+    playwright-core: cli.js
+  checksum: 10/77c76725d9c60a8fc67439e9fcb1ef075268aaf81dd5edc5321da777eb0f2103e8569f9efa55dd0adbd9c8c41ef97c956dd7263dc91c4233f29388cfa451dee3
+  languageName: node
+  linkType: hard
+
+"playwright@npm:1.65.0":
+  version: 1.65.0
+  resolution: "playwright@npm:1.65.0"
+  dependencies:
+    playwright-core: "npm:1.65.0"
+  bin:
+    playwright: cli.js
+  checksum: 10/bda489bad0809f61a874407244f0de7c38cefb8864148c6094f0f9dc2f808bbcbf4a8074cf7366d90890ff7e88786fc93965614dd63de3ab4594e5a6b0a39abd
+  languageName: node
+  linkType: hard
+
+"playwright@npm:^1.53.0":
   version: 1.64.0
   resolution: "playwright@npm:1.64.0"
   dependencies:
