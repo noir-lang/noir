@@ -217,29 +217,45 @@ impl AliasAnalysis {
     /// `from` reaches `target` by being `target`'s cell, or by following `points_to` to it.
     /// Allocation sites only rule out the first: `cannot_equal` answers cell identity, which
     /// is [`Self::may_alias`]'s question, so the walk must still run once it has fired.
+    // Part of the analysis's query API, exercised by unit tests. Load-store forwarding asks about
+    // many targets per `from`, so it uses `reachable_classes` and `may_reference_in` directly.
+    #[allow(dead_code)]
     pub(crate) fn may_reference(&mut self, from: GlobalValueId, target: GlobalValueId) -> bool {
+        let reachable = self.reachable_classes(from);
+        self.may_reference_in(&reachable, target)
+    }
+
+    /// The alias classes `from` can reach, for asking [`Self::may_reference`] about many targets
+    /// with one walk of the `points_to` chain. See [`Self::may_reference_in`].
+    pub(crate) fn reachable_classes(&mut self, from: GlobalValueId) -> ReachableClasses {
         let from_rep = self.aliases.find_existing(from);
-        let target_rep = self.aliases.find_existing(target);
-        if from_rep == target_rep
-            && !self.get_allocation(from).cannot_equal(&self.get_allocation(target))
-        {
-            return true;
-        }
+        let mut pointees = HashSet::default();
         let mut seen = HashSet::default();
         let mut current = from_rep;
         while seen.insert(current) {
-            match self.points_to.get(&current) {
-                Some(&next) => {
-                    let next = self.aliases.find(next);
-                    if next == target_rep {
-                        return true;
-                    }
-                    current = next;
-                }
-                None => return false,
-            }
+            let Some(&next) = self.points_to.get(&current) else {
+                break;
+            };
+            let next = self.aliases.find(next);
+            pointees.insert(next);
+            current = next;
         }
-        false
+        ReachableClasses { from, from_rep, pointees }
+    }
+
+    /// [`Self::may_reference`] for the `from` that `reachable` was built for.
+    pub(crate) fn may_reference_in(
+        &mut self,
+        reachable: &ReachableClasses,
+        target: GlobalValueId,
+    ) -> bool {
+        let target_rep = self.aliases.find_existing(target);
+        if target_rep == reachable.from_rep
+            && !self.get_allocation(reachable.from).cannot_equal(&self.get_allocation(target))
+        {
+            return true;
+        }
+        reachable.pointees.contains(&target_rep)
     }
 
     /// Returns `true` if `a` and `b` definitely refer to the same memory location
@@ -288,6 +304,15 @@ impl AliasAnalysis {
             _ => None,
         }
     }
+}
+
+/// The alias classes a value can reach: its own class, and every class along its `points_to`
+/// chain. Built by [`AliasAnalysis::reachable_classes`].
+pub(crate) struct ReachableClasses {
+    from: GlobalValueId,
+    from_rep: GlobalValueId,
+    /// The classes reached by following `points_to` one or more steps from `from_rep`.
+    pointees: HashSet<GlobalValueId>,
 }
 
 #[derive(PartialEq, Clone, Copy)]

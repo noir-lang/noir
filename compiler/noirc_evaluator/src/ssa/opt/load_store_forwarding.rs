@@ -199,15 +199,19 @@ fn forward_loads_and_stores_in_block(
                         None => typ.contains_mutable_reference(),
                     };
                     let value = GlobalValueId::new(inserter.function, value);
+                    // The classes `value` can reach are the same for every entry checked below,
+                    // so they are computed once.
+                    let reachable = analysis.reachable_classes(value);
                     // We check against the original address `a` for consistency with the other
                     // handlers, but here it does not matter.
                     if can_write {
-                        known_values.retain(|_k, (a, _)| !analysis.may_reference(value, *a));
+                        known_values
+                            .retain(|_k, (a, _)| !analysis.may_reference_in(&reachable, *a));
                     }
                     // Any reference argument, mutable or not, can be *read* by the callee,
                     // so a prior store to an aliasing address is observable and must be kept
                     // live rather than eliminated as a dead store.
-                    last_stores.retain(|_k, (a, _)| !analysis.may_reference(value, *a));
+                    last_stores.retain(|_k, (a, _)| !analysis.may_reference_in(&reachable, *a));
                 }
             }
             _ => {}
