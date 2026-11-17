@@ -79,11 +79,11 @@
     "unzipit": "^2.1.1",
     "url": "^0.11.4",
     "webpack": "^5.112.2",
-    "webpack-cli": "^7.2.3",
+    "webpack-cli": "^7.3.1",
     "webpack-dev-server": "^6.1.0"
   },
   "dependencies": {
     "@noir-lang/types": "workspace:*",
-    "pako": "^3.0.2"
+    "pako": "^3.0.3"
   }
 }
