@@ -540,9 +540,15 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
             }
         } else {
             for i in 0..MaxLen {
+                // Only the call to `f` is predicated; the store is not. A predicated store of a
+                // composite `U` lowers to one store per field, which flattening cannot merge as a
+                // single element, so it merges the whole storage array on every iteration
+                // (quadratic in `MaxLen`).
+                let mut mapped = crate::mem::zeroed();
                 if i < self.len() {
-                    ret.storage[i] = f(i, self.get_unchecked(i));
+                    mapped = f(i, self.get_unchecked(i));
                 }
+                ret.storage[i] = mapped;
             }
         }
 
@@ -1036,6 +1042,19 @@ mod bounded_vec_tests {
 
             assert_eq(result, expected);
             assert_eq(result.get_unchecked(2), 0);
+        }
+
+        #[test]
+        #[test_unconstrained]
+        fn maps_to_struct_and_leaves_slots_past_len_zeroed() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 4], 2);
+            let result = vec.mapi(|i, value| (value as u64 * 10, i, value % 2 == 0));
+
+            assert_eq(result.len(), 2);
+            assert_eq(result.get_unchecked(0), (10, 0, false));
+            assert_eq(result.get_unchecked(1), (20, 1, true));
+            assert_eq(result.get_unchecked(2), (0, 0, false));
+            assert_eq(result.get_unchecked(3), (0, 0, false));
         }
 
         #[test]
