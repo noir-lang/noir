@@ -328,21 +328,44 @@ impl<'a> TestRunner<'a> {
             self.args.compile_options.silence_warnings,
         )?;
 
-        let tests = context
-            .get_all_test_functions_in_crate_matching(&crate_id, &self.pattern)
-            .into_iter()
-            .map(|(name, function)| Test {
-                name,
-                package,
-                package_name: package.name.to_string(),
-                has_arguments: function.has_arguments,
-                run_mode: self.run_mode(function.has_arguments),
-            })
-            .collect();
+        let found = context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern);
 
         // The baseline needs the elaborated context, which is only at hand here.
         let coverage_baseline =
             self.args.coverage.then(|| coverage::baseline_in_package(&context, crate_id));
+
+        // Compiling and executing a test only reads the context, so the package's tests share
+        // this elaboration across the worker threads instead of each thread elaborating the
+        // package again. Each test holds a handle, so the context is freed once the package's
+        // last test is done. Interpreting a test writes to the context, so those tests keep
+        // elaborating on their worker thread.
+        let shares_context = !self.args.no_context_reuse
+            && found.iter().any(|(_, function)| {
+                matches!(
+                    self.run_mode(function.has_arguments),
+                    Some(RunMode::CompileOnly | RunMode::Execute)
+                )
+            });
+        let shared = shares_context.then(|| Arc::new(SharedElaboration { context, crate_id }));
+
+        let tests = found
+            .into_iter()
+            .map(|(name, function)| {
+                let run_mode = self.run_mode(function.has_arguments);
+                let shared = match run_mode {
+                    Some(RunMode::CompileOnly | RunMode::Execute) => shared.clone(),
+                    Some(RunMode::Interpret) | None => None,
+                };
+                Test {
+                    name,
+                    package,
+                    package_name: package.name.to_string(),
+                    has_arguments: function.has_arguments,
+                    run_mode,
+                    shared,
+                }
+            })
+            .collect();
 
         Ok(PackageTests { tests, coverage_baseline })
     }
@@ -489,7 +512,10 @@ impl<'a> TestRunner<'a> {
                 // A skipped test needs no context, so the fuzzing flags never elaborate a package
                 // whose tests they all skip.
                 None => TestOutcome::status_only(TestStatus::Skipped),
-                Some(run_mode) => self.run_test(&mut cached, &test, run_mode),
+                Some(run_mode) => match &test.shared {
+                    Some(shared) => self.run_test_in_shared_context(shared, &test, run_mode),
+                    None => self.run_test(&mut cached, &test, run_mode),
+                },
             };
 
             let result = TestResult {
@@ -508,6 +534,31 @@ impl<'a> TestRunner<'a> {
             }
         }
         Ok(())
+    }
+
+    /// Runs `test` against its package's shared elaboration. A panic fails only this test, and
+    /// the context stays usable for the package's other tests, since compiling and executing a
+    /// test do not write to it.
+    fn run_test_in_shared_context(
+        &'a self,
+        shared: &SharedElaboration,
+        test: &Test<'a>,
+        run_mode: RunMode,
+    ) -> TestOutcome {
+        let outcome = catch_unwind(AssertUnwindSafe(|| {
+            let pattern = FunctionNameMatch::Exact(vec![test.name.clone()]);
+            let test_functions =
+                shared.context.get_all_test_functions_in_crate_matching(&shared.crate_id, &pattern);
+            let (_, test_function) = test_functions.first().expect("Test function should exist");
+            match run_mode {
+                RunMode::CompileOnly => {
+                    TestOutcome::status_only(self.compile_only(&shared.context, test_function))
+                }
+                RunMode::Execute => self.execute(&shared.context, test, test_function),
+                RunMode::Interpret => unreachable!("interpreted tests do not share a context"),
+            }
+        }));
+        outcome.unwrap_or_else(|panic| test_panicked(&panic))
     }
 
     /// Runs `test` against the worker's cached context.
@@ -530,12 +581,7 @@ impl<'a> TestRunner<'a> {
             *cached = None;
         }
 
-        outcome.unwrap_or_else(|panic| {
-            // `panic!("...")` carries a `&str`, which covers the common case.
-            let message = panic.downcast_ref::<&str>().copied();
-            let message = message.unwrap_or("An unexpected error happened").to_string();
-            TestOutcome::status_only(TestStatus::Fail { message, error_diagnostic: None })
-        })
+        outcome.unwrap_or_else(|panic| test_panicked(&panic))
     }
 
     /// Return the context to compile `test` against, elaborating `test`'s package into `cached`
@@ -852,6 +898,9 @@ struct Test<'a> {
     has_arguments: bool,
     /// `None` when the fuzzing flags exclude the test: it is reported as skipped and never compiled.
     run_mode: Option<RunMode>,
+    /// The package's elaboration, shared by the tests that only read it. `None` for a test that
+    /// elaborates its package on the worker thread that runs it.
+    shared: Option<Arc<SharedElaboration>>,
 }
 
 /// How a test that is not skipped runs, decided by [`TestRunner::run_mode`].
@@ -956,6 +1005,20 @@ struct Elaboration {
 /// variables. `noirc_frontend::monomorphization::context_reuse_tests` asserts that a test compiles
 /// to the same program whatever was compiled against the context before it. A context is dropped
 /// when a test unwinds, and `--no-context-reuse` turns sharing off for a whole run.
+/// A package's elaboration, shared by the tests that compile or execute against it.
+struct SharedElaboration {
+    context: CheckedContext,
+    crate_id: CrateId,
+}
+
+/// The outcome of a test whose run panicked.
+fn test_panicked(panic: &(dyn std::any::Any + Send)) -> TestOutcome {
+    // `panic!("...")` carries a `&str`, which covers the common case.
+    let message = panic.downcast_ref::<&str>().copied();
+    let message = message.unwrap_or("An unexpected error happened").to_string();
+    TestOutcome::status_only(TestStatus::Fail { message, error_diagnostic: None })
+}
+
 struct CachedContext<'a> {
     package: &'a Package,
     context: CheckedContext,
