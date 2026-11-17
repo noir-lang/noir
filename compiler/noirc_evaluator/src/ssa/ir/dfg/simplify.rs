@@ -942,8 +942,8 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [(Field, u32); 2]):
             v3 = array_set mut v0, index u32 0, value Field 4
-            v5 = array_get v3, index u32 2 -> Field
-            v7 = array_get v3, index u32 3 -> u32
+            v5 = array_get v0, index u32 2 -> Field
+            v7 = array_get v0, index u32 3 -> u32
             return v5, v7
         }
         ");

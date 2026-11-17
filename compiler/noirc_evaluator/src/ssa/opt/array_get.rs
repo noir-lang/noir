@@ -344,8 +344,8 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
                 }
                 _ => (),
             }
-        } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
-            && target_index_u32 < length.0
+        } else if let Value::Param { typ: typ @ Type::Array(_, length), .. } = &dfg[array_id]
+            && target_index_u32 < (*length * typ.element_size()).0
         {
             // There's no optimization if we end up getting from the original array
             if array_id == original_array_id {
@@ -671,8 +671,8 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: [(Field, u32); 2]):
             v3 = array_set v0, index u32 0, value Field 5
-            v5 = array_get v3, index u32 2 -> Field
-            v7 = array_get v3, index u32 3 -> u32
+            v5 = array_get v0, index u32 2 -> Field
+            v7 = array_get v0, index u32 3 -> u32
             return v5, v7
         }
         ");
