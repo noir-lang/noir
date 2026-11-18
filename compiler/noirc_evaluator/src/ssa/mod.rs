@@ -476,19 +476,22 @@ pub fn optimize_ssa_builder_into_acir(
 
     drop(ssa_gen_span_guard);
 
+    // Arrange the casts of `truncate` results in Brillig functions for code generation, which only
+    // benefits if no later pass moves those instructions apart.
+    //
     // Shift the array offsets in Brillig functions to benefit from the constant allocation logic,
     // but do this outside the normal SSA passes, so we don't need to make the SSA interpreter and
     // every other pass aware of the possibility that indexes are shifted, which could result in
     // them conceptually not aligning with the positions of complex item types for example.
     // This can change which globals are used, because constant creation might result
     // in the (re)use of otherwise unused global values.
-    // It must be the last pass to either alter or add new instructions before Brillig generation,
+    // The array pass must be the last one to either alter or add new instructions before Brillig generation,
     // as other semantics in the compiler can potentially break (e.g. inserting instructions).
     // Running it through the builder so it can be printed, for transparency.
-    let builder = builder.run_passes(&[SsaPass::new(
-        Ssa::brillig_array_get_and_set,
-        "Brillig Array Get and Set Optimizations",
-    )])?;
+    let builder = builder.run_passes(&[
+        SsaPass::new(Ssa::brillig_truncate_casts, "Brillig Truncate Casts"),
+        SsaPass::new(Ssa::brillig_array_get_and_set, "Brillig Array Get and Set Optimizations"),
+    ])?;
 
     // Neither back end can lower the other runtime's intrinsics. Reject any that survived the
     // passes, which have by now removed the branches `is_unconstrained()` disables.

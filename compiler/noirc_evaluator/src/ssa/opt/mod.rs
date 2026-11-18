@@ -15,6 +15,7 @@ mod black_box_bypass;
 mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
 mod brillig_function_specialization;
+mod brillig_truncate_casts;
 mod check_u128_mul_overflow;
 mod checked_to_unchecked;
 #[cfg(debug_assertions)]

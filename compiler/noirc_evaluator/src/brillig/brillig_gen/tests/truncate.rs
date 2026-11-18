@@ -5,9 +5,35 @@
 //! as their two's-complement field representation (e.g. `-1_i32` is `0xFFFF_FFFF = 4294967295`),
 //! and signed return values come back as that same representation.
 
-use acvm::FieldElement;
+use acvm::{AcirField, FieldElement, acir::brillig::Opcode as BrilligOpcode};
 
-use crate::brillig::brillig_gen::tests::execute_brillig_from_ssa;
+use crate::ssa::ssa_gen::Ssa;
+
+use crate::brillig::{
+    BrilligOptions,
+    brillig_gen::tests::{
+        execute_brillig_from_ssa, execute_brillig_from_ssa_with_options, linked_bytecode_from_ssa,
+    },
+    brillig_ir::{LayoutConfig, registers::MAX_SCRATCH_SPACE},
+};
+
+/// The number of cast opcodes `src` emits, not counting those the entry point uses for a `main`
+/// with the same parameters: `params` is the SSA parameter list of that `main`.
+fn cast_opcodes_in_body(src: &str, params: &str) -> usize {
+    let count = |src: &str| {
+        linked_bytecode_from_ssa(src, &BrilligOptions::default())
+            .iter()
+            .filter(|opcode| matches!(opcode, BrilligOpcode::Cast { .. }))
+            .count()
+    };
+    let empty_body = format!("brillig(inline) fn main f0 {{ b0({params}): return }}");
+    count(src) - count(&empty_body)
+}
+
+/// `2^128 + 5`: a field whose low 128 bits differ from the value itself.
+fn field_wider_than_u128() -> FieldElement {
+    FieldElement::from(2u128).pow(&FieldElement::from(128u128)) + FieldElement::from(5u128)
+}
 
 /// A bare `truncate` keeps the low `bit_size` bits of the value's representation and does no
 /// sign-specific work. `-1_i32` (`0xFFFF_FFFF`) truncated to 16 bits is `0xFFFF = 65535`, still
@@ -71,4 +97,262 @@ fn truncate_then_cast_preserves_in_range_negative() {
     ";
     let result = execute_brillig_from_ssa(src, vec![FieldElement::from(4294967196u64)]);
     assert_eq!(result, vec![FieldElement::from(65436u64)]);
+}
+
+/// `x as u128` for a field `x` needs a single opcode, as a Brillig cast already truncates.
+#[test]
+fn truncate_then_same_width_cast_of_field_is_one_cast() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = truncate v0 to 128 bits, max_bit_size: 254
+        v2 = cast v1 as u128
+        return v2
+    }
+    ";
+    assert_eq!(cast_opcodes_in_body(src, "v0: Field"), 1);
+    let result = execute_brillig_from_ssa(src, vec![field_wider_than_u128()]);
+    assert_eq!(result, vec![FieldElement::from(5u128)]);
+}
+
+/// `x as u64` for a `u128` `x` needs a single opcode as well.
+#[test]
+fn truncate_then_same_width_cast_of_integer_is_one_cast() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u128):
+        v1 = truncate v0 to 64 bits, max_bit_size: 128
+        v2 = cast v1 as u64
+        return v2
+    }
+    ";
+    assert_eq!(cast_opcodes_in_body(src, "v0: u128"), 1);
+    let input = (1u128 << 64) + 7;
+    let result = execute_brillig_from_ssa(src, vec![FieldElement::from(input)]);
+    assert_eq!(result, vec![FieldElement::from(7u128)]);
+}
+
+/// When the truncated value is also used on its own, both results are produced with two opcodes,
+/// and each has the right value.
+#[test]
+fn truncate_result_with_other_uses_is_two_casts() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = truncate v0 to 128 bits, max_bit_size: 254
+        v2 = cast v1 as u128
+        v3 = add v1, Field 1
+        return v2, v3
+    }
+    ";
+    assert_eq!(cast_opcodes_in_body(src, "v0: Field"), 2);
+    let result = execute_brillig_from_ssa(src, vec![field_wider_than_u128()]);
+    assert_eq!(result, vec![FieldElement::from(5u128), FieldElement::from(6u128)]);
+}
+
+/// A truncate result used in another block has to outlive the cast.
+#[test]
+fn truncate_result_used_in_later_block() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = truncate v0 to 128 bits, max_bit_size: 254
+        v2 = cast v1 as u128
+        jmp b1()
+      b1():
+        return v1, v2
+    }
+    ";
+    let result = execute_brillig_from_ssa(src, vec![field_wider_than_u128()]);
+    assert_eq!(result, vec![FieldElement::from(5u128), FieldElement::from(5u128)]);
+}
+
+/// A cast that does not directly follow the truncate gets the regular lowering. The
+/// `brillig_truncate_casts` SSA pass moves such casts before code generation.
+#[test]
+fn truncate_and_cast_with_instruction_in_between() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = truncate v0 to 128 bits, max_bit_size: 254
+        v2 = add v0, Field 1
+        v3 = cast v1 as u128
+        return v2, v3
+    }
+    ";
+    assert_eq!(cast_opcodes_in_body(src, "v0: Field"), 3);
+    let input = field_wider_than_u128();
+    let result = execute_brillig_from_ssa(src, vec![input]);
+    assert_eq!(result, vec![input + FieldElement::one(), FieldElement::from(5u128)]);
+}
+
+/// Both results of a truncate and cast stay correct when registers are scarce enough for values
+/// to get spilled.
+#[test]
+fn truncate_then_cast_under_register_pressure() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field, v1: u32):
+        v2 = truncate v0 to 128 bits, max_bit_size: 254
+        v3 = cast v2 as u128
+        v4 = unchecked_add v1, u32 1
+        v5 = unchecked_add v1, u32 2
+        v6 = unchecked_add v4, v5
+        v7 = cast v6 as Field
+        v8 = add v2, v7
+        v9 = cast v3 as Field
+        v10 = add v8, v9
+        return v10
+    }
+    ";
+    let options = BrilligOptions {
+        layout: LayoutConfig::new(6, 16, MAX_SCRATCH_SPACE),
+        ..BrilligOptions::default()
+    };
+    let spill_stores = linked_bytecode_from_ssa(src, &options)
+        .iter()
+        .filter(|opcode| matches!(opcode, BrilligOpcode::Store { .. }))
+        .count();
+    assert!(spill_stores > 0, "expected the register pressure to cause spills");
+
+    let calldata = vec![field_wider_than_u128(), FieldElement::from(1u128)];
+    let result = execute_brillig_from_ssa_with_options(src, calldata, &options);
+    // 5 (truncated) + 5 (sum of the u32s) + 5 (cast)
+    assert_eq!(result, vec![FieldElement::from(15u128)]);
+}
+
+/// A cast result passed to a block parameter can share its register, while the parameter is the
+/// operand of the truncate right before the cast.
+#[test]
+fn adjacent_truncate_then_cast_of_block_parameter() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u128):
+        jmp b1(v0, u32 0)
+      b1(v1: u128, v2: u32):
+        v3 = eq v2, u32 2
+        jmpif v3 then: b3(), else: b2()
+      b2():
+        v4 = truncate v1 to 64 bits, max_bit_size: 128
+        v5 = cast v4 as u64
+        v6 = cast v5 as u128
+        v7 = unchecked_add v2, u32 1
+        jmp b1(v6, v7)
+      b3():
+        return v1
+    }
+    ";
+    let input = (1u128 << 64) + 7;
+    let result = execute_brillig_from_ssa(src, vec![FieldElement::from(input)]);
+    assert_eq!(result, vec![FieldElement::from(7u128)]);
+}
+
+/// Runs `src` and the output of the `brillig_truncate_casts` pass on it on the VM for all the
+/// inputs, checks they agree, and returns the number of cast opcodes after the pass.
+fn cast_opcodes_after_pass(src: &str, params: &str, inputs: &[Vec<FieldElement>]) -> usize {
+    let optimized = Ssa::from_str(src).unwrap().brillig_truncate_casts();
+    let optimized = optimized.print_without_locations().to_string();
+    for input in inputs {
+        assert_eq!(
+            execute_brillig_from_ssa(src, input.clone()),
+            execute_brillig_from_ssa(&optimized, input.clone()),
+            "pass changed the result for input {input:?}",
+        );
+    }
+    cast_opcodes_in_body(&optimized, params)
+}
+
+fn field_inputs() -> Vec<FieldElement> {
+    vec![
+        FieldElement::zero(),
+        FieldElement::one(),
+        -FieldElement::one(),
+        FieldElement::from(255u128),
+        FieldElement::from(u128::from(u32::MAX)),
+        FieldElement::from(u128::from(u32::MAX) + 1),
+        FieldElement::from(u128::from(u64::MAX)),
+        FieldElement::from(u128::MAX),
+        field_wider_than_u128(),
+    ]
+}
+
+/// A cast in another block costs the same as one right after the truncate.
+#[test]
+fn cast_in_a_branch_is_one_cast_after_pass() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field, v1: u1):
+        v2 = truncate v0 to 64 bits, max_bit_size: 254
+        jmpif v1 then: b1(), else: b2()
+      b1():
+        v3 = cast v2 as u64
+        jmp b3(v3)
+      b2():
+        v4 = cast v2 as u64
+        v5 = unchecked_add v4, u64 1
+        jmp b3(v5)
+      b3(v6: u64):
+        return v6
+    }
+    ";
+    let inputs: Vec<_> = field_inputs()
+        .into_iter()
+        .flat_map(|input| [vec![input, FieldElement::zero()], vec![input, FieldElement::one()]])
+        .collect();
+    assert_eq!(cast_opcodes_after_pass(src, "v0: Field, v1: u1", &inputs), 1);
+}
+
+/// `(x as u32) as u64` for a field `x` takes one cast for each integer type.
+#[test]
+fn cast_to_wider_integer_is_two_casts_after_pass() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = truncate v0 to 32 bits, max_bit_size: 254
+        v2 = cast v1 as u64
+        return v2
+    }
+    ";
+    let inputs: Vec<_> = field_inputs().into_iter().map(|input| vec![input]).collect();
+    assert_eq!(cast_opcodes_after_pass(src, "v0: Field", &inputs), 2);
+}
+
+/// Casts to both signednesses take one cast for each integer type.
+#[test]
+fn signed_and_unsigned_casts_are_two_casts_after_pass() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        v1 = truncate v0 to 32 bits, max_bit_size: 254
+        v2 = cast v1 as i32
+        v3 = cast v1 as u32
+        return v2, v3
+    }
+    ";
+    let inputs: Vec<_> = field_inputs().into_iter().map(|input| vec![input]).collect();
+    assert_eq!(cast_opcodes_after_pass(src, "v0: Field", &inputs), 2);
+}
+
+/// A truncate inside a loop whose cast comes after the loop.
+#[test]
+fn cast_after_loop_keeps_last_iteration_value_after_pass() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u128):
+        jmp b1(v0, u32 0)
+      b1(v1: u128, v2: u32):
+        v3 = truncate v1 to 8 bits, max_bit_size: 128
+        v4 = eq v2, u32 2
+        jmpif v4 then: b3(), else: b2()
+      b2():
+        v5 = unchecked_add v2, u32 1
+        v6 = unchecked_add v3, u128 300
+        jmp b1(v6, v5)
+      b3():
+        v7 = cast v3 as u8
+        return v7
+    }
+    ";
+    let inputs = vec![vec![FieldElement::from(1000u128)]];
+    assert_eq!(cast_opcodes_after_pass(src, "v0: u128", &inputs), 2);
 }
