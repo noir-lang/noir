@@ -293,6 +293,42 @@ fn assert_fail() {
     assert!(matches!(result, InterpreterError::FailingConstraint { .. }));
 }
 
+/// The assertion message is evaluated even when the assertion holds, matching ACIR and Brillig.
+#[test]
+fn assert_message_side_effects_apply_when_assertion_holds() {
+    let program = "comptime fn bump(c: &mut u32) -> u32 {
+        *c += 1;
+        *c
+    }
+
+    comptime fn main() -> pub u32 {
+        let mut c = 3;
+        assert(c > 0, bump(&mut c));
+        c
+    }";
+    let result = interpret(program);
+    assert_eq!(result, Value::u32(4));
+}
+
+/// A message that fails to evaluate makes the assertion fail, even when its condition holds,
+/// matching ACIR and Brillig.
+#[test]
+fn assert_message_failure_fails_assertion_that_holds() {
+    let program = "comptime fn message() -> u32 {
+        assert(1 == 2, \"message evaluated\");
+        0
+    }
+
+    comptime fn main() {
+        assert(1 == 1, message());
+    }";
+    let result = interpret_expect_error(program);
+    let InterpreterError::FailingConstraint { message, .. } = result else {
+        panic!("Expected a failing constraint, found {result:?}");
+    };
+    assert_eq!(message.as_deref(), Some("message evaluated"));
+}
+
 #[test]
 fn lambda() {
     let program = "comptime fn main() -> pub u8 {
