@@ -71,9 +71,9 @@ code compiles identically across platforms.
 
 # Types solved while interpreting
 
-The interpreter does not bind type variables. Each call frame has a substitution: the call's
-instantiation and impl bindings, plus the types the frame solves while it runs (a macro call's
-result type, or a call's result type that only its value reveals). A value keeps the types it
+While it runs, the interpreter does not bind type variables. Each call frame has a substitution:
+the call's instantiation and impl bindings, plus the types the frame solves while it runs (a macro
+call's result type, or a call's result type that only its value reveals). A value keeps the types it
 was built with, so a value built before one of its types was solved still mentions the
 unsolved variable. It resolves only against a substitution that holds the solution.
 
@@ -94,6 +94,20 @@ Two rules make a solution visible wherever such a value can go:
 
 A `comptime` block's value is resolved before its interpreter is dropped, because a struct is
 inlined into the runtime code with the type stored on it.
+
+What the outermost frame solves is committed to the type variables themselves as soon as it is
+final: after each expression that frame evaluates outside a loop. That frame runs code the
+elaborator hands over — a `comptime` statement or block of a function body, a global's
+initializer, a macro call's arguments — and outside a loop it evaluates each expression once, so
+nothing can solve those variables again. The variables are the elaborated program's own:
+`comptime let v = make!();` gives `v` a variable that the next statement is type-checked against
+and that a value stored for `v` keeps. A new interpreter runs each statement, and the
+elaborator's type checking never consults an interpreter's substitution, so a solution left in
+the frame would be lost to both. Inside a loop, and in every callee frame, the rules above still
+apply: a call evaluated again re-solves its variables, and the outermost frame commits the last
+solution once the loop is done. A closure created before such a commit keeps a copy of the frame
+it was created in; when it is called, solves whose variables have since been bound are left out
+of that copy, so a frame never holds a replacement for a bound variable.
 
 Builtins read the types stored on their arguments directly, so their arguments are resolved
 under the builtin's frame.
