@@ -317,9 +317,9 @@ fn brillig_spill_does_not_leak_reloaded_permanent_values_bytecode() {
     let options = BrilligOptions { layout, ..Default::default() };
     let brillig = ssa_to_brillig_artifacts_with_options(src, &options);
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
-    // Fixed snapshot: after storing the second jump argument at 44-46, the code
-    // immediately reloads `v2` at 47-49. There is no extra spill of `v0`
-    // between those steps, which is the leak fingerprint from the buggy path.
+    // The jump arguments are reloaded at 23-29 and then stored into the destination
+    // parameters' spill slots at 30-38. There is no extra spill of `v0` between
+    // those steps, which is the leak fingerprint from the buggy path.
     assert_artifact_snapshot!(main, @r"
     fn main
      0: sp[1] = @1
@@ -346,18 +346,18 @@ fn brillig_spill_does_not_leak_reloaded_permanent_values_bytecode() {
     21: sp[4] = load sp[1]
     22: sp[2] = u32 add sp[3], sp[4]
     23: sp[2] = load sp[1]
-    24: @4 = const u32 1
+    24: @4 = const u32 4
     25: @3 = u32 add sp[1], @4
-    26: store sp[2] at @3
-    27: @4 = const u32 4
+    26: sp[3] = load @3
+    27: @4 = const u32 5
     28: @3 = u32 add sp[1], @4
-    29: sp[3] = load @3
-    30: @4 = const u32 2
+    29: sp[4] = load @3
+    30: @4 = const u32 1
     31: @3 = u32 add sp[1], @4
-    32: store sp[3] at @3
-    33: @4 = const u32 5
+    32: store sp[2] at @3
+    33: @4 = const u32 2
     34: @3 = u32 add sp[1], @4
-    35: sp[4] = load @3
+    35: store sp[3] at @3
     36: @4 = const u32 3
     37: @3 = u32 add sp[1], @4
     38: store sp[4] at @3
@@ -530,6 +530,50 @@ fn brillig_spill_jmpif_then_arg_does_not_overwrite_param_slot() {
     );
 
     assert_eq!(result, vec![FieldElement::from(15u32)]);
+}
+
+/// A loop that swaps two variables passes header parameters as each other's arguments at the
+/// back edge (`jmp b1(v9, v5, v4)` into `b1(v3, v4, v5)`). With spilling enabled, each header
+/// parameter has its own spill slot, so every argument must be read before any slot is
+/// written; otherwise the second argument is reloaded from a slot the first store already
+/// overwrote and both variables end up with the same value.
+///
+/// This is the SSA the compiler produces for:
+/// ```noir
+/// unconstrained fn swap(x: u32, y: u32, n: u32) -> (u32, u32) {
+///     let mut a = x;
+///     let mut b = y;
+///     for _ in 0..n { let t = a; a = b; b = t; }
+///     (a, b)
+/// }
+/// ```
+#[test]
+fn brillig_spill_loop_swap_reads_all_args_before_writing_param_slots() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32):
+        jmp b1(u32 0, v0, v1)
+      b1(v3: u32, v4: u32, v5: u32):
+        v7 = lt v3, v2
+        jmpif v7 then: b2(), else: b3()
+      b2():
+        v9 = unchecked_add v3, u32 1
+        jmp b1(v9, v5, v4)
+      b3():
+        return v4, v5
+    }
+    ";
+
+    let layout = LayoutConfig::new(12, 16, MAX_SCRATCH_SPACE);
+    let options = BrilligOptions { layout, ..Default::default() };
+    let result = execute_brillig_from_ssa_with_options(
+        src,
+        vec![FieldElement::from(1u32), FieldElement::from(2u32), FieldElement::from(3u32)],
+        &options,
+    );
+
+    // Three swaps of (1, 2) give (2, 1).
+    assert_eq!(result, vec![FieldElement::from(2u32), FieldElement::from(1u32)]);
 }
 
 /// A long live chain that forces register spilling with a small stack frame, and only two
