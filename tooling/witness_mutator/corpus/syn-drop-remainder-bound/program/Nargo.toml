@@ -1,0 +1,6 @@
+[package]
+name = "div_u8"
+type = "bin"
+authors = [""]
+
+[dependencies]
