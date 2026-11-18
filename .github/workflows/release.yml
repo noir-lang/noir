@@ -131,6 +131,9 @@ jobs:
           ref: ${{ fromJSON(needs.release-please.outputs.release-pr).headBranchName }}
           token: ${{ secrets.NOIR_RELEASES_TOKEN }}
 
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.89.0
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
@@ -146,6 +149,18 @@ jobs:
       - name: Install wasm-opt
         run: |
           npm i wasm-opt -g
+
+      # The cut versioned docs snapshot includes the TypeDoc-generated NoirJS
+      # reference, which re-exports symbols from these wasm/TS workspace packages.
+      # They must be built so their generated `.d.ts` files exist before
+      # `cut_version` runs TypeDoc; otherwise every re-export resolves to `any`
+      # and the snapshot captures the broken "Renames and re-exports" references
+      # reported in noir-lang/noir#12852.
+      - name: Build packages whose types the NoirJS docs reference
+        run: |
+          yarn workspace @noir-lang/types build
+          yarn workspace @noir-lang/noirc_abi build
+          yarn workspace @noir-lang/acvm_js build
 
       - name: Query new noir version
         id: noir-version
