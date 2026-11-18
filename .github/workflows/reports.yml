@@ -11,18 +11,28 @@ permissions: {}
 jobs:
   rust_benchmarks:
     name: Rust Benchmarks
-    runs-on: ubuntu-22.04
+    needs: [wake-bencher]
+    # Like `external_repo_reports`: master pushes run on the benchmark machine, and PRs on a
+    # GitHub-hosted runner, timing the base branch in the same job to compare against.
+    if: ${{ !cancelled() && needs.wake-bencher.result != 'failure' }}
+    runs-on: ${{ github.event_name == 'push' && fromJson('["self-hosted","noir-bench"]') || 'ubuntu-22.04' }}
 
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
       pull-requests: write
       # deployments permission to deploy GitHub pages website
       deployments: write
       # contents permission to update benchmark contents in gh-pages branch
       contents: write
+    env:
+      # External PRs don't store benchmark results, so they have no use for the base branch's.
+      TIME_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The base branch is the merge commit's first parent.
+          fetch-depth: 2
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -31,14 +41,31 @@ jobs:
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          key: x86_64-unknown-linux-gnu-bench
+          # The benchmark machine runs a newer distribution than the hosted runners, so its build
+          # artifacts must not be restored on a hosted runner.
+          key: x86_64-unknown-linux-gnu-bench-${{ runner.environment }}
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
+      # `target/criterion` must not survive from the cache or from the other run: rust-cache's
+      # cleanup can strip the files inside it while keeping the directories, and Criterion errors
+      # mid-output on such a hollow baseline, which breaks the bencher-format parsing below.
+      - name: Run the base branch's ACVM benchmarks
+        id: base
+        if: env.TIME_BASE == 'true'
+        # The base branch may fail to build or run where the PR doesn't; the PR's own results are
+        # then stored without a comparison.
+        continue-on-error: true
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/acvm-base" HEAD^1
+          rm -rf target/criterion
+          (cd "$RUNNER_TEMP/acvm-base" && cargo bench -p acvm --target-dir "$GITHUB_WORKSPACE/target" -- --output-format bencher) | tee acvm-bench-base.txt
+          .github/scripts/cargo-bench-to-json.sh acvm-bench-base.txt > acvm-bench-base.json
+          BENCH_TOOL=cargo .github/scripts/baseline-benchmark-data.sh "ACVM Benchmarks" "$(git rev-parse HEAD^1)" "" acvm-bench-base.json > baseline_data.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run ACVM benchmarks
-        # `target/criterion` must not survive from the cache: rust-cache's cleanup can strip
-        # the files inside it while keeping the directories, and Criterion errors mid-output
-        # on such a hollow baseline, which breaks the bencher-format parsing below.
         run: |
           rm -rf target/criterion
           cargo bench -p acvm -- --output-format bencher | tee acvm-bench.txt
@@ -58,6 +85,9 @@ jobs:
           gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
+          # On PRs, compare against the base branch measured in the same job: it ran on the same
+          # machine, so the ratio doesn't depend on which runner the job landed on.
+          external-data-json-path: ${{ steps.base.outcome == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
@@ -90,6 +120,33 @@ jobs:
             echo "has_projects=true" >> $GITHUB_OUTPUT
           fi
 
+  wake-bencher:
+    name: Wake the benchmark machine
+    # Pushes to master are timed on the dedicated benchmark machine, so master's history compares
+    # like with like across commits. PRs stay on GitHub-hosted runners and compare against the base
+    # branch timed in the same job instead (see `build-nargo-baseline`), so they don't queue on the
+    # one machine.
+    #
+    # Started once the binaries exist, so the timed jobs are dispatched seconds after the wake,
+    # before the machine can reach its idle cutoff. Its idle check counts a running Actions job as
+    # busy, so it stays up once the first one starts.
+    if: github.event_name == 'push'
+    needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Exchanged for short-lived AWS credentials that can only start the benchmark machine.
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: .github/actions/wake-bencher
+          sparse-checkout-cone-mode: false
+
+      - name: Wake the benchmark machine
+        uses: ./.github/actions/wake-bencher
+
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -105,6 +162,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
+          # Shared with `build-nargo-baseline`, which only runs on PRs and so never saves a cache.
+          shared-key: nargo-release
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -124,6 +183,39 @@ jobs:
         with:
           name: nargo
           path: ./dist/*
+          retention-days: 3
+
+  # Builds the base branch's `nargo` so `external_repo_reports` can time it next to the PR's on the
+  # same runner. The `upload_*` jobs for times then compare the PR against those results.
+  build-nargo-baseline:
+    # External PRs don't store benchmark results, so they have no use for the baseline.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.build.outputs.sha }}
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Build the base branch's nargo
+        id: build
+        uses: ./.github/actions/build-nargo-baseline
+        with:
+          shared-key: nargo-release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: nargo-baseline
+          path: ./target/release/nargo
           retention-days: 3
 
   build-noir-inspector:
@@ -362,8 +454,17 @@ jobs:
           overwrite: true
 
   external_repo_reports:
-    needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
-    runs-on: ubuntu-22.04
+    needs: [build-nargo, build-nargo-baseline, build-noir-inspector, benchmark-projects-list, wake-bencher]
+    # The reports don't depend on `build-nargo-baseline`, which is skipped outside of PRs and only
+    # adds the base branch's timings, nor on `wake-bencher`, which only runs on pushes. A failed
+    # wake skips them rather than leaving them queued for a machine that is off.
+    if: >-
+      ${{ !cancelled()
+        && needs.build-nargo.result == 'success'
+        && needs.build-noir-inspector.result == 'success'
+        && needs.benchmark-projects-list.result == 'success'
+        && needs.wake-bencher.result != 'failure' }}
+    runs-on: ${{ github.event_name == 'push' && fromJson('["self-hosted","noir-bench"]') || 'ubuntu-22.04' }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -374,6 +475,13 @@ jobs:
 
     name: External repo compilation and execution reports - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
+      # The benchmark machine keeps its workspace between jobs. Checkout's own clean removes the
+      # previous job's files too, but only once a checkout succeeds; this also covers a job that
+      # was cancelled or failed mid-checkout.
+      - name: Clean workspace
+        if: runner.environment == 'self-hosted'
+        run: find "$GITHUB_WORKSPACE" -mindepth 1 -delete
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: |
@@ -398,6 +506,19 @@ jobs:
         uses: ./.github/actions/download-binary
         with:
           name: noir-inspector
+
+      - name: Download baseline nargo binary
+        if: needs.build-nargo-baseline.result == 'success'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: nargo-baseline
+          path: ./nargo-baseline
+
+      - name: Set baseline nargo binary
+        if: needs.build-nargo-baseline.result == 'success'
+        run: |
+          chmod +x ./nargo-baseline/nargo
+          echo "NARGO_BASELINE=${{ github.workspace }}/nargo-baseline/nargo" >> $GITHUB_ENV
 
       - name: Generate compilation report
         id: compilation_report
@@ -601,7 +722,7 @@ jobs:
 
   upload_compilation_reports:
     name: Upload compilation reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
@@ -630,6 +751,12 @@ jobs:
           shopt -s globstar
           jq --slurp 'map(.compilation_time | select(.))' ./reports/* | tee time_bench.json
 
+      - name: Use the base branch's results as the previous ones
+        if: needs.build-nargo-baseline.result == 'success'
+        run: .github/scripts/baseline-benchmark-data.sh "Compilation Time" "$BASE_SHA" baseline_compilation_time ./reports/* > baseline_data.json
+        env:
+          BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
+
       - name: Store benchmark result
         # We don't run this step on external PRs
         if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
@@ -643,6 +770,9 @@ jobs:
           gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
+          # On PRs, compare against the base branch measured in the same jobs: it ran on the same
+          # machines, so the ratio doesn't depend on which runners the jobs landed on.
+          external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
@@ -651,7 +781,7 @@ jobs:
 
   upload_elaboration_reports:
     name: Upload elaboration reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
@@ -680,6 +810,12 @@ jobs:
           shopt -s globstar
           jq --slurp 'map(.elaboration_time | select(.))' ./reports/* | tee time_bench.json
 
+      - name: Use the base branch's results as the previous ones
+        if: needs.build-nargo-baseline.result == 'success'
+        run: .github/scripts/baseline-benchmark-data.sh "Elaboration Time" "$BASE_SHA" baseline_elaboration_time ./reports/* > baseline_data.json
+        env:
+          BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
+
       - name: Store benchmark result
         # We don't run this step on external PRs
         if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
@@ -693,6 +829,9 @@ jobs:
           gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
+          # On PRs, compare against the base branch measured in the same jobs: it ran on the same
+          # machines, so the ratio doesn't depend on which runners the jobs landed on.
+          external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
@@ -701,7 +840,7 @@ jobs:
 
   upload_execution_reports:
     name: Upload execution reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
@@ -730,6 +869,12 @@ jobs:
           shopt -s globstar
           jq --slurp 'map(.execution_time | select(.))' ./reports/* | tee time_bench.json
 
+      - name: Use the base branch's results as the previous ones
+        if: needs.build-nargo-baseline.result == 'success'
+        run: .github/scripts/baseline-benchmark-data.sh "Execution Time" "$BASE_SHA" baseline_execution_time ./reports/* > baseline_data.json
+        env:
+          BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
+
       - name: Store benchmark result
         # We don't run this step on external PRs
         if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
@@ -743,6 +888,9 @@ jobs:
           gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
+          # On PRs, compare against the base branch measured in the same jobs: it ran on the same
+          # machines, so the ratio doesn't depend on which runners the jobs landed on.
+          external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
@@ -851,7 +999,7 @@ jobs:
 
   upload_brillig_compilation_reports:
     name: Upload Brillig compilation reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
@@ -880,6 +1028,12 @@ jobs:
           shopt -s globstar
           jq --slurp 'map(.brillig_compilation_time | select(.))' ./reports/* | tee time_bench.json
 
+      - name: Use the base branch's results as the previous ones
+        if: needs.build-nargo-baseline.result == 'success'
+        run: .github/scripts/baseline-benchmark-data.sh "Brillig Compilation Time" "$BASE_SHA" baseline_brillig_compilation_time ./reports/* > baseline_data.json
+        env:
+          BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
+
       - name: Store benchmark result
         # We don't run this step on external PRs
         if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
@@ -893,6 +1047,9 @@ jobs:
           gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
+          # On PRs, compare against the base branch measured in the same jobs: it ran on the same
+          # machines, so the ratio doesn't depend on which runners the jobs landed on.
+          external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
@@ -901,7 +1058,7 @@ jobs:
 
   upload_brillig_execution_reports:
     name: Upload Brillig execution reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
@@ -930,6 +1087,12 @@ jobs:
           shopt -s globstar
           jq --slurp 'map(.brillig_execution_time | select(.))' ./reports/* | tee time_bench.json
 
+      - name: Use the base branch's results as the previous ones
+        if: needs.build-nargo-baseline.result == 'success'
+        run: .github/scripts/baseline-benchmark-data.sh "Brillig Execution Time" "$BASE_SHA" baseline_brillig_execution_time ./reports/* > baseline_data.json
+        env:
+          BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
+
       - name: Store benchmark result
         # We don't run this step on external PRs
         if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
@@ -943,6 +1106,9 @@ jobs:
           gh-repository: "github.com/${{ github.repository }}"
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
+          # On PRs, compare against the base branch measured in the same jobs: it ran on the same
+          # machines, so the ratio doesn't depend on which runners the jobs landed on.
+          external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
@@ -1120,6 +1286,7 @@ jobs:
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:
+      - wake-bencher
       - rust_benchmarks
       - upload_compilation_reports
       - upload_elaboration_reports
