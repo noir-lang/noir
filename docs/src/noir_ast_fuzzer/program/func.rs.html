@@ -5,7 +5,7 @@
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>std::{
 <a href=#6 id=6 data-nosnippet>6</a>    collections::{BTreeMap, BTreeSet, HashSet},
 <a href=#7 id=7 data-nosnippet>7</a>    fmt::Debug,
-<a href=#8 id=8 data-nosnippet>8</a>    rc::Rc,
+<a href=#8 id=8 data-nosnippet>8</a>    sync::Arc,
 <a href=#9 id=9 data-nosnippet>9</a>};
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>strum::IntoEnumIterator;
 <a href=#11 id=11 data-nosnippet>11</a>
@@ -572,7 +572,7 @@
 <a href=#572 id=572 data-nosnippet>572</a>    ) -&gt; arbitrary::Result&lt;<span class="prelude-ty">Option</span>&lt;TrackedExpression&gt;&gt; {
 <a href=#573 id=573 data-nosnippet>573</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(id) = <span class="self">self</span>.choose_producer(u, typ)<span class="question-mark">? </span>{
 <a href=#574 id=574 data-nosnippet>574</a>            <span class="kw">let </span>(src_mutable, src_name, src_type) = <span class="self">self</span>.get_variable(<span class="kw-2">&amp;</span>id).clone();
-<a href=#575 id=575 data-nosnippet>575</a>            <span class="kw">let </span>src_type = Rc::new(src_type);
+<a href=#575 id=575 data-nosnippet>575</a>            <span class="kw">let </span>src_type = Arc::new(src_type);
 <a href=#576 id=576 data-nosnippet>576</a>            <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
 <a href=#577 id=577 data-nosnippet>577</a>            <span class="kw">let </span>src_expr = expr::ident(id, ident_id, src_mutable, src_name, src_type.clone());
 <a href=#578 id=578 data-nosnippet>578</a>            <span class="kw">let </span>src_dyn = <span class="kw">match </span>id {
@@ -1390,7 +1390,7 @@
 <a href=#1390 id=1390 data-nosnippet>1390</a>            <span class="self">self</span>.next_ident_id(),
 <a href=#1391 id=1391 data-nosnippet>1391</a>            mutable,
 <a href=#1392 id=1392 data-nosnippet>1392</a>            name.clone(),
-<a href=#1393 id=1393 data-nosnippet>1393</a>            Rc::new(typ),
+<a href=#1393 id=1393 data-nosnippet>1393</a>            Arc::new(typ),
 <a href=#1394 id=1394 data-nosnippet>1394</a>        );
 <a href=#1395 id=1395 data-nosnippet>1395</a>        (v, i)
 <a href=#1396 id=1396 data-nosnippet>1396</a>    }
@@ -1626,10 +1626,10 @@
 <a href=#1626 id=1626 data-nosnippet>1626</a>            definition: Definition::Oracle { name: <span class="string">"print"</span>.to_string(), pure: <span class="bool-val">false </span>},
 <a href=#1627 id=1627 data-nosnippet>1627</a>            mutable: <span class="bool-val">false</span>,
 <a href=#1628 id=1628 data-nosnippet>1628</a>            name: <span class="string">"print_oracle"</span>.to_string(),
-<a href=#1629 id=1629 data-nosnippet>1629</a>            typ: Rc::new(Type::Function(
+<a href=#1629 id=1629 data-nosnippet>1629</a>            typ: Arc::new(Type::Function(
 <a href=#1630 id=1630 data-nosnippet>1630</a>                param_types,
-<a href=#1631 id=1631 data-nosnippet>1631</a>                Rc::new(Type::Unit),
-<a href=#1632 id=1632 data-nosnippet>1632</a>                Rc::new(Type::Unit),
+<a href=#1631 id=1631 data-nosnippet>1631</a>                Arc::new(Type::Unit),
+<a href=#1632 id=1632 data-nosnippet>1632</a>                Arc::new(Type::Unit),
 <a href=#1633 id=1633 data-nosnippet>1633</a>                <span class="bool-val">true</span>,
 <a href=#1634 id=1634 data-nosnippet>1634</a>            )),
 <a href=#1635 id=1635 data-nosnippet>1635</a>            id: <span class="self">self</span>.next_ident_id(),
@@ -1675,7 +1675,7 @@
 <a href=#1675 id=1675 data-nosnippet>1675</a>        // also what `Expression::return_type` uses as the `FmtString` size.
 <a href=#1676 id=1676 data-nosnippet>1676</a>        </span><span class="kw">let </span>count = count <span class="kw">as </span>u32;
 <a href=#1677 id=1677 data-nosnippet>1677</a>        <span class="kw">let </span>values_type = Type::Tuple(value_types);
-<a href=#1678 id=1678 data-nosnippet>1678</a>        <span class="kw">let </span>fmt_type = Type::FmtString(count, Rc::new(values_type));
+<a href=#1678 id=1678 data-nosnippet>1678</a>        <span class="kw">let </span>fmt_type = Type::FmtString(count, Arc::new(values_type));
 <a href=#1679 id=1679 data-nosnippet>1679</a>        <span class="kw">let </span>fmt_literal = Expression::Literal(Literal::FmtStr(
 <a href=#1680 id=1680 data-nosnippet>1680</a>            fragments,
 <a href=#1681 id=1681 data-nosnippet>1681</a>            u64::from(count),
@@ -1691,10 +1691,10 @@
 <a href=#1691 id=1691 data-nosnippet>1691</a>            definition: Definition::Oracle { name: <span class="string">"print"</span>.to_string(), pure: <span class="bool-val">false </span>},
 <a href=#1692 id=1692 data-nosnippet>1692</a>            mutable: <span class="bool-val">false</span>,
 <a href=#1693 id=1693 data-nosnippet>1693</a>            name: <span class="string">"print_oracle"</span>.to_string(),
-<a href=#1694 id=1694 data-nosnippet>1694</a>            typ: Rc::new(Type::Function(
+<a href=#1694 id=1694 data-nosnippet>1694</a>            typ: Arc::new(Type::Function(
 <a href=#1695 id=1695 data-nosnippet>1695</a>                param_types,
-<a href=#1696 id=1696 data-nosnippet>1696</a>                Rc::new(Type::Unit),
-<a href=#1697 id=1697 data-nosnippet>1697</a>                Rc::new(Type::Unit),
+<a href=#1696 id=1696 data-nosnippet>1696</a>                Arc::new(Type::Unit),
+<a href=#1697 id=1697 data-nosnippet>1697</a>                Arc::new(Type::Unit),
 <a href=#1698 id=1698 data-nosnippet>1698</a>                <span class="bool-val">true</span>,
 <a href=#1699 id=1699 data-nosnippet>1699</a>            )),
 <a href=#1700 id=1700 data-nosnippet>1700</a>            id: <span class="self">self</span>.next_ident_id(),
@@ -2101,7 +2101,7 @@
 <a href=#2101 id=2101 data-nosnippet>2101</a>            ident_id,
 <a href=#2102 id=2102 data-nosnippet>2102</a>            <span class="bool-val">true</span>,
 <a href=#2103 id=2103 data-nosnippet>2103</a>            name.clone(),
-<a href=#2104 id=2104 data-nosnippet>2104</a>            Rc::new(typ.clone()),
+<a href=#2104 id=2104 data-nosnippet>2104</a>            Arc::new(typ.clone()),
 <a href=#2105 id=2105 data-nosnippet>2105</a>        );
 <a href=#2106 id=2106 data-nosnippet>2106</a>        <span class="kw">let </span>ident_expr = Expression::Ident(ident.clone());
 <a href=#2107 id=2107 data-nosnippet>2107</a>
@@ -2491,10 +2491,10 @@
 <a href=#2491 id=2491 data-nosnippet>2491</a>            definition: Definition::Function(callee_id),
 <a href=#2492 id=2492 data-nosnippet>2492</a>            mutable: <span class="bool-val">false</span>,
 <a href=#2493 id=2493 data-nosnippet>2493</a>            name: callee.name.clone(),
-<a href=#2494 id=2494 data-nosnippet>2494</a>            typ: Rc::new(Type::Function(
+<a href=#2494 id=2494 data-nosnippet>2494</a>            typ: Arc::new(Type::Function(
 <a href=#2495 id=2495 data-nosnippet>2495</a>                param_types,
-<a href=#2496 id=2496 data-nosnippet>2496</a>                Rc::new(callee.return_type.clone()),
-<a href=#2497 id=2497 data-nosnippet>2497</a>                Rc::new(Type::Unit),
+<a href=#2496 id=2496 data-nosnippet>2496</a>                Arc::new(callee.return_type.clone()),
+<a href=#2497 id=2497 data-nosnippet>2497</a>                Arc::new(Type::Unit),
 <a href=#2498 id=2498 data-nosnippet>2498</a>                callee.unconstrained,
 <a href=#2499 id=2499 data-nosnippet>2499</a>            )),
 <a href=#2500 id=2500 data-nosnippet>2500</a>            id: <span class="self">self</span>.next_ident_id(),
@@ -2505,7 +2505,7 @@
 <a href=#2505 id=2505 data-nosnippet>2505</a>    </span><span class="kw">fn </span>local_ident(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: LocalId) -&gt; Ident {
 <a href=#2506 id=2506 data-nosnippet>2506</a>        <span class="kw">let </span>(mutable, name, typ) = <span class="self">self</span>.locals.current().get_variable(<span class="kw-2">&amp;</span>id).clone();
 <a href=#2507 id=2507 data-nosnippet>2507</a>        <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
-<a href=#2508 id=2508 data-nosnippet>2508</a>        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, Rc::new(typ))
+<a href=#2508 id=2508 data-nosnippet>2508</a>        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, Arc::new(typ))
 <a href=#2509 id=2509 data-nosnippet>2509</a>    }
 <a href=#2510 id=2510 data-nosnippet>2510</a>
 <a href=#2511 id=2511 data-nosnippet>2511</a>    <span class="doccomment">/// Type of a local variable.
@@ -2522,7 +2522,7 @@
 <a href=#2522 id=2522 data-nosnippet>2522</a>        <span class="kw">let </span>idx_name = <span class="macro">format!</span>(<span class="string">"idx_{}"</span>, make_name(idx_local_id.<span class="number">0 </span><span class="kw">as </span>usize, <span class="bool-val">false</span>));
 <a href=#2523 id=2523 data-nosnippet>2523</a>        <span class="kw">let </span>idx_variable_id = VariableId::Local(idx_local_id);
 <a href=#2524 id=2524 data-nosnippet>2524</a>        <span class="kw">let </span>idx_ident =
-<a href=#2525 id=2525 data-nosnippet>2525</a>            expr::ident_inner(idx_variable_id, idx_id, <span class="bool-val">true</span>, idx_name.clone(), Rc::new(idx_type));
+<a href=#2525 id=2525 data-nosnippet>2525</a>            expr::ident_inner(idx_variable_id, idx_id, <span class="bool-val">true</span>, idx_name.clone(), Arc::new(idx_type));
 <a href=#2526 id=2526 data-nosnippet>2526</a>        (idx_local_id, idx_name, idx_ident)
 <a href=#2527 id=2527 data-nosnippet>2527</a>    }
 <a href=#2528 id=2528 data-nosnippet>2528</a>
@@ -2568,7 +2568,7 @@
 <a href=#2568 id=2568 data-nosnippet>2568</a>        <span class="kw">let </span>(<span class="kw">_</span>, name, typ) = <span class="self">self</span>.globals.get_variable(<span class="kw-2">&amp;</span>id).clone();
 <a href=#2569 id=2569 data-nosnippet>2569</a>        <span class="kw">let </span>ident_id = <span class="self">self</span>.next_ident_id();
 <a href=#2570 id=2570 data-nosnippet>2570</a>        <span class="kw">let </span>ident =
-<a href=#2571 id=2571 data-nosnippet>2571</a>            expr::ident(VariableId::Global(id), ident_id, <span class="bool-val">false</span>, name, Rc::new(typ.clone()));
+<a href=#2571 id=2571 data-nosnippet>2571</a>            expr::ident(VariableId::Global(id), ident_id, <span class="bool-val">false</span>, name, Arc::new(typ.clone()));
 <a href=#2572 id=2572 data-nosnippet>2572</a>        <span class="kw">let </span>let_expr = <span class="self">self</span>.let_var(mutable, typ, ident, add_to_scope, <span class="bool-val">false</span>, local_name);
 <a href=#2573 id=2573 data-nosnippet>2573</a>        <span class="kw">let </span>Expression::Let(Let { id, name, .. }) = <span class="kw-2">&amp;</span>let_expr <span class="kw">else </span>{
 <a href=#2574 id=2574 data-nosnippet>2574</a>            <span class="macro">unreachable!</span>(<span class="string">"expected Let; got {let_expr:?}"</span>);
@@ -2609,10 +2609,10 @@
 <a href=#2609 id=2609 data-nosnippet>2609</a>            definition: Definition::Builtin(Builtin::ArrayLen),
 <a href=#2610 id=2610 data-nosnippet>2610</a>            mutable: <span class="bool-val">false</span>,
 <a href=#2611 id=2611 data-nosnippet>2611</a>            name: <span class="string">"len"</span>.to_string(),
-<a href=#2612 id=2612 data-nosnippet>2612</a>            typ: Rc::new(Type::Function(
+<a href=#2612 id=2612 data-nosnippet>2612</a>            typ: Arc::new(Type::Function(
 <a href=#2613 id=2613 data-nosnippet>2613</a>                <span class="macro">vec!</span>[typ],
-<a href=#2614 id=2614 data-nosnippet>2614</a>                Rc::new(types::U32),
-<a href=#2615 id=2615 data-nosnippet>2615</a>                Rc::new(Type::Unit),
+<a href=#2614 id=2614 data-nosnippet>2614</a>                Arc::new(types::U32),
+<a href=#2615 id=2615 data-nosnippet>2615</a>                Arc::new(Type::Unit),
 <a href=#2616 id=2616 data-nosnippet>2616</a>                <span class="bool-val">false</span>,
 <a href=#2617 id=2617 data-nosnippet>2617</a>            )),
 <a href=#2618 id=2618 data-nosnippet>2618</a>            id: <span class="self">self</span>.next_ident_id(),
@@ -2632,10 +2632,10 @@
 <a href=#2632 id=2632 data-nosnippet>2632</a>            definition: Definition::Builtin(Builtin::StrAsBytes),
 <a href=#2633 id=2633 data-nosnippet>2633</a>            mutable: <span class="bool-val">false</span>,
 <a href=#2634 id=2634 data-nosnippet>2634</a>            name: <span class="string">"as_bytes"</span>.to_string(),
-<a href=#2635 id=2635 data-nosnippet>2635</a>            typ: Rc::new(Type::Function(
+<a href=#2635 id=2635 data-nosnippet>2635</a>            typ: Arc::new(Type::Function(
 <a href=#2636 id=2636 data-nosnippet>2636</a>                <span class="macro">vec!</span>[Type::String(len)],
-<a href=#2637 id=2637 data-nosnippet>2637</a>                Rc::new(bytes_type.clone()),
-<a href=#2638 id=2638 data-nosnippet>2638</a>                Rc::new(Type::Unit),
+<a href=#2637 id=2637 data-nosnippet>2637</a>                Arc::new(bytes_type.clone()),
+<a href=#2638 id=2638 data-nosnippet>2638</a>                Arc::new(Type::Unit),
 <a href=#2639 id=2639 data-nosnippet>2639</a>                <span class="bool-val">false</span>,
 <a href=#2640 id=2640 data-nosnippet>2640</a>            )),
 <a href=#2641 id=2641 data-nosnippet>2641</a>            id: <span class="self">self</span>.next_ident_id(),
@@ -2660,10 +2660,10 @@
 <a href=#2660 id=2660 data-nosnippet>2660</a>            definition: Definition::Builtin(Builtin::AsVector),
 <a href=#2661 id=2661 data-nosnippet>2661</a>            mutable: <span class="bool-val">false</span>,
 <a href=#2662 id=2662 data-nosnippet>2662</a>            name: <span class="string">"as_vector"</span>.to_string(),
-<a href=#2663 id=2663 data-nosnippet>2663</a>            typ: Rc::new(Type::Function(
+<a href=#2663 id=2663 data-nosnippet>2663</a>            typ: Arc::new(Type::Function(
 <a href=#2664 id=2664 data-nosnippet>2664</a>                <span class="macro">vec!</span>[array_type],
-<a href=#2665 id=2665 data-nosnippet>2665</a>                Rc::new(vector_type.clone()),
-<a href=#2666 id=2666 data-nosnippet>2666</a>                Rc::new(Type::Unit),
+<a href=#2665 id=2665 data-nosnippet>2665</a>                Arc::new(vector_type.clone()),
+<a href=#2666 id=2666 data-nosnippet>2666</a>                Arc::new(Type::Unit),
 <a href=#2667 id=2667 data-nosnippet>2667</a>                <span class="bool-val">false</span>,
 <a href=#2668 id=2668 data-nosnippet>2668</a>            )),
 <a href=#2669 id=2669 data-nosnippet>2669</a>            id: <span class="self">self</span>.next_ident_id(),
@@ -2693,10 +2693,10 @@
 <a href=#2693 id=2693 data-nosnippet>2693</a>            definition: Definition::Builtin(builtin),
 <a href=#2694 id=2694 data-nosnippet>2694</a>            mutable: <span class="bool-val">false</span>,
 <a href=#2695 id=2695 data-nosnippet>2695</a>            name: name.to_string(),
-<a href=#2696 id=2696 data-nosnippet>2696</a>            typ: Rc::new(Type::Function(
+<a href=#2696 id=2696 data-nosnippet>2696</a>            typ: Arc::new(Type::Function(
 <a href=#2697 id=2697 data-nosnippet>2697</a>                arg_types,
-<a href=#2698 id=2698 data-nosnippet>2698</a>                Rc::new(return_type.clone()),
-<a href=#2699 id=2699 data-nosnippet>2699</a>                Rc::new(Type::Unit),
+<a href=#2698 id=2698 data-nosnippet>2698</a>                Arc::new(return_type.clone()),
+<a href=#2699 id=2699 data-nosnippet>2699</a>                Arc::new(Type::Unit),
 <a href=#2700 id=2700 data-nosnippet>2700</a>                <span class="bool-val">false</span>,
 <a href=#2701 id=2701 data-nosnippet>2701</a>            )),
 <a href=#2702 id=2702 data-nosnippet>2702</a>            id: <span class="self">self</span>.next_ident_id(),

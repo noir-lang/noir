@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `tooling/ast_fuzzer/src/program/types.rs`."><title>types.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noir_ast_fuzzer" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noir_ast_fuzzer/program/</div>types.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::{collections::HashSet, rc::Rc};
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `tooling/ast_fuzzer/src/program/types.rs`."><title>types.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noir_ast_fuzzer" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noir_ast_fuzzer/program/</div>types.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::{collections::HashSet, sync::Arc};
 <a href=#2 id=2 data-nosnippet>2</a>
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>iter_extended::vecmap;
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>noirc_frontend::{
@@ -175,18 +175,18 @@
 <a href=#175 id=175 data-nosnippet>175</a>{
 <a href=#176 id=176 data-nosnippet>176</a>    <span class="kw">if let </span>Type::Reference(typ, <span class="kw">_</span>) = typ {
 <a href=#177 id=177 data-nosnippet>177</a>        <span class="comment">// One
-<a href=#178 id=178 data-nosnippet>178</a>        </span><span class="kw-2">*</span>typ = Rc::new(unref_mut_helper(typ.as_ref(), f));
+<a href=#178 id=178 data-nosnippet>178</a>        </span><span class="kw-2">*</span>typ = Arc::new(unref_mut_helper(typ.as_ref(), f));
 <a href=#179 id=179 data-nosnippet>179</a>    } <span class="kw">else </span>{
 <a href=#180 id=180 data-nosnippet>180</a>        <span class="kw-2">*</span>typ = f(typ.clone());
 <a href=#181 id=181 data-nosnippet>181</a>    }
 <a href=#182 id=182 data-nosnippet>182</a>}
 <a href=#183 id=183 data-nosnippet>183</a>
-<a href=#184 id=184 data-nosnippet>184</a><span class="doccomment">/// Similar to [`unref_mut`] but for `&amp;mut Rc&lt;Type&gt;`.
-<a href=#185 id=185 data-nosnippet>185</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unref_mut_rc&lt;F&gt;(typ: <span class="kw-2">&amp;mut </span>Rc&lt;Type&gt;, f: F)
+<a href=#184 id=184 data-nosnippet>184</a><span class="doccomment">/// Similar to [`unref_mut`] but for `&amp;mut Arc&lt;Type&gt;`.
+<a href=#185 id=185 data-nosnippet>185</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unref_mut_rc&lt;F&gt;(typ: <span class="kw-2">&amp;mut </span>Arc&lt;Type&gt;, f: F)
 <a href=#186 id=186 data-nosnippet>186</a><span class="kw">where
 <a href=#187 id=187 data-nosnippet>187</a>    </span>F: FnOnce(Type) -&gt; Type,
 <a href=#188 id=188 data-nosnippet>188</a>{
-<a href=#189 id=189 data-nosnippet>189</a>    <span class="kw-2">*</span>typ = Rc::new(unref_mut_helper(typ.as_ref(), f));
+<a href=#189 id=189 data-nosnippet>189</a>    <span class="kw-2">*</span>typ = Arc::new(unref_mut_helper(typ.as_ref(), f));
 <a href=#190 id=190 data-nosnippet>190</a>}
 <a href=#191 id=191 data-nosnippet>191</a>
 <a href=#192 id=192 data-nosnippet>192</a><span class="kw">fn </span>unref_mut_helper&lt;F&gt;(typ: <span class="kw-2">&amp;</span>Type, f: F) -&gt; Type
@@ -194,7 +194,7 @@
 <a href=#194 id=194 data-nosnippet>194</a>    </span>F: FnOnce(Type) -&gt; Type,
 <a href=#195 id=195 data-nosnippet>195</a>{
 <a href=#196 id=196 data-nosnippet>196</a>    <span class="kw">if let </span>Type::Reference(typ, mutable) = typ {
-<a href=#197 id=197 data-nosnippet>197</a>        Type::Reference(Rc::new(unref_mut_helper(typ.as_ref(), f)), <span class="kw-2">*</span>mutable)
+<a href=#197 id=197 data-nosnippet>197</a>        Type::Reference(Arc::new(unref_mut_helper(typ.as_ref(), f)), <span class="kw-2">*</span>mutable)
 <a href=#198 id=198 data-nosnippet>198</a>    } <span class="kw">else </span>{
 <a href=#199 id=199 data-nosnippet>199</a>        f(typ.clone())
 <a href=#200 id=200 data-nosnippet>200</a>    }
@@ -336,7 +336,7 @@
 <a href=#336 id=336 data-nosnippet>336</a>
 <a href=#337 id=337 data-nosnippet>337</a><span class="doccomment">/// Reference an expression into a target type
 <a href=#338 id=338 data-nosnippet>338</a></span><span class="kw">pub fn </span>ref_with_mut(typ: Type, mutable: bool) -&gt; Type {
-<a href=#339 id=339 data-nosnippet>339</a>    Type::Reference(Rc::new(typ), mutable)
+<a href=#339 id=339 data-nosnippet>339</a>    Type::Reference(Arc::new(typ), mutable)
 <a href=#340 id=340 data-nosnippet>340</a>}
 <a href=#341 id=341 data-nosnippet>341</a>
 <a href=#342 id=342 data-nosnippet>342</a><span class="doccomment">/// Convert the type back into a HIR equivalent (not necessarily the original HIR type).

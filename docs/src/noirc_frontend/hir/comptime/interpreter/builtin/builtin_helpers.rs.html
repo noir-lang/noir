@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a>//! These functions may implement error checking for argument count, type-check an
 <a href=#4 id=4 data-nosnippet>4</a>//! argument for a specific type, returning its value, etc.
 <a href=#5 id=5 data-nosnippet>5</a></span><span class="kw">use </span>std::hash::Hash;
-<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>std::{hash::Hasher, rc::Rc};
+<a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>std::{hash::Hasher, sync::Arc};
 <a href=#7 id=7 data-nosnippet>7</a>
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">use </span>acvm::FieldElement;
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span>fm::FileMap;
@@ -183,7 +183,7 @@
 <a href=#183 id=183 data-nosnippet>183</a><span class="doccomment">/// Get a specific field of a struct and apply a decoder function on it.
 <a href=#184 id=184 data-nosnippet>184</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_struct_field&lt;T&gt;(
 <a href=#185 id=185 data-nosnippet>185</a>    field_name: <span class="kw-2">&amp;</span>str,
-<a href=#186 id=186 data-nosnippet>186</a>    struct_fields: <span class="kw-2">&amp;</span>HashMap&lt;Rc&lt;String&gt;, ValueCell&gt;,
+<a href=#186 id=186 data-nosnippet>186</a>    struct_fields: <span class="kw-2">&amp;</span>HashMap&lt;Arc&lt;String&gt;, ValueCell&gt;,
 <a href=#187 id=187 data-nosnippet>187</a>    struct_type: <span class="kw-2">&amp;</span>Type,
 <a href=#188 id=188 data-nosnippet>188</a>    location: Location,
 <a href=#189 id=189 data-nosnippet>189</a>    f: <span class="kw">impl </span>Fn((Value, Location)) -&gt; IResult&lt;T&gt;,
@@ -253,7 +253,7 @@
 <a href=#253 id=253 data-nosnippet>253</a>    })
 <a href=#254 id=254 data-nosnippet>254</a>}
 <a href=#255 id=255 data-nosnippet>255</a>
-<a href=#256 id=256 data-nosnippet>256</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_str((value, location): (Value, Location)) -&gt; IResult&lt;Rc&lt;Vec&lt;u8&gt;&gt;&gt; {
+<a href=#256 id=256 data-nosnippet>256</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_str((value, location): (Value, Location)) -&gt; IResult&lt;Arc&lt;Vec&lt;u8&gt;&gt;&gt; {
 <a href=#257 id=257 data-nosnippet>257</a>    <span class="kw">match </span>value {
 <a href=#258 id=258 data-nosnippet>258</a>        Value::String(bytes) =&gt; <span class="prelude-val">Ok</span>(bytes),
 <a href=#259 id=259 data-nosnippet>259</a>        value =&gt; {
@@ -263,7 +263,7 @@
 <a href=#263 id=263 data-nosnippet>263</a>    }
 <a href=#264 id=264 data-nosnippet>264</a>}
 <a href=#265 id=265 data-nosnippet>265</a>
-<a href=#266 id=266 data-nosnippet>266</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ctstring((value, location): (Value, Location)) -&gt; IResult&lt;Rc&lt;Vec&lt;u8&gt;&gt;&gt; {
+<a href=#266 id=266 data-nosnippet>266</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_ctstring((value, location): (Value, Location)) -&gt; IResult&lt;Arc&lt;Vec&lt;u8&gt;&gt;&gt; {
 <a href=#267 id=267 data-nosnippet>267</a>    <span class="kw">match </span>value {
 <a href=#268 id=268 data-nosnippet>268</a>        Value::CtString(bytes) =&gt; <span class="prelude-val">Ok</span>(bytes),
 <a href=#269 id=269 data-nosnippet>269</a>        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
@@ -333,7 +333,7 @@
 <a href=#333 id=333 data-nosnippet>333</a>
 <a href=#334 id=334 data-nosnippet>334</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_format_string(
 <a href=#335 id=335 data-nosnippet>335</a>    (value, location): (Value, Location),
-<a href=#336 id=336 data-nosnippet>336</a>) -&gt; IResult&lt;(Rc&lt;Vec&lt;FormatStringFragment&gt;&gt;, Type, u32)&gt; {
+<a href=#336 id=336 data-nosnippet>336</a>) -&gt; IResult&lt;(Arc&lt;Vec&lt;FormatStringFragment&gt;&gt;, Type, u32)&gt; {
 <a href=#337 id=337 data-nosnippet>337</a>    <span class="kw">match </span>value {
 <a href=#338 id=338 data-nosnippet>338</a>        Value::FormatString(fragments, typ, length) =&gt; <span class="prelude-val">Ok</span>((fragments, typ, length)),
 <a href=#339 id=339 data-nosnippet>339</a>        value =&gt; type_mismatch(value, <span class="string">"fmtstr"</span>, location),
@@ -405,7 +405,7 @@
 <a href=#405 id=405 data-nosnippet>405</a>    }
 <a href=#406 id=406 data-nosnippet>406</a>}
 <a href=#407 id=407 data-nosnippet>407</a>
-<a href=#408 id=408 data-nosnippet>408</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_quoted((value, location): (Value, Location)) -&gt; IResult&lt;Rc&lt;Vec&lt;LocatedToken&gt;&gt;&gt; {
+<a href=#408 id=408 data-nosnippet>408</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_quoted((value, location): (Value, Location)) -&gt; IResult&lt;Arc&lt;Vec&lt;LocatedToken&gt;&gt;&gt; {
 <a href=#409 id=409 data-nosnippet>409</a>    <span class="kw">match </span>value {
 <a href=#410 id=410 data-nosnippet>410</a>        Value::Quoted(tokens) =&gt; <span class="prelude-val">Ok</span>(tokens),
 <a href=#411 id=411 data-nosnippet>411</a>        value =&gt; type_mismatch(value, Type::Quoted(QuotedType::Quoted), location),
@@ -700,10 +700,10 @@
 <a href=#700 id=700 data-nosnippet>700</a>    Value::Quoted(ident_to_tokens(ident, location))
 <a href=#701 id=701 data-nosnippet>701</a>}
 <a href=#702 id=702 data-nosnippet>702</a>
-<a href=#703 id=703 data-nosnippet>703</a><span class="kw">fn </span>ident_to_tokens(ident: <span class="kw-2">&amp;</span>Ident, location: Location) -&gt; Rc&lt;Vec&lt;LocatedToken&gt;&gt; {
+<a href=#703 id=703 data-nosnippet>703</a><span class="kw">fn </span>ident_to_tokens(ident: <span class="kw-2">&amp;</span>Ident, location: Location) -&gt; Arc&lt;Vec&lt;LocatedToken&gt;&gt; {
 <a href=#704 id=704 data-nosnippet>704</a>    <span class="kw">let </span>token = Token::Ident(ident.to_string());
 <a href=#705 id=705 data-nosnippet>705</a>    <span class="kw">let </span>token = LocatedToken::new(token, location);
-<a href=#706 id=706 data-nosnippet>706</a>    Rc::new(<span class="macro">vec!</span>[token])
+<a href=#706 id=706 data-nosnippet>706</a>    Arc::new(<span class="macro">vec!</span>[token])
 <a href=#707 id=707 data-nosnippet>707</a>}
 <a href=#708 id=708 data-nosnippet>708</a>
 <a href=#709 id=709 data-nosnippet>709</a><span class="doccomment">/// A deterministic hasher used for the comptime `hash` builtins.
@@ -820,7 +820,7 @@
 <a href=#820 id=820 data-nosnippet>820</a>    typ: Type,
 <a href=#821 id=821 data-nosnippet>821</a>) -&gt; Value {
 <a href=#822 id=822 data-nosnippet>822</a>    <span class="kw">let </span>fields =
-<a href=#823 id=823 data-nosnippet>823</a>        fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), ValueCell::new(v))).collect();
+<a href=#823 id=823 data-nosnippet>823</a>        fields.into_iter().map(|(k, v)| (Arc::new(k.to_string()), ValueCell::new(v))).collect();
 <a href=#824 id=824 data-nosnippet>824</a>    Value::Struct(fields, typ)
 <a href=#825 id=825 data-nosnippet>825</a>}
 <a href=#826 id=826 data-nosnippet>826</a>
@@ -838,7 +838,7 @@
 <a href=#838 id=838 data-nosnippet>838</a>    };
 <a href=#839 id=839 data-nosnippet>839</a>
 <a href=#840 id=840 data-nosnippet>840</a>    <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-<a href=#841 id=841 data-nosnippet>841</a>    fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), ValueCell::new(Value::field(unary_op_value.into())));
+<a href=#841 id=841 data-nosnippet>841</a>    fields.insert(Arc::new(<span class="string">"op"</span>.to_string()), ValueCell::new(Value::field(unary_op_value.into())));
 <a href=#842 id=842 data-nosnippet>842</a>
 <a href=#843 id=843 data-nosnippet>843</a>    <span class="prelude-val">Some</span>(Value::Struct(fields, typ))
 <a href=#844 id=844 data-nosnippet>844</a>}
@@ -848,7 +848,7 @@
 <a href=#848 id=848 data-nosnippet>848</a>    </span><span class="kw">let </span>binary_op_value = operator.contents <span class="kw">as </span>u128;
 <a href=#849 id=849 data-nosnippet>849</a>
 <a href=#850 id=850 data-nosnippet>850</a>    <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-<a href=#851 id=851 data-nosnippet>851</a>    fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), ValueCell::new(Value::field(binary_op_value.into())));
+<a href=#851 id=851 data-nosnippet>851</a>    fields.insert(Arc::new(<span class="string">"op"</span>.to_string()), ValueCell::new(Value::field(binary_op_value.into())));
 <a href=#852 id=852 data-nosnippet>852</a>
 <a href=#853 id=853 data-nosnippet>853</a>    Value::Struct(fields, typ)
 <a href=#854 id=854 data-nosnippet>854</a>}
@@ -865,7 +865,7 @@
 <a href=#865 id=865 data-nosnippet>865</a>        ItemVisibility::Public =&gt; <span class="macro">vec!</span>[Token::Keyword(Keyword::Pub)],
 <a href=#866 id=866 data-nosnippet>866</a>    };
 <a href=#867 id=867 data-nosnippet>867</a>    <span class="kw">let </span>tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
-<a href=#868 id=868 data-nosnippet>868</a>    Value::Quoted(Rc::new(tokens))
+<a href=#868 id=868 data-nosnippet>868</a>    Value::Quoted(Arc::new(tokens))
 <a href=#869 id=869 data-nosnippet>869</a>}
 <a href=#870 id=870 data-nosnippet>870</a>
 <a href=#871 id=871 data-nosnippet>871</a><span class="doccomment">/// Renders format string fragments to bytes.

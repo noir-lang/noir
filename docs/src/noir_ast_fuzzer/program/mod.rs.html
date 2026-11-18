@@ -1,7 +1,7 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `tooling/ast_fuzzer/src/program/mod.rs`."><title>mod.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noir_ast_fuzzer" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noir_ast_fuzzer/program/</div>mod.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="doccomment">//! Module responsible for generating arbitrary [Program] ASTs.
 <a href=#2 id=2 data-nosnippet>2</a></span><span class="kw">use </span>std::{
 <a href=#3 id=3 data-nosnippet>3</a>    collections::{BTreeMap, BTreeSet},
-<a href=#4 id=4 data-nosnippet>4</a>    rc::Rc,
+<a href=#4 id=4 data-nosnippet>4</a>    sync::Arc,
 <a href=#5 id=5 data-nosnippet>5</a>}; <span class="comment">// Using BTree for deterministic enumeration, for repeatability.
 <a href=#6 id=6 data-nosnippet>6</a>
 <a href=#7 id=7 data-nosnippet>7</a></span><span class="kw">use </span>func::{FunctionContext, FunctionDeclaration, can_call};
@@ -293,8 +293,8 @@
 <a href=#293 id=293 data-nosnippet>293</a>                    callee.params.iter().map(|p| p.<span class="number">3</span>.as_ref().clone()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 <a href=#294 id=294 data-nosnippet>294</a>                <span class="kw">let </span>typ = Type::Function(
 <a href=#295 id=295 data-nosnippet>295</a>                    param_types,
-<a href=#296 id=296 data-nosnippet>296</a>                    Rc::new(callee.return_type.clone()),
-<a href=#297 id=297 data-nosnippet>297</a>                    Rc::new(Type::Unit),
+<a href=#296 id=296 data-nosnippet>296</a>                    Arc::new(callee.return_type.clone()),
+<a href=#297 id=297 data-nosnippet>297</a>                    Arc::new(Type::Unit),
 <a href=#298 id=298 data-nosnippet>298</a>                    callee.unconstrained,
 <a href=#299 id=299 data-nosnippet>299</a>                );
 <a href=#300 id=300 data-nosnippet>300</a>                <span class="kw">if </span>u.ratio(<span class="number">2</span>, <span class="number">5</span>)<span class="question-mark">? </span>{ types::ref_mut(typ) } <span class="kw">else </span>{ typ }
@@ -310,7 +310,7 @@
 <a href=#310 id=310 data-nosnippet>310</a>                Visibility::Private
 <a href=#311 id=311 data-nosnippet>311</a>            };
 <a href=#312 id=312 data-nosnippet>312</a>
-<a href=#313 id=313 data-nosnippet>313</a>            params.push((id, is_mutable, name, Rc::new(typ), visibility));
+<a href=#313 id=313 data-nosnippet>313</a>            params.push((id, is_mutable, name, Arc::new(typ), visibility));
 <a href=#314 id=314 data-nosnippet>314</a>        }
 <a href=#315 id=315 data-nosnippet>315</a>
 <a href=#316 id=316 data-nosnippet>316</a>        <span class="kw">let </span>return_visibility = <span class="kw">if </span>is_main {
@@ -517,13 +517,13 @@
 <a href=#517 id=517 data-nosnippet>517</a>                }
 <a href=#518 id=518 data-nosnippet>518</a>                <span class="number">6 </span><span class="kw">if </span>is_vector_allowed &amp;&amp; !<span class="self">self</span>.config.avoid_vectors =&gt; {
 <a href=#519 id=519 data-nosnippet>519</a>                    <span class="kw">let </span>typ = gen_inner_type(<span class="self">self</span>, u, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-<a href=#520 id=520 data-nosnippet>520</a>                    Type::Vector(Rc::new(typ))
+<a href=#520 id=520 data-nosnippet>520</a>                    Type::Vector(Arc::new(typ))
 <a href=#521 id=521 data-nosnippet>521</a>                }
 <a href=#522 id=522 data-nosnippet>522</a>                <span class="number">6 </span>| <span class="number">7 </span>=&gt; {
 <a href=#523 id=523 data-nosnippet>523</a>                    <span class="kw">let </span>min_size = <span class="number">0</span>;
 <a href=#524 id=524 data-nosnippet>524</a>                    <span class="kw">let </span>size = u.int_in_range(min_size..=<span class="self">self</span>.config.max_array_size)<span class="question-mark">?</span>;
 <a href=#525 id=525 data-nosnippet>525</a>                    <span class="kw">let </span>typ = gen_inner_type(<span class="self">self</span>, u, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-<a href=#526 id=526 data-nosnippet>526</a>                    Type::Array(size <span class="kw">as </span>u32, Rc::new(typ))
+<a href=#526 id=526 data-nosnippet>526</a>                    Type::Array(size <span class="kw">as </span>u32, Arc::new(typ))
 <a href=#527 id=527 data-nosnippet>527</a>                }
 <a href=#528 id=528 data-nosnippet>528</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"unexpected arbitrary type index"</span>),
 <a href=#529 id=529 data-nosnippet>529</a>            };

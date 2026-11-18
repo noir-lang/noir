@@ -166,7 +166,7 @@
 <a href=#166 id=166 data-nosnippet>166</a>
 <a href=#167 id=167 data-nosnippet>167</a></span><span class="kw">use </span>std::{
 <a href=#168 id=168 data-nosnippet>168</a>    collections::{BTreeMap, BTreeSet},
-<a href=#169 id=169 data-nosnippet>169</a>    rc::Rc,
+<a href=#169 id=169 data-nosnippet>169</a>    sync::Arc,
 <a href=#170 id=170 data-nosnippet>170</a>};
 <a href=#171 id=171 data-nosnippet>171</a>
 <a href=#172 id=172 data-nosnippet>172</a><span class="kw">use </span>iter_extended::vecmap;
@@ -569,7 +569,7 @@
 <a href=#569 id=569 data-nosnippet>569</a>        generics.push(new_generic.clone());
 <a href=#570 id=570 data-nosnippet>570</a>
 <a href=#571 id=571 data-nosnippet>571</a>        <span class="kw">let </span>name = <span class="macro">format!</span>(<span class="string">"{IMPL_TRAIT_PARAMETER_NAME_PREFIX}{trait_path}"</span>);
-<a href=#572 id=572 data-nosnippet>572</a>        <span class="kw">let </span>generic_type = new_generic.into_named_generic(<span class="kw-2">&amp;</span>Rc::new(name), <span class="prelude-val">None</span>);
+<a href=#572 id=572 data-nosnippet>572</a>        <span class="kw">let </span>generic_type = new_generic.into_named_generic(<span class="kw-2">&amp;</span>Arc::new(name), <span class="prelude-val">None</span>);
 <a href=#573 id=573 data-nosnippet>573</a>        <span class="kw">let </span>trait_bound = TraitBound { trait_path, trait_generics };
 <a href=#574 id=574 data-nosnippet>574</a>
 <a href=#575 id=575 data-nosnippet>575</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_bound) = <span class="self">self</span>.resolve_trait_bound(<span class="kw-2">&amp;</span>trait_bound) {
@@ -1040,7 +1040,7 @@
 <a href=#1040 id=1040 data-nosnippet>1040</a>                        .id();
 <a href=#1041 id=1041 data-nosnippet>1041</a>
 <a href=#1042 id=1042 data-nosnippet>1042</a>                    <span class="kw">let </span>fresh_type = type_var.clone().into_implicit_named_generic(
-<a href=#1043 id=1043 data-nosnippet>1043</a>                        <span class="kw-2">&amp;</span>Rc::new(named_type.name.to_string()),
+<a href=#1043 id=1043 data-nosnippet>1043</a>                        <span class="kw-2">&amp;</span>Arc::new(named_type.name.to_string()),
 <a href=#1044 id=1044 data-nosnippet>1044</a>                        <span class="prelude-val">Some</span>((object_name.as_str(), parent_trait_name.as_str())),
 <a href=#1045 id=1045 data-nosnippet>1045</a>                        assoc_type_id,
 <a href=#1046 id=1046 data-nosnippet>1046</a>                    );

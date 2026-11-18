@@ -33,7 +33,7 @@
 <a href=#33 id=33 data-nosnippet>33</a>//! [`InterpreterError::ArgumentCountMismatch`] is an example of such an error.
 <a href=#34 id=34 data-nosnippet>34</a>
 <a href=#35 id=35 data-nosnippet>35</a></span><span class="kw">use </span>std::collections::VecDeque;
-<a href=#36 id=36 data-nosnippet>36</a><span class="kw">use </span>std::rc::Rc;
+<a href=#36 id=36 data-nosnippet>36</a><span class="kw">use </span>std::sync::Arc;
 <a href=#37 id=37 data-nosnippet>37</a>
 <a href=#38 id=38 data-nosnippet>38</a><span class="kw">use </span>acvm::AcirField;
 <a href=#39 id=39 data-nosnippet>39</a><span class="kw">use </span>imbl::Vector;
@@ -782,7 +782,7 @@
 <a href=#782 id=782 data-nosnippet>782</a>                <span class="kw">let </span>bindings = <span class="self">self</span>.elaborator.interner.try_get_instantiation_bindings(id);
 <a href=#783 id=783 data-nosnippet>783</a>                <span class="kw">let </span><span class="kw-2">mut </span>bindings = bindings.map_or(TypeBindings::default(), |b| <span class="self">self</span>.bindings(b));
 <a href=#784 id=784 data-nosnippet>784</a>                resolve_type_bindings(<span class="kw-2">&amp;mut </span>bindings);
-<a href=#785 id=785 data-nosnippet>785</a>                <span class="prelude-val">Ok</span>(Value::Function(<span class="kw-2">*</span>function_id, typ, Rc::new(bindings)))
+<a href=#785 id=785 data-nosnippet>785</a>                <span class="prelude-val">Ok</span>(Value::Function(<span class="kw-2">*</span>function_id, typ, Arc::new(bindings)))
 <a href=#786 id=786 data-nosnippet>786</a>            }
 <a href=#787 id=787 data-nosnippet>787</a>            DefinitionKind::Local(<span class="kw">_</span>) =&gt; <span class="self">self</span>.lookup(<span class="kw-2">&amp;</span>ident),
 <a href=#788 id=788 data-nosnippet>788</a>            DefinitionKind::Global(global_id) =&gt; {
@@ -911,7 +911,7 @@
 <a href=#911 id=911 data-nosnippet>911</a>
 <a href=#912 id=912 data-nosnippet>912</a>        <span class="kw">match </span><span class="self">self</span>.resolve_trait_item(item, id)<span class="question-mark">? </span>{
 <a href=#913 id=913 data-nosnippet>913</a>            (<span class="kw">crate</span>::monomorphization::TraitItem::Method(func_id), bindings) =&gt; {
-<a href=#914 id=914 data-nosnippet>914</a>                <span class="prelude-val">Ok</span>(Value::Function(func_id, typ, Rc::new(bindings)))
+<a href=#914 id=914 data-nosnippet>914</a>                <span class="prelude-val">Ok</span>(Value::Function(func_id, typ, Arc::new(bindings)))
 <a href=#915 id=915 data-nosnippet>915</a>            }
 <a href=#916 id=916 data-nosnippet>916</a>            (<span class="kw">crate</span>::monomorphization::TraitItem::Constant { id: <span class="kw">_</span>, expected_type, value }, <span class="kw">_</span>) =&gt; {
 <a href=#917 id=917 data-nosnippet>917</a>                <span class="comment">// The value can mention the generics of the function being interpreted, e.g.
@@ -927,7 +927,7 @@
 <a href=#927 id=927 data-nosnippet>927</a>            HirLiteral::Unit =&gt; <span class="prelude-val">Ok</span>(Value::Unit),
 <a href=#928 id=928 data-nosnippet>928</a>            HirLiteral::Bool(value) =&gt; <span class="prelude-val">Ok</span>(Value::Bool(value)),
 <a href=#929 id=929 data-nosnippet>929</a>            HirLiteral::Integer(value) =&gt; <span class="self">self</span>.evaluate_integer_literal(value, id),
-<a href=#930 id=930 data-nosnippet>930</a>            HirLiteral::Str(string) =&gt; <span class="prelude-val">Ok</span>(Value::String(Rc::new(string))),
+<a href=#930 id=930 data-nosnippet>930</a>            HirLiteral::Str(string) =&gt; <span class="prelude-val">Ok</span>(Value::String(Arc::new(string))),
 <a href=#931 id=931 data-nosnippet>931</a>            HirLiteral::FmtStr(fragments, captures, length) =&gt; {
 <a href=#932 id=932 data-nosnippet>932</a>                <span class="self">self</span>.evaluate_format_string(fragments, captures, length, id)
 <a href=#933 id=933 data-nosnippet>933</a>            }
@@ -973,7 +973,7 @@
 <a href=#973 id=973 data-nosnippet>973</a>        }
 <a href=#974 id=974 data-nosnippet>974</a>
 <a href=#975 id=975 data-nosnippet>975</a>        <span class="kw">let </span>typ = <span class="self">self</span>.expr_type(id).follow_bindings();
-<a href=#976 id=976 data-nosnippet>976</a>        <span class="prelude-val">Ok</span>(Value::FormatString(Rc::new(new_fragments), typ, length))
+<a href=#976 id=976 data-nosnippet>976</a>        <span class="prelude-val">Ok</span>(Value::FormatString(Arc::new(new_fragments), typ, length))
 <a href=#977 id=977 data-nosnippet>977</a>    }
 <a href=#978 id=978 data-nosnippet>978</a>
 <a href=#979 id=979 data-nosnippet>979</a>    <span class="doccomment">/// Since integers are polymorphic, evaluating one requires the result type.
@@ -1203,7 +1203,7 @@
 <a href=#1203 id=1203 data-nosnippet>1203</a>            .into_iter()
 <a href=#1204 id=1204 data-nosnippet>1204</a>            .map(|(name, expr)| {
 <a href=#1205 id=1205 data-nosnippet>1205</a>                <span class="kw">let </span>field_value = ValueCell::new(<span class="self">self</span>.evaluate(expr)<span class="question-mark">?</span>);
-<a href=#1206 id=1206 data-nosnippet>1206</a>                <span class="prelude-val">Ok</span>((Rc::new(name.into_string()), field_value))
+<a href=#1206 id=1206 data-nosnippet>1206</a>                <span class="prelude-val">Ok</span>((Arc::new(name.into_string()), field_value))
 <a href=#1207 id=1207 data-nosnippet>1207</a>            })
 <a href=#1208 id=1208 data-nosnippet>1208</a>            .collect::&lt;<span class="prelude-ty">Result</span>&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
 <a href=#1209 id=1209 data-nosnippet>1209</a>
@@ -1443,7 +1443,7 @@
 <a href=#1443 id=1443 data-nosnippet>1443</a>
 <a href=#1444 id=1444 data-nosnippet>1444</a>    <span class="kw">fn </span>evaluate_quote(<span class="kw-2">&amp;mut </span><span class="self">self</span>, tokens: Tokens) -&gt; IResult&lt;Value&gt; {
 <a href=#1445 id=1445 data-nosnippet>1445</a>        <span class="kw">let </span>tokens = <span class="self">self</span>.substitute_unquoted_values_into_tokens(tokens)<span class="question-mark">?</span>;
-<a href=#1446 id=1446 data-nosnippet>1446</a>        <span class="prelude-val">Ok</span>(Value::Quoted(Rc::new(tokens)))
+<a href=#1446 id=1446 data-nosnippet>1446</a>        <span class="prelude-val">Ok</span>(Value::Quoted(Arc::new(tokens)))
 <a href=#1447 id=1447 data-nosnippet>1447</a>    }
 <a href=#1448 id=1448 data-nosnippet>1448</a>
 <a href=#1449 id=1449 data-nosnippet>1449</a>    <span class="kw">pub fn </span>evaluate_statement(<span class="kw-2">&amp;mut </span><span class="self">self</span>, statement: StmtId) -&gt; IResult&lt;Value&gt; {
@@ -1551,7 +1551,7 @@
 <a href=#1551 id=1551 data-nosnippet>1551</a>                        <span class="self">self</span>.store_lvalue(<span class="kw-2">*</span>object, Value::Tuple(fields))
 <a href=#1552 id=1552 data-nosnippet>1552</a>                    }
 <a href=#1553 id=1553 data-nosnippet>1553</a>                    Value::Struct(<span class="kw-2">mut </span>fields, typ) =&gt; {
-<a href=#1554 id=1554 data-nosnippet>1554</a>                        fields.insert(Rc::new(field_name.into_string()), ValueCell::new(rhs));
+<a href=#1554 id=1554 data-nosnippet>1554</a>                        fields.insert(Arc::new(field_name.into_string()), ValueCell::new(rhs));
 <a href=#1555 id=1555 data-nosnippet>1555</a>                        <span class="self">self</span>.store_lvalue(<span class="kw-2">*</span>object, Value::Struct(fields, typ.follow_bindings()))
 <a href=#1556 id=1556 data-nosnippet>1556</a>                    }
 <a href=#1557 id=1557 data-nosnippet>1557</a>                    value =&gt; {

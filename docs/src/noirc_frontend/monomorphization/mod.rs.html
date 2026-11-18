@@ -77,7 +77,7 @@
 <a href=#77 id=77 data-nosnippet>77</a><span class="kw">use </span>noirc_errors::Location;
 <a href=#78 id=78 data-nosnippet>78</a><span class="kw">use </span>noirc_printable_type::PrintableType;
 <a href=#79 id=79 data-nosnippet>79</a><span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
-<a href=#80 id=80 data-nosnippet>80</a><span class="kw">use </span>std::rc::Rc;
+<a href=#80 id=80 data-nosnippet>80</a><span class="kw">use </span>std::sync::Arc;
 <a href=#81 id=81 data-nosnippet>81</a><span class="kw">use </span>std::{
 <a href=#82 id=82 data-nosnippet>82</a>    collections::{BTreeMap, VecDeque},
 <a href=#83 id=83 data-nosnippet>83</a>    unreachable,
@@ -843,7 +843,7 @@
 <a href=#843 id=843 data-nosnippet>843</a>    </span><span class="kw">fn </span>parameters(
 <a href=#844 id=844 data-nosnippet>844</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#845 id=845 data-nosnippet>845</a>        params: <span class="kw-2">&amp;</span>Parameters,
-<a href=#846 id=846 data-nosnippet>846</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(LocalId, bool, String, Rc&lt;ast::Type&gt;, Visibility)&gt;, MonomorphizationError&gt;
+<a href=#846 id=846 data-nosnippet>846</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(LocalId, bool, String, Arc&lt;ast::Type&gt;, Visibility)&gt;, MonomorphizationError&gt;
 <a href=#847 id=847 data-nosnippet>847</a>    {
 <a href=#848 id=848 data-nosnippet>848</a>        <span class="kw">let </span><span class="kw-2">mut </span>new_params = Vec::with_capacity(params.len());
 <a href=#849 id=849 data-nosnippet>849</a>        <span class="kw">for </span>(parameter, typ, visibility) <span class="kw">in </span><span class="kw-2">&amp;</span>params.<span class="number">0 </span>{
@@ -859,14 +859,14 @@
 <a href=#859 id=859 data-nosnippet>859</a>        param: <span class="kw-2">&amp;</span>HirPattern,
 <a href=#860 id=860 data-nosnippet>860</a>        typ: <span class="kw-2">&amp;</span>HirType,
 <a href=#861 id=861 data-nosnippet>861</a>        visibility: <span class="kw-2">&amp;</span>Visibility,
-<a href=#862 id=862 data-nosnippet>862</a>        new_params: <span class="kw-2">&amp;mut </span>Vec&lt;(LocalId, bool, String, Rc&lt;ast::Type&gt;, Visibility)&gt;,
+<a href=#862 id=862 data-nosnippet>862</a>        new_params: <span class="kw-2">&amp;mut </span>Vec&lt;(LocalId, bool, String, Arc&lt;ast::Type&gt;, Visibility)&gt;,
 <a href=#863 id=863 data-nosnippet>863</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
 <a href=#864 id=864 data-nosnippet>864</a>        <span class="kw">match </span>param {
 <a href=#865 id=865 data-nosnippet>865</a>            HirPattern::Identifier(ident) =&gt; {
 <a href=#866 id=866 data-nosnippet>866</a>                <span class="kw">let </span>new_id = <span class="self">self</span>.next_local_id();
 <a href=#867 id=867 data-nosnippet>867</a>                <span class="kw">let </span>definition = <span class="self">self</span>.interner.definition(ident.id);
 <a href=#868 id=868 data-nosnippet>868</a>                <span class="kw">let </span>name = definition.name.clone();
-<a href=#869 id=869 data-nosnippet>869</a>                <span class="kw">let </span>typ = Rc::new(<span class="self">Self</span>::convert_type(typ, ident.location)<span class="question-mark">?</span>);
+<a href=#869 id=869 data-nosnippet>869</a>                <span class="kw">let </span>typ = Arc::new(<span class="self">Self</span>::convert_type(typ, ident.location)<span class="question-mark">?</span>);
 <a href=#870 id=870 data-nosnippet>870</a>                new_params.push((new_id, definition.mutable, name, typ, <span class="kw-2">*</span>visibility));
 <a href=#871 id=871 data-nosnippet>871</a>                <span class="self">self</span>.define_local(ident.id, new_id);
 <a href=#872 id=872 data-nosnippet>872</a>            }
@@ -1368,7 +1368,7 @@
 <a href=#1368 id=1368 data-nosnippet>1368</a>                mutable,
 <a href=#1369 id=1369 data-nosnippet>1369</a>                location: <span class="prelude-val">None</span>,
 <a href=#1370 id=1370 data-nosnippet>1370</a>                name,
-<a href=#1371 id=1371 data-nosnippet>1371</a>                typ: Rc::new(typ),
+<a href=#1371 id=1371 data-nosnippet>1371</a>                typ: Arc::new(typ),
 <a href=#1372 id=1372 data-nosnippet>1372</a>                id: <span class="self">self</span>.next_ident_id(),
 <a href=#1373 id=1373 data-nosnippet>1373</a>            })
 <a href=#1374 id=1374 data-nosnippet>1374</a>        });
@@ -1511,7 +1511,7 @@
 <a href=#1511 id=1511 data-nosnippet>1511</a>                mutable,
 <a href=#1512 id=1512 data-nosnippet>1512</a>                definition,
 <a href=#1513 id=1513 data-nosnippet>1513</a>                name,
-<a href=#1514 id=1514 data-nosnippet>1514</a>                typ: Rc::new(typ),
+<a href=#1514 id=1514 data-nosnippet>1514</a>                typ: Arc::new(typ),
 <a href=#1515 id=1515 data-nosnippet>1515</a>                id,
 <a href=#1516 id=1516 data-nosnippet>1516</a>            });
 <a href=#1517 id=1517 data-nosnippet>1517</a>
@@ -1591,7 +1591,7 @@
 <a href=#1591 id=1591 data-nosnippet>1591</a>            mutable,
 <a href=#1592 id=1592 data-nosnippet>1592</a>            definition,
 <a href=#1593 id=1593 data-nosnippet>1593</a>            name,
-<a href=#1594 id=1594 data-nosnippet>1594</a>            typ: Rc::new(typ),
+<a href=#1594 id=1594 data-nosnippet>1594</a>            typ: Arc::new(typ),
 <a href=#1595 id=1595 data-nosnippet>1595</a>            id,
 <a href=#1596 id=1596 data-nosnippet>1596</a>        }))
 <a href=#1597 id=1597 data-nosnippet>1597</a>    }
@@ -1768,7 +1768,7 @@
 <a href=#1768 id=1768 data-nosnippet>1768</a>        <span class="kw">let </span>is_closure_type = <span class="self">self</span>.is_closure_type(<span class="kw-2">&amp;</span>typ);
 <a href=#1769 id=1769 data-nosnippet>1769</a>        <span class="kw">let </span>location = <span class="prelude-val">Some</span>(location);
 <a href=#1770 id=1770 data-nosnippet>1770</a>        <span class="kw">let </span>id = <span class="self">self</span>.next_ident_id();
-<a href=#1771 id=1771 data-nosnippet>1771</a>        <span class="kw">let </span>ident = ast::Ident { location, mutable, definition, name, typ: Rc::new(typ), id };
+<a href=#1771 id=1771 data-nosnippet>1771</a>        <span class="kw">let </span>ident = ast::Ident { location, mutable, definition, name, typ: Arc::new(typ), id };
 <a href=#1772 id=1772 data-nosnippet>1772</a>        <span class="kw">let </span>ident_expression = ast::Expression::Ident(ident);
 <a href=#1773 id=1773 data-nosnippet>1773</a>
 <a href=#1774 id=1774 data-nosnippet>1774</a>        <span class="kw">if </span>is_closure_type {
@@ -1826,7 +1826,7 @@
 <a href=#1826 id=1826 data-nosnippet>1826</a>                definition: Definition::Global(<span class="kw-2">*</span>seen_global),
 <a href=#1827 id=1827 data-nosnippet>1827</a>                mutable: <span class="bool-val">false</span>,
 <a href=#1828 id=1828 data-nosnippet>1828</a>                name,
-<a href=#1829 id=1829 data-nosnippet>1829</a>                typ: Rc::new(typ),
+<a href=#1829 id=1829 data-nosnippet>1829</a>                typ: Arc::new(typ),
 <a href=#1830 id=1830 data-nosnippet>1830</a>                id: <span class="self">self</span>.next_ident_id(),
 <a href=#1831 id=1831 data-nosnippet>1831</a>            };
 <a href=#1832 id=1832 data-nosnippet>1832</a>            ast::Expression::Ident(ident)
@@ -1878,7 +1878,7 @@
 <a href=#1878 id=1878 data-nosnippet>1878</a>                    definition: Definition::Global(new_id),
 <a href=#1879 id=1879 data-nosnippet>1879</a>                    mutable: <span class="bool-val">false</span>,
 <a href=#1880 id=1880 data-nosnippet>1880</a>                    name,
-<a href=#1881 id=1881 data-nosnippet>1881</a>                    typ: Rc::new(typ),
+<a href=#1881 id=1881 data-nosnippet>1881</a>                    typ: Arc::new(typ),
 <a href=#1882 id=1882 data-nosnippet>1882</a>                    id: <span class="self">self</span>.next_ident_id(),
 <a href=#1883 id=1883 data-nosnippet>1883</a>                };
 <a href=#1884 id=1884 data-nosnippet>1884</a>                ast::Expression::Ident(ident)
@@ -2039,7 +2039,7 @@
 <a href=#2039 id=2039 data-nosnippet>2039</a>                    }
 <a href=#2040 id=2040 data-nosnippet>2040</a>                };
 <a href=#2041 id=2041 data-nosnippet>2041</a>                <span class="kw">let </span>fields =
-<a href=#2042 id=2042 data-nosnippet>2042</a>                    Rc::new(<span class="self">Self</span>::convert_type_helper(fields.as_ref(), location, seen_types)<span class="question-mark">?</span>);
+<a href=#2042 id=2042 data-nosnippet>2042</a>                    Arc::new(<span class="self">Self</span>::convert_type_helper(fields.as_ref(), location, seen_types)<span class="question-mark">?</span>);
 <a href=#2043 id=2043 data-nosnippet>2043</a>                ast::Type::FmtString(size, fields)
 <a href=#2044 id=2044 data-nosnippet>2044</a>            }
 <a href=#2045 id=2045 data-nosnippet>2045</a>            HirType::Unit =&gt; ast::Type::Unit,
@@ -2048,7 +2048,7 @@
 <a href=#2048 id=2048 data-nosnippet>2048</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedVectors { location });
 <a href=#2049 id=2049 data-nosnippet>2049</a>                }
 <a href=#2050 id=2050 data-nosnippet>2050</a>                <span class="kw">let </span>element =
-<a href=#2051 id=2051 data-nosnippet>2051</a>                    Rc::new(<span class="self">Self</span>::convert_type_helper(element.as_ref(), location, seen_types)<span class="question-mark">?</span>);
+<a href=#2051 id=2051 data-nosnippet>2051</a>                    Arc::new(<span class="self">Self</span>::convert_type_helper(element.as_ref(), location, seen_types)<span class="question-mark">?</span>);
 <a href=#2052 id=2052 data-nosnippet>2052</a>                <span class="kw">let </span>length = <span class="kw">match </span>length.evaluate_to_u32(location) {
 <a href=#2053 id=2053 data-nosnippet>2053</a>                    <span class="prelude-val">Ok</span>(length) =&gt; length,
 <a href=#2054 id=2054 data-nosnippet>2054</a>                    <span class="prelude-val">Err</span>(err) =&gt; {
@@ -2062,7 +2062,7 @@
 <a href=#2062 id=2062 data-nosnippet>2062</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::NestedVectors { location });
 <a href=#2063 id=2063 data-nosnippet>2063</a>                }
 <a href=#2064 id=2064 data-nosnippet>2064</a>                <span class="kw">let </span>element =
-<a href=#2065 id=2065 data-nosnippet>2065</a>                    Rc::new(<span class="self">Self</span>::convert_type_helper(element.as_ref(), location, seen_types)<span class="question-mark">?</span>);
+<a href=#2065 id=2065 data-nosnippet>2065</a>                    Arc::new(<span class="self">Self</span>::convert_type_helper(element.as_ref(), location, seen_types)<span class="question-mark">?</span>);
 <a href=#2066 id=2066 data-nosnippet>2066</a>                ast::Type::Vector(element)
 <a href=#2067 id=2067 data-nosnippet>2067</a>            }
 <a href=#2068 id=2068 data-nosnippet>2068</a>            HirType::TraitAsType(..) =&gt; {
@@ -2139,13 +2139,13 @@
 <a href=#2139 id=2139 data-nosnippet>2139</a>            HirType::Function(args, ret, env, _unconstrained) =&gt; {
 <a href=#2140 id=2140 data-nosnippet>2140</a>                <span class="kw">let </span>args =
 <a href=#2141 id=2141 data-nosnippet>2141</a>                    try_vecmap(args, |x| <span class="self">Self</span>::convert_type_helper(x, location, seen_types))<span class="question-mark">?</span>;
-<a href=#2142 id=2142 data-nosnippet>2142</a>                <span class="kw">let </span>ret = Rc::new(<span class="self">Self</span>::convert_type_helper(ret, location, seen_types)<span class="question-mark">?</span>);
-<a href=#2143 id=2143 data-nosnippet>2143</a>                <span class="kw">let </span>env = Rc::new(<span class="self">Self</span>::convert_type_helper(env, location, seen_types)<span class="question-mark">?</span>);
+<a href=#2142 id=2142 data-nosnippet>2142</a>                <span class="kw">let </span>ret = Arc::new(<span class="self">Self</span>::convert_type_helper(ret, location, seen_types)<span class="question-mark">?</span>);
+<a href=#2143 id=2143 data-nosnippet>2143</a>                <span class="kw">let </span>env = Arc::new(<span class="self">Self</span>::convert_type_helper(env, location, seen_types)<span class="question-mark">?</span>);
 <a href=#2144 id=2144 data-nosnippet>2144</a>
 <a href=#2145 id=2145 data-nosnippet>2145</a>                <span class="kw">let </span>make_function = |is_unconstrained,
 <a href=#2146 id=2146 data-nosnippet>2146</a>                                     args,
-<a href=#2147 id=2147 data-nosnippet>2147</a>                                     ret: Rc&lt;ast::Type&gt;,
-<a href=#2148 id=2148 data-nosnippet>2148</a>                                     env: Rc&lt;ast::Type&gt;| {
+<a href=#2147 id=2147 data-nosnippet>2147</a>                                     ret: Arc&lt;ast::Type&gt;,
+<a href=#2148 id=2148 data-nosnippet>2148</a>                                     env: Arc&lt;ast::Type&gt;| {
 <a href=#2149 id=2149 data-nosnippet>2149</a>                    <span class="kw">use </span>ast::Type::<span class="kw-2">*</span>;
 <a href=#2150 id=2150 data-nosnippet>2150</a>                    <span class="kw">match </span>env.as_ref() {
 <a href=#2151 id=2151 data-nosnippet>2151</a>                        Unit =&gt; Function(args, ret, env, is_unconstrained),
@@ -2171,7 +2171,7 @@
 <a href=#2171 id=2171 data-nosnippet>2171</a>            <span class="comment">// Lower both mutable &amp; immutable references to the same reference type
 <a href=#2172 id=2172 data-nosnippet>2172</a>            </span>HirType::Reference(element, mutable) =&gt; {
 <a href=#2173 id=2173 data-nosnippet>2173</a>                <span class="kw">let </span>element = <span class="self">Self</span>::convert_type_helper(element, location, seen_types)<span class="question-mark">?</span>;
-<a href=#2174 id=2174 data-nosnippet>2174</a>                ast::Type::Reference(Rc::new(element), <span class="kw-2">*</span>mutable)
+<a href=#2174 id=2174 data-nosnippet>2174</a>                ast::Type::Reference(Arc::new(element), <span class="kw-2">*</span>mutable)
 <a href=#2175 id=2175 data-nosnippet>2175</a>            }
 <a href=#2176 id=2176 data-nosnippet>2176</a>
 <a href=#2177 id=2177 data-nosnippet>2177</a>            HirType::Forall(<span class="kw">_</span>, <span class="kw">_</span>) | HirType::Constant(..) | HirType::InfixExpr(..) =&gt; {
@@ -2375,7 +2375,7 @@
 <a href=#2375 id=2375 data-nosnippet>2375</a>        trait_item_id: TraitItemId,
 <a href=#2376 id=2376 data-nosnippet>2376</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
 <a href=#2377 id=2377 data-nosnippet>2377</a>        <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
-<a href=#2378 id=2378 data-nosnippet>2378</a>        <span class="kw">let </span>typ = Rc::new(<span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>function_type, location)<span class="question-mark">?</span>);
+<a href=#2378 id=2378 data-nosnippet>2378</a>        <span class="kw">let </span>typ = Arc::new(<span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>function_type, location)<span class="question-mark">?</span>);
 <a href=#2379 id=2379 data-nosnippet>2379</a>
 <a href=#2380 id=2380 data-nosnippet>2380</a>        <span class="kw">let </span>Definition::Function(func_id) = <span class="self">self</span>.lookup_function(
 <a href=#2381 id=2381 data-nosnippet>2381</a>            func_id,
@@ -2534,7 +2534,7 @@
 <a href=#2534 id=2534 data-nosnippet>2534</a>                definition: Definition::Local(local_id),
 <a href=#2535 id=2535 data-nosnippet>2535</a>                mutable: <span class="bool-val">false</span>,
 <a href=#2536 id=2536 data-nosnippet>2536</a>                name: <span class="string">"tmp"</span>.to_string(),
-<a href=#2537 id=2537 data-nosnippet>2537</a>                typ: Rc::new(func_typ),
+<a href=#2537 id=2537 data-nosnippet>2537</a>                typ: Arc::new(func_typ),
 <a href=#2538 id=2538 data-nosnippet>2538</a>                id: <span class="self">self</span>.next_ident_id(),
 <a href=#2539 id=2539 data-nosnippet>2539</a>            });
 <a href=#2540 id=2540 data-nosnippet>2540</a>
@@ -2887,8 +2887,8 @@
 <a href=#2887 id=2887 data-nosnippet>2887</a>
 <a href=#2888 id=2888 data-nosnippet>2888</a>        <span class="kw">let </span>typ = ast::Type::Function(
 <a href=#2889 id=2889 data-nosnippet>2889</a>            parameter_types,
-<a href=#2890 id=2890 data-nosnippet>2890</a>            Rc::new(ret_type),
-<a href=#2891 id=2891 data-nosnippet>2891</a>            Rc::new(ast::Type::Unit),
+<a href=#2890 id=2890 data-nosnippet>2890</a>            Arc::new(ret_type),
+<a href=#2891 id=2891 data-nosnippet>2891</a>            Arc::new(ast::Type::Unit),
 <a href=#2892 id=2892 data-nosnippet>2892</a>            <span class="self">self</span>.function.in_unconstrained_function,
 <a href=#2893 id=2893 data-nosnippet>2893</a>        );
 <a href=#2894 id=2894 data-nosnippet>2894</a>
@@ -2898,7 +2898,7 @@
 <a href=#2898 id=2898 data-nosnippet>2898</a>            mutable: <span class="bool-val">false</span>,
 <a href=#2899 id=2899 data-nosnippet>2899</a>            location: <span class="prelude-val">None</span>,
 <a href=#2900 id=2900 data-nosnippet>2900</a>            name,
-<a href=#2901 id=2901 data-nosnippet>2901</a>            typ: Rc::new(typ),
+<a href=#2901 id=2901 data-nosnippet>2901</a>            typ: Arc::new(typ),
 <a href=#2902 id=2902 data-nosnippet>2902</a>            id: <span class="self">self</span>.next_ident_id(),
 <a href=#2903 id=2903 data-nosnippet>2903</a>        }))
 <a href=#2904 id=2904 data-nosnippet>2904</a>    }
@@ -2958,7 +2958,7 @@
 <a href=#2958 id=2958 data-nosnippet>2958</a>        </span>} <span class="kw">else </span>{
 <a href=#2959 id=2959 data-nosnippet>2959</a>            <span class="macro">unreachable!</span>(<span class="string">"expected a Function type for a Lambda node"</span>)
 <a href=#2960 id=2960 data-nosnippet>2960</a>        };
-<a href=#2961 id=2961 data-nosnippet>2961</a>        <span class="kw">let </span>env_typ = Rc::new(env_typ);
+<a href=#2961 id=2961 data-nosnippet>2961</a>        <span class="kw">let </span>env_typ = Arc::new(env_typ);
 <a href=#2962 id=2962 data-nosnippet>2962</a>
 <a href=#2963 id=2963 data-nosnippet>2963</a>        <span class="kw">let </span>env_let_stmt = ast::Expression::Let(ast::Let {
 <a href=#2964 id=2964 data-nosnippet>2964</a>            id: env_local_id,
@@ -3037,12 +3037,12 @@
 <a href=#3037 id=3037 data-nosnippet>3037</a>        <span class="comment">// Build the function type for both variants
 <a href=#3038 id=3038 data-nosnippet>3038</a>        </span><span class="kw">let </span>constrained_fn_typ = ast::Type::Function(
 <a href=#3039 id=3039 data-nosnippet>3039</a>            parameter_types.clone(),
-<a href=#3040 id=3040 data-nosnippet>3040</a>            Rc::new(ret_type.clone()),
+<a href=#3040 id=3040 data-nosnippet>3040</a>            Arc::new(ret_type.clone()),
 <a href=#3041 id=3041 data-nosnippet>3041</a>            env_typ.clone(),
 <a href=#3042 id=3042 data-nosnippet>3042</a>            both_unconstrained,
 <a href=#3043 id=3043 data-nosnippet>3043</a>        );
 <a href=#3044 id=3044 data-nosnippet>3044</a>        <span class="kw">let </span>unconstrained_fn_typ =
-<a href=#3045 id=3045 data-nosnippet>3045</a>            ast::Type::Function(parameter_types, Rc::new(ret_type), env_typ.clone(), <span class="bool-val">true</span>);
+<a href=#3045 id=3045 data-nosnippet>3045</a>            ast::Type::Function(parameter_types, Arc::new(ret_type), env_typ.clone(), <span class="bool-val">true</span>);
 <a href=#3046 id=3046 data-nosnippet>3046</a>
 <a href=#3047 id=3047 data-nosnippet>3047</a>        <span class="comment">// Build closure tuples: (env, fn) for each variant
 <a href=#3048 id=3048 data-nosnippet>3048</a>        </span><span class="kw">let </span>constrained_closure_typ =
@@ -3057,7 +3057,7 @@
 <a href=#3057 id=3057 data-nosnippet>3057</a>            mutable: <span class="bool-val">false</span>,
 <a href=#3058 id=3058 data-nosnippet>3058</a>            location: <span class="prelude-val">Some</span>(location),
 <a href=#3059 id=3059 data-nosnippet>3059</a>            name: lambda_name.to_owned(),
-<a href=#3060 id=3060 data-nosnippet>3060</a>            typ: Rc::new(constrained_fn_typ),
+<a href=#3060 id=3060 data-nosnippet>3060</a>            typ: Arc::new(constrained_fn_typ),
 <a href=#3061 id=3061 data-nosnippet>3061</a>            id: <span class="self">self</span>.next_ident_id(),
 <a href=#3062 id=3062 data-nosnippet>3062</a>        });
 <a href=#3063 id=3063 data-nosnippet>3063</a>
@@ -3066,7 +3066,7 @@
 <a href=#3066 id=3066 data-nosnippet>3066</a>            mutable: <span class="bool-val">false</span>,
 <a href=#3067 id=3067 data-nosnippet>3067</a>            location: <span class="prelude-val">Some</span>(location),
 <a href=#3068 id=3068 data-nosnippet>3068</a>            name: lambda_name.to_owned(),
-<a href=#3069 id=3069 data-nosnippet>3069</a>            typ: Rc::new(unconstrained_fn_typ),
+<a href=#3069 id=3069 data-nosnippet>3069</a>            typ: Arc::new(unconstrained_fn_typ),
 <a href=#3070 id=3070 data-nosnippet>3070</a>            id: <span class="self">self</span>.next_ident_id(),
 <a href=#3071 id=3071 data-nosnippet>3071</a>        });
 <a href=#3072 id=3072 data-nosnippet>3072</a>
@@ -3101,7 +3101,7 @@
 <a href=#3101 id=3101 data-nosnippet>3101</a>            mutable: <span class="bool-val">false</span>,
 <a href=#3102 id=3102 data-nosnippet>3102</a>            definition: Definition::Local(block_local_id),
 <a href=#3103 id=3103 data-nosnippet>3103</a>            name: block_ident_name.to_string(),
-<a href=#3104 id=3104 data-nosnippet>3104</a>            typ: Rc::new(result_typ),
+<a href=#3104 id=3104 data-nosnippet>3104</a>            typ: Arc::new(result_typ),
 <a href=#3105 id=3105 data-nosnippet>3105</a>            id: <span class="self">self</span>.next_ident_id(),
 <a href=#3106 id=3106 data-nosnippet>3106</a>        });
 <a href=#3107 id=3107 data-nosnippet>3107</a>

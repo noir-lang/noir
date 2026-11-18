@@ -298,7 +298,7 @@
 <a href=#298 id=298 data-nosnippet>298</a>
 <a href=#299 id=299 data-nosnippet>299</a><span class="doccomment">/// Metamorphic transformation rules.
 <a href=#300 id=300 data-nosnippet>300</a></span><span class="kw">mod </span>rules {
-<a href=#301 id=301 data-nosnippet>301</a>    <span class="kw">use </span>std::rc::Rc;
+<a href=#301 id=301 data-nosnippet>301</a>    <span class="kw">use </span>std::sync::Arc;
 <a href=#302 id=302 data-nosnippet>302</a>
 <a href=#303 id=303 data-nosnippet>303</a>    <span class="kw">use </span><span class="kw">crate</span>::targets::orig_vs_morph::{
 <a href=#304 id=304 data-nosnippet>304</a>        VariableContext,
@@ -566,7 +566,7 @@
 <a href=#566 id=566 data-nosnippet>566</a>                        definition: Definition::Local(<span class="kw-2">*</span>id),
 <a href=#567 id=567 data-nosnippet>567</a>                        mutable: <span class="kw-2">*</span>mutable,
 <a href=#568 id=568 data-nosnippet>568</a>                        name: name.clone(),
-<a href=#569 id=569 data-nosnippet>569</a>                        typ: Rc::new(typ.clone()),
+<a href=#569 id=569 data-nosnippet>569</a>                        typ: Arc::new(typ.clone()),
 <a href=#570 id=570 data-nosnippet>570</a>                        id: vars.next_ident_id(),
 <a href=#571 id=571 data-nosnippet>571</a>                    })
 <a href=#572 id=572 data-nosnippet>572</a>                };

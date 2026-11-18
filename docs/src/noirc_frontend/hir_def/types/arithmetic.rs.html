@@ -483,7 +483,7 @@
 <a href=#483 id=483 data-nosnippet>483</a>
 <a href=#484 id=484 data-nosnippet>484</a>        </span><span class="kw">let </span>n = Type::NamedGeneric(NamedGeneric {
 <a href=#485 id=485 data-nosnippet>485</a>            type_var: TypeVariable::unbound(TypeVariableId(<span class="number">0</span>), Kind::u32()),
-<a href=#486 id=486 data-nosnippet>486</a>            name: std::rc::Rc::new(<span class="string">"N"</span>.to_owned()),
+<a href=#486 id=486 data-nosnippet>486</a>            name: std::sync::Arc::new(<span class="string">"N"</span>.to_owned()),
 <a href=#487 id=487 data-nosnippet>487</a>            implicit: <span class="bool-val">false</span>,
 <a href=#488 id=488 data-nosnippet>488</a>            original_type_var_id: <span class="prelude-val">None</span>,
 <a href=#489 id=489 data-nosnippet>489</a>        });
@@ -524,7 +524,7 @@
 <a href=#524 id=524 data-nosnippet>524</a>    </span><span class="kw">fn </span>u32_generic(id: u32, name: <span class="kw-2">&amp;</span>str) -&gt; Type {
 <a href=#525 id=525 data-nosnippet>525</a>        Type::NamedGeneric(NamedGeneric {
 <a href=#526 id=526 data-nosnippet>526</a>            type_var: TypeVariable::unbound(TypeVariableId(id <span class="kw">as </span>usize), Kind::u32()),
-<a href=#527 id=527 data-nosnippet>527</a>            name: std::rc::Rc::new(name.to_owned()),
+<a href=#527 id=527 data-nosnippet>527</a>            name: std::sync::Arc::new(name.to_owned()),
 <a href=#528 id=528 data-nosnippet>528</a>            implicit: <span class="bool-val">false</span>,
 <a href=#529 id=529 data-nosnippet>529</a>            original_type_var_id: <span class="prelude-val">None</span>,
 <a href=#530 id=530 data-nosnippet>530</a>        })

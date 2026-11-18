@@ -206,7 +206,7 @@
 <a href=#206 id=206 data-nosnippet>206</a>
 <a href=#207 id=207 data-nosnippet>207</a><span class="attr">#[cfg(test)]
 <a href=#208 id=208 data-nosnippet>208</a></span><span class="kw">mod </span>tests {
-<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">use </span>std::rc::Rc;
+<a href=#209 id=209 data-nosnippet>209</a>    <span class="kw">use </span>std::sync::Arc;
 <a href=#210 id=210 data-nosnippet>210</a>
 <a href=#211 id=211 data-nosnippet>211</a>    <span class="kw">use </span>noirc_frontend::monomorphization::ast::{LocalId, Type};
 <a href=#212 id=212 data-nosnippet>212</a>
@@ -217,7 +217,7 @@
 <a href=#217 id=217 data-nosnippet>217</a>    <span class="attr">#[test]
 <a href=#218 id=218 data-nosnippet>218</a>    </span><span class="kw">fn </span>test_scope_stack() {
 <a href=#219 id=219 data-nosnippet>219</a>        <span class="kw">let </span>foo_type =
-<a href=#220 id=220 data-nosnippet>220</a>            Type::Tuple(<span class="macro">vec!</span>[Type::Field, Type::Bool, Type::Array(<span class="number">4</span>, Rc::new(types::U32))]);
+<a href=#220 id=220 data-nosnippet>220</a>            Type::Tuple(<span class="macro">vec!</span>[Type::Field, Type::Bool, Type::Array(<span class="number">4</span>, Arc::new(types::U32))]);
 <a href=#221 id=221 data-nosnippet>221</a>
 <a href=#222 id=222 data-nosnippet>222</a>        <span class="kw">let </span><span class="kw-2">mut </span>stack = ScopeStack::from_variables(
 <a href=#223 id=223 data-nosnippet>223</a>            [(LocalId(<span class="number">0</span>), <span class="bool-val">false</span>, <span class="string">"foo"</span>.to_string(), foo_type)].into_iter(),

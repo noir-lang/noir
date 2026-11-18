@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/monomorphization/ast.rs`."><title>ast.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/monomorphization/</div>ast.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::rc::Rc;
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/monomorphization/ast.rs`."><title>ast.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/monomorphization/</div>ast.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::sync::Arc;
 <a href=#2 id=2 data-nosnippet>2</a><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 <a href=#3 id=3 data-nosnippet>3</a>
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>acvm::FieldElement;
@@ -78,7 +78,7 @@
 <a href=#78 id=78 data-nosnippet>78</a>                Literal::Str(s) =&gt; owned(Type::String(s.len() <span class="kw">as </span>u32)),
 <a href=#79 id=79 data-nosnippet>79</a>                Literal::FmtStr(<span class="kw">_</span>, size, expr) =&gt; {
 <a href=#80 id=80 data-nosnippet>80</a>                    <span class="kw">let </span>typ = expr.return_type()<span class="question-mark">?</span>;
-<a href=#81 id=81 data-nosnippet>81</a>                    owned(Type::FmtString(<span class="kw-2">*</span>size <span class="kw">as </span>u32, Rc::new(typ.into_owned())))
+<a href=#81 id=81 data-nosnippet>81</a>                    owned(Type::FmtString(<span class="kw-2">*</span>size <span class="kw">as </span>u32, Arc::new(typ.into_owned())))
 <a href=#82 id=82 data-nosnippet>82</a>                }
 <a href=#83 id=83 data-nosnippet>83</a>            },
 <a href=#84 id=84 data-nosnippet>84</a>            Expression::Block(xs) =&gt; {
@@ -256,7 +256,7 @@
 <a href=#256 id=256 data-nosnippet>256</a>    <span class="kw">pub </span>definition: Definition,
 <a href=#257 id=257 data-nosnippet>257</a>    <span class="kw">pub </span>mutable: bool,
 <a href=#258 id=258 data-nosnippet>258</a>    <span class="kw">pub </span>name: String,
-<a href=#259 id=259 data-nosnippet>259</a>    <span class="kw">pub </span>typ: Rc&lt;Type&gt;,
+<a href=#259 id=259 data-nosnippet>259</a>    <span class="kw">pub </span>typ: Arc&lt;Type&gt;,
 <a href=#260 id=260 data-nosnippet>260</a>    <span class="kw">pub </span>id: IdentId,
 <a href=#261 id=261 data-nosnippet>261</a>}
 <a href=#262 id=262 data-nosnippet>262</a>
@@ -440,7 +440,7 @@
 <a href=#440 id=440 data-nosnippet>440</a>}
 <a href=#441 id=441 data-nosnippet>441</a>
 <a href=#442 id=442 data-nosnippet>442</a><span class="kw">pub type </span>Parameters =
-<a href=#443 id=443 data-nosnippet>443</a>    Vec&lt;(LocalId, <span class="comment">/*mutable:*/ </span>bool, <span class="comment">/*name:*/ </span>String, Rc&lt;Type&gt;, Visibility)&gt;;
+<a href=#443 id=443 data-nosnippet>443</a>    Vec&lt;(LocalId, <span class="comment">/*mutable:*/ </span>bool, <span class="comment">/*name:*/ </span>String, Arc&lt;Type&gt;, Visibility)&gt;;
 <a href=#444 id=444 data-nosnippet>444</a>
 <a href=#445 id=445 data-nosnippet>445</a><span class="doccomment">/// Represents how an Acir function should be inlined.
 <a href=#446 id=446 data-nosnippet>446</a>/// This type is only relevant for ACIR functions as we do not inline any Brillig functions
@@ -561,20 +561,20 @@
 <a href=#561 id=561 data-nosnippet>561</a></span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 <a href=#562 id=562 data-nosnippet>562</a></span><span class="kw">pub enum </span>Type {
 <a href=#563 id=563 data-nosnippet>563</a>    Field,
-<a href=#564 id=564 data-nosnippet>564</a>    Array(<span class="comment">/*len:*/ </span>u32, Rc&lt;Type&gt;), <span class="comment">// Array(4, Field) = [Field; 4]
+<a href=#564 id=564 data-nosnippet>564</a>    Array(<span class="comment">/*len:*/ </span>u32, Arc&lt;Type&gt;), <span class="comment">// Array(4, Field) = [Field; 4]
 <a href=#565 id=565 data-nosnippet>565</a>    </span>Integer(Signedness, <span class="comment">/*bits:*/ </span>IntegerBitSize), <span class="comment">// u32 = Integer(unsigned, ThirtyTwo)
 <a href=#566 id=566 data-nosnippet>566</a>    </span>Bool,
 <a href=#567 id=567 data-nosnippet>567</a>    String(<span class="comment">/*len:*/ </span>u32), <span class="comment">// String(4) = str[4]
-<a href=#568 id=568 data-nosnippet>568</a>    </span>FmtString(<span class="comment">/*len:*/ </span>u32, Rc&lt;Type&gt;),
+<a href=#568 id=568 data-nosnippet>568</a>    </span>FmtString(<span class="comment">/*len:*/ </span>u32, Arc&lt;Type&gt;),
 <a href=#569 id=569 data-nosnippet>569</a>    Unit,
 <a href=#570 id=570 data-nosnippet>570</a>    Tuple(Vec&lt;Type&gt;),
-<a href=#571 id=571 data-nosnippet>571</a>    Vector(Rc&lt;Type&gt;),
-<a href=#572 id=572 data-nosnippet>572</a>    Reference(Rc&lt;Type&gt;, <span class="comment">/*mutable:*/ </span>bool),
+<a href=#571 id=571 data-nosnippet>571</a>    Vector(Arc&lt;Type&gt;),
+<a href=#572 id=572 data-nosnippet>572</a>    Reference(Arc&lt;Type&gt;, <span class="comment">/*mutable:*/ </span>bool),
 <a href=#573 id=573 data-nosnippet>573</a>    <span class="doccomment">/// `(args, ret, env, unconstrained)`
 <a href=#574 id=574 data-nosnippet>574</a>    </span>Function(
 <a href=#575 id=575 data-nosnippet>575</a>        <span class="comment">/*args:*/ </span>Vec&lt;Type&gt;,
-<a href=#576 id=576 data-nosnippet>576</a>        <span class="comment">/*ret:*/ </span>Rc&lt;Type&gt;,
-<a href=#577 id=577 data-nosnippet>577</a>        <span class="comment">/*env:*/ </span>Rc&lt;Type&gt;,
+<a href=#576 id=576 data-nosnippet>576</a>        <span class="comment">/*ret:*/ </span>Arc&lt;Type&gt;,
+<a href=#577 id=577 data-nosnippet>577</a>        <span class="comment">/*env:*/ </span>Arc&lt;Type&gt;,
 <a href=#578 id=578 data-nosnippet>578</a>        <span class="comment">/*unconstrained:*/ </span>bool,
 <a href=#579 id=579 data-nosnippet>579</a>    ),
 <a href=#580 id=580 data-nosnippet>580</a>}

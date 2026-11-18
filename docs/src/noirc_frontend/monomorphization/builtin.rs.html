@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/monomorphization/builtin.rs`."><title>builtin.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/monomorphization/</div>builtin.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::rc::Rc;
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/monomorphization/builtin.rs`."><title>builtin.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../static.files/storage-4e99c027.js"></script><script defer src="../../../static.files/src-script-813739b1.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/monomorphization/</div>builtin.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::sync::Arc;
 <a href=#2 id=2 data-nosnippet>2</a>
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>iter_extended::vecmap;
@@ -68,7 +68,7 @@
 <a href=#68 id=68 data-nosnippet>68</a>            HandledOpcode::CheckedTransmute =&gt; {
 <a href=#69 id=69 data-nosnippet>69</a>                <span class="macro">assert_eq!</span>(parameter_types.len(), <span class="number">1</span>);
 <a href=#70 id=70 data-nosnippet>70</a>                <span class="kw">let </span>parameter_id = <span class="self">self</span>.next_local_id();
-<a href=#71 id=71 data-nosnippet>71</a>                <span class="kw">let </span>parameter_type = Rc::new(<span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>parameter_types[<span class="number">0</span>], location)<span class="question-mark">?</span>);
+<a href=#71 id=71 data-nosnippet>71</a>                <span class="kw">let </span>parameter_type = Arc::new(<span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>parameter_types[<span class="number">0</span>], location)<span class="question-mark">?</span>);
 <a href=#72 id=72 data-nosnippet>72</a>                parameters = <span class="macro">vec!</span>[(
 <a href=#73 id=73 data-nosnippet>73</a>                    parameter_id,
 <a href=#74 id=74 data-nosnippet>74</a>                    <span class="bool-val">false</span>,
@@ -138,7 +138,7 @@
 <a href=#138 id=138 data-nosnippet>138</a>
 <a href=#139 id=139 data-nosnippet>139</a>        <span class="kw">let </span>bits_as_expr = vecmap(bits, |bit| Expression::Literal(Literal::Bool(bit != <span class="number">0</span>)));
 <a href=#140 id=140 data-nosnippet>140</a>
-<a href=#141 id=141 data-nosnippet>141</a>        <span class="kw">let </span>typ = Type::Vector(Rc::new(Type::Bool));
+<a href=#141 id=141 data-nosnippet>141</a>        <span class="kw">let </span>typ = Type::Vector(Arc::new(Type::Bool));
 <a href=#142 id=142 data-nosnippet>142</a>        <span class="kw">let </span>arr_literal = ArrayLiteral { typ, contents: bits_as_expr };
 <a href=#143 id=143 data-nosnippet>143</a>        Expression::Literal(Literal::Vector(arr_literal))
 <a href=#144 id=144 data-nosnippet>144</a>    }
@@ -162,7 +162,7 @@
 <a href=#162 id=162 data-nosnippet>162</a>            Expression::Literal(Literal::Integer(byte.into(), int_type.clone(), location))
 <a href=#163 id=163 data-nosnippet>163</a>        });
 <a href=#164 id=164 data-nosnippet>164</a>
-<a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">let </span>typ = Type::Vector(Rc::new(int_type));
+<a href=#165 id=165 data-nosnippet>165</a>        <span class="kw">let </span>typ = Type::Vector(Arc::new(int_type));
 <a href=#166 id=166 data-nosnippet>166</a>        <span class="kw">let </span>arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
 <a href=#167 id=167 data-nosnippet>167</a>        Expression::Literal(Literal::Vector(arr_literal))
 <a href=#168 id=168 data-nosnippet>168</a>    }
@@ -262,8 +262,8 @@
 <a href=#262 id=262 data-nosnippet>262</a>    </span><span class="kw">fn </span>create_zeroed_function(
 <a href=#263 id=263 data-nosnippet>263</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#264 id=264 data-nosnippet>264</a>        parameter_types: <span class="kw-2">&amp;</span>[ast::Type],
-<a href=#265 id=265 data-nosnippet>265</a>        ret_type: Rc&lt;ast::Type&gt;,
-<a href=#266 id=266 data-nosnippet>266</a>        env_type: Rc&lt;ast::Type&gt;,
+<a href=#265 id=265 data-nosnippet>265</a>        ret_type: Arc&lt;ast::Type&gt;,
+<a href=#266 id=266 data-nosnippet>266</a>        env_type: Arc&lt;ast::Type&gt;,
 <a href=#267 id=267 data-nosnippet>267</a>        unconstrained: bool,
 <a href=#268 id=268 data-nosnippet>268</a>        location: Location,
 <a href=#269 id=269 data-nosnippet>269</a>    ) -&gt; ast::Expression {
@@ -284,7 +284,7 @@
 <a href=#284 id=284 data-nosnippet>284</a>                <span class="self">self</span>.next_local_id(),
 <a href=#285 id=285 data-nosnippet>285</a>                <span class="bool-val">false</span>,
 <a href=#286 id=286 data-nosnippet>286</a>                <span class="string">"_"</span>.into(),
-<a href=#287 id=287 data-nosnippet>287</a>                Rc::new(parameter_type.clone()),
+<a href=#287 id=287 data-nosnippet>287</a>                Arc::new(parameter_type.clone()),
 <a href=#288 id=288 data-nosnippet>288</a>                Visibility::Private,
 <a href=#289 id=289 data-nosnippet>289</a>            )
 <a href=#290 id=290 data-nosnippet>290</a>        }));
@@ -314,7 +314,7 @@
 <a href=#314 id=314 data-nosnippet>314</a>            mutable: <span class="bool-val">false</span>,
 <a href=#315 id=315 data-nosnippet>315</a>            location: <span class="prelude-val">None</span>,
 <a href=#316 id=316 data-nosnippet>316</a>            name: lambda_name.to_owned(),
-<a href=#317 id=317 data-nosnippet>317</a>            typ: Rc::new(ast::Type::Function(
+<a href=#317 id=317 data-nosnippet>317</a>            typ: Arc::new(ast::Type::Function(
 <a href=#318 id=318 data-nosnippet>318</a>                parameter_types.to_owned(),
 <a href=#319 id=319 data-nosnippet>319</a>                ret_type,
 <a href=#320 id=320 data-nosnippet>320</a>                env_type,
