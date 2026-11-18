@@ -652,6 +652,130 @@ fn mut_comptime_variable_in_runtime() {
 }
 
 #[test]
+fn mutable_reference_to_comptime_variable_in_runtime() {
+    let src = r#"
+    fn set(r: &mut bool) {
+        *r = true;
+    }
+
+    fn main() {
+        comptime let mut bad = false;
+        set(&mut bad);
+                 ^^^ Comptime variable `bad` cannot be mutated in a non-comptime context
+                 ~~~ `bad` mutated here
+        assert(!bad);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutable_reference_to_comptime_variable_in_runtime_through_let() {
+    let src = r#"
+    fn main(y: u32) -> pub u32 {
+        comptime let mut x: u32 = 7;
+        let r = &mut x;
+                     ^ Comptime variable `x` cannot be mutated in a non-comptime context
+                     ~ `x` mutated here
+        *r = y;
+        x
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn dereferenced_mutable_reference_to_comptime_variable_in_runtime() {
+    let src = r#"
+    fn main() {
+        comptime let mut x: u32 = 7;
+        *&mut x = 1;
+              ^ Comptime variable `x` cannot be mutated in a non-comptime context
+              ~ `x` mutated here
+        assert(x == 7);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutable_reference_to_comptime_variable_field_in_runtime() {
+    let src = r#"
+    struct S { a: u32 }
+
+    fn set(r: &mut u32, v: u32) {
+        *r = v;
+    }
+
+    fn main(y: u32) -> pub u32 {
+        comptime let mut s = S { a: 7 };
+        set(&mut s.a, y);
+                 ^^^ Comptime variable `s` cannot be mutated in a non-comptime context
+                 ~~~ `s` mutated here
+        s.a
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutable_self_method_on_comptime_variable_in_runtime() {
+    let src = r#"
+    struct Acc { total: u32 }
+
+    impl Acc {
+        fn add(&mut self, v: u32) {
+            self.total += v;
+        }
+    }
+
+    fn main(v: u32) {
+        comptime let mut acc = Acc { total: 0 };
+        acc.add(v);
+        ^^^ Comptime variable `acc` cannot be mutated in a non-comptime context
+        ~~~ `acc` mutated here
+        assert(acc.total == v);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutable_reference_to_immutable_comptime_variable_in_runtime() {
+    let src = r#"
+    fn set(r: &mut u32) {
+        *r = 1;
+    }
+
+    fn main() {
+        comptime let x: u32 = 7;
+        set(&mut x);
+                 ^ Comptime variable `x` cannot be mutated in a non-comptime context
+                 ~ `x` mutated here
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn mutable_reference_to_comptime_variable_in_comptime() {
+    let src = r#"
+    fn set(r: &mut u32) {
+        *r = 10;
+    }
+
+    fn main() {
+        comptime let mut x: u32 = 5;
+        let _ = comptime {
+            set(&mut x);
+            x
+        };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn mut_comptime_variable_in_comptime() {
     let src = r#"
     fn main() {
