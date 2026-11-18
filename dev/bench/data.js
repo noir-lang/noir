@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795011417601,
+  "lastUpdate": 1795011428035,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -49393,105 +49393,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "eb0a328814d8ade2ba4d0ca33e821d4eb325f73c",
-          "message": "chore(stdlib): test the built-in type examples and reject untagged doc code blocks (#14071)",
-          "timestamp": "2026-10-20T16:14:10Z",
-          "tree_id": "4c38e75047f899c08ec99cbdcc6b556a466556de",
-          "url": "https://github.com/noir-lang/noir/commit/eb0a328814d8ade2ba4d0ca33e821d4eb325f73c"
-        },
-        "date": 1792514609514,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.292,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 1.33,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.538,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 2.698,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.39,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.53,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.508,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 2.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 2.71,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.562,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 2.866,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2.798,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.098,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.27,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.295,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "a048edd56caf016c8ae7962634a1dc2884c3ecb0",
           "message": "fix(frontend): lex `<<` as one token so `a < <T as Trait>::f()` parses as a comparison (#14072)",
           "timestamp": "2026-10-20T17:04:25Z",
@@ -54341,6 +54242,110 @@ window.BENCHMARK_DATA = {
           {
             "name": "token-contract",
             "value": 8.05,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b7cab6ae9f4d2aff033f0502ebe855dad8aa7d79",
+          "message": "chore(frontend): make the type-checked context Send + Sync (#14180)",
+          "timestamp": "2026-11-18T13:41:12Z",
+          "tree_id": "4445086c02487fd2a3c8a03c9b3c309382af9331",
+          "url": "https://github.com/noir-lang/noir/commit/b7cab6ae9f4d2aff033f0502ebe855dad8aa7d79"
+        },
+        "date": 1795011420469,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.91,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 1.65,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 1.304,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 2.422,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.81,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.888,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 2.71,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 2.97,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.314,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 2.992,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2.258,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 3.01,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.357,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.256,
+            "unit": "s"
+          },
+          {
+            "name": "token-contract",
+            "value": 4.86,
             "unit": "s"
           }
         ]
