@@ -27,7 +27,7 @@ use super::Elaborator;
 use super::primitive_types::PrimitiveType;
 use super::types::SELF_TYPE_NAME;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct PathResolution {
     pub(crate) item: PathResolutionItem,
     pub(crate) errors: Vec<PathResolutionError>,
@@ -36,7 +36,7 @@ pub(crate) struct PathResolution {
 /// All possible items that result from resolving a Path.
 /// Note that this item doesn't include the last turbofish in a Path,
 /// only intermediate ones, if any.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum PathResolutionItem {
     // These are types
     Module(ModuleId),
