@@ -104,6 +104,11 @@ jobs:
     # could then reach its idle cutoff and power off while the build runs, leaving the legs
     # queued with no runner. Its idle check counts a running Actions job as busy, so it stays up
     # once the first leg starts.
+    #
+    # The machine enforces the fork rule itself: its runner rejects any job from a fork's pull
+    # request before the job's first step, whatever `runs-on` the fork's copy of a workflow asks
+    # for. That job-started hook and the machine's idle check live in AztecProtocol/claudebox
+    # (`scripts/bencher-user-data.yaml`, described in `docs/bencher.md`).
     needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
@@ -111,13 +116,9 @@ jobs:
       # Exchanged for short-lived AWS credentials that can only start the benchmark machine.
       id-token: write
     env:
-      # Pushes and PRs from branches in this repository are timed on the benchmark machine, except
-      # Dependabot's: their runs get a restricted token that may not be issued an OIDC token, so
-      # like PRs from forks they stay on GitHub-hosted runners. GitHub does not issue OIDC tokens to fork
-      # PRs, and the machine enforces the fork rule itself: its runner rejects any job from a
-      # fork's pull request before the job's first step, whatever `runs-on` the fork's copy of a
-      # workflow asks for. That job-started hook and the machine's idle check live in
-      # AztecProtocol/claudebox (`scripts/bencher-user-data.yaml`, described in `docs/bencher.md`).
+      # Pushes and same-repo PRs time on the benchmark machine. Fork PRs get no OIDC token, and
+      # Dependabot PRs may not; both stay on GitHub-hosted runners. Dependabot is matched by PR
+      # author rather than by `github.actor`, so every run of one PR uses the same hardware.
       USE_BENCHER: ${{ github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]') }}
       AWS_ROLE: arn:aws:iam::257014220042:role/noir-ci-bencher-wake
       AWS_REGION: eu-west-2
@@ -135,26 +136,16 @@ jobs:
 
       # Starting a running instance does nothing, and its runner reconnects to GitHub on boot.
       # EC2 refuses to start an instance that is still powering off, so keep asking until it
-      # has stopped and the start is accepted. An instance that has just begun to power itself
-      # off still reports `running` for a few seconds, so when it was running, ask once more a
-      # minute later: by then a shutdown shows as `stopping` and falls into the retry.
+      # has stopped and the start is accepted.
       - name: Start the benchmark machine
         if: env.USE_BENCHER == 'true'
         run: |
-          checked_again=false
           for attempt in $(seq 1 30); do
-            if previous=$(aws ec2 start-instances --instance-ids "$BENCHER_INSTANCE_ID" \
-                --query 'StartingInstances[0].PreviousState.Name' --output text 2>&1); then
-              echo "Benchmark machine was $previous"
-              if [ "$previous" != running ] || [ "$checked_again" = true ]; then
-                exit 0
-              fi
-              checked_again=true
-              sleep 60
-              continue
+            if aws ec2 start-instances --instance-ids "$BENCHER_INSTANCE_ID" 2>err; then
+              exit 0
             fi
-            if ! grep -q IncorrectInstanceState <<<"$previous"; then
-              echo "$previous" >&2
+            if ! grep -q IncorrectInstanceState err; then
+              cat err >&2
               exit 1
             fi
             echo "Benchmark machine is powering off; retrying ($attempt/30)"
@@ -681,7 +672,7 @@ jobs:
 
   upload_compilation_reports:
     name: Upload compilation reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [external_repo_reports, benchmark-projects-list, wake-bencher]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
@@ -712,7 +703,8 @@ jobs:
 
       - name: Store benchmark result
         # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        # Only timings measured on the benchmark machine are compared with master's history.
+        if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Compilation Time"
@@ -731,7 +723,7 @@ jobs:
 
   upload_elaboration_reports:
     name: Upload elaboration reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [external_repo_reports, benchmark-projects-list, wake-bencher]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
@@ -762,7 +754,8 @@ jobs:
 
       - name: Store benchmark result
         # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        # Only timings measured on the benchmark machine are compared with master's history.
+        if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Elaboration Time"
@@ -781,7 +774,7 @@ jobs:
 
   upload_execution_reports:
     name: Upload execution reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [external_repo_reports, benchmark-projects-list, wake-bencher]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
@@ -812,7 +805,8 @@ jobs:
 
       - name: Store benchmark result
         # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        # Only timings measured on the benchmark machine are compared with master's history.
+        if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Execution Time"
@@ -931,7 +925,7 @@ jobs:
 
   upload_brillig_compilation_reports:
     name: Upload Brillig compilation reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [external_repo_reports, benchmark-projects-list, wake-bencher]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
@@ -962,7 +956,8 @@ jobs:
 
       - name: Store benchmark result
         # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        # Only timings measured on the benchmark machine are compared with master's history.
+        if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Brillig Compilation Time"
@@ -981,7 +976,7 @@ jobs:
 
   upload_brillig_execution_reports:
     name: Upload Brillig execution reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [external_repo_reports, benchmark-projects-list, wake-bencher]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
@@ -1012,7 +1007,8 @@ jobs:
 
       - name: Store benchmark result
         # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        # Only timings measured on the benchmark machine are compared with master's history.
+        if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Brillig Execution Time"
