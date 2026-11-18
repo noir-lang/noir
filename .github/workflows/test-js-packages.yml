@@ -666,9 +666,44 @@ jobs:
       - name: Run examples
         run: just run-examples
 
-  external-repo-checks:
-    needs: [build-binaries, critical-library-list]
+  wake-bencher:
+    name: Wake the benchmark machine
+    # Started once the binaries exist, so the timed checks are dispatched seconds after the wake,
+    # before the machine can reach its idle cutoff. Its idle check counts a running Actions job
+    # as busy, so it stays up once the first check starts. The machine enforces the fork rule
+    # itself: its runner rejects any job from a fork's pull request before the job's first step.
+    needs: [build-binaries]
     runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # Exchanged for short-lived AWS credentials that can only start the benchmark machine.
+      id-token: write
+    env:
+      # Pushes and same-repo PRs time on the benchmark machine; `reports.yml` makes the same
+      # choice. Fork PRs get no OIDC token and Dependabot PRs may not, so both stay on
+      # GitHub-hosted runners, and so do merge-queue runs, which the AWS role does not trust.
+      USE_BENCHER: ${{ github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]') }}
+    outputs:
+      use_bencher: ${{ env.USE_BENCHER }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.USE_BENCHER == 'true'
+        with:
+          sparse-checkout: .github/actions/wake-bencher
+          sparse-checkout-cone-mode: false
+
+      - name: Wake the benchmark machine
+        if: env.USE_BENCHER == 'true'
+        uses: ./.github/actions/wake-bencher
+
+  external-repo-checks:
+    needs: [build-binaries, critical-library-list, wake-bencher]
+    # Libraries whose test suite is timed (`timeout` above 20 seconds, see "Upload test report")
+    # run on the benchmark machine. The rest are only checked for correctness and stay on
+    # GitHub-hosted runners, where they run in parallel.
+    runs-on: ${{ needs.wake-bencher.outputs.use_bencher == 'true' && matrix.timeout > 20 && fromJson('["self-hosted","noir-bench"]') || 'ubuntu-22.04' }}
     timeout-minutes: 30
     permissions:
       contents: read
@@ -682,6 +717,13 @@ jobs:
       OUTPUT_FILE: ${{ github.workspace }}/.github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
 
     steps:
+      # The benchmark machine keeps its workspace between jobs. Checkout's own clean removes the
+      # previous job's files too, but only once a checkout succeeds; this also covers a job that
+      # was cancelled or failed mid-checkout.
+      - name: Clean workspace
+        if: runner.environment == 'self-hosted'
+        run: find "$GITHUB_WORKSPACE" -mindepth 1 -delete
+
       - name: Matrix Info
         run: |
           echo "repo: ${{ matrix.repo }}"
@@ -881,7 +923,7 @@ jobs:
 
   upload_critical_library_report:
     name: Upload critical library report
-    needs: [external-repo-checks]
+    needs: [external-repo-checks, wake-bencher]
     # We want this job to run even if one variation of the matrix in `external-repo-checks` fails
     if: always()
     runs-on: ubuntu-22.04
@@ -909,8 +951,8 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee test_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        # Only timings measured on the benchmark machine are compared with master's history.
+        if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Test Suite Duration"

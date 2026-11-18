@@ -18,7 +18,8 @@ permissions: {}
 jobs:
   rust_benchmarks:
     name: Rust Benchmarks
-    runs-on: ubuntu-22.04
+    needs: [wake-bencher]
+    runs-on: ${{ needs.wake-bencher.outputs.use_bencher == 'true' && fromJson('["self-hosted","noir-bench"]') || 'ubuntu-22.04' }}
 
     timeout-minutes: 15
     permissions:
@@ -38,7 +39,9 @@ jobs:
 
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
-          key: x86_64-unknown-linux-gnu-bench
+          # The benchmark machine runs a newer distribution than the hosted runners, so its build
+          # artifacts must not be restored on a hosted runner.
+          key: x86_64-unknown-linux-gnu-bench-${{ runner.environment }}
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
@@ -53,8 +56,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Store ACVM benchmarks result
-        # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
+        # Only timings measured on the benchmark machine are compared with master's history.
+        if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "ACVM Benchmarks"
@@ -99,62 +102,41 @@ jobs:
 
   wake-bencher:
     name: Wake the benchmark machine
-    # Started once the binaries exist, so the timing legs are dispatched seconds after the wake.
+    # Started once the binaries exist, so the timing jobs are dispatched seconds after the wake.
     # Waking earlier would hide a cold boot behind the build, but a machine that was already up
-    # could then reach its idle cutoff and power off while the build runs, leaving the legs
+    # could then reach its idle cutoff and power off while the build runs, leaving the jobs
     # queued with no runner. Its idle check counts a running Actions job as busy, so it stays up
-    # once the first leg starts.
+    # once the first job starts.
     #
     # The machine enforces the fork rule itself: its runner rejects any job from a fork's pull
     # request before the job's first step, whatever `runs-on` the fork's copy of a workflow asks
-    # for. That job-started hook and the machine's idle check live in AztecProtocol/claudebox
-    # (`scripts/bencher-user-data.yaml`, described in `docs/bencher.md`).
+    # for.
     needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
+      contents: read
       # Exchanged for short-lived AWS credentials that can only start the benchmark machine.
       id-token: write
     env:
       # Pushes and same-repo PRs time on the benchmark machine. Fork PRs get no OIDC token, and
       # Dependabot PRs may not; both stay on GitHub-hosted runners. Dependabot is matched by PR
       # author rather than by `github.actor`, so every run of one PR uses the same hardware.
+      # `test-js-packages.yml` makes the same choice.
       USE_BENCHER: ${{ github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]') }}
-      AWS_ROLE: arn:aws:iam::257014220042:role/noir-ci-bencher-wake
-      AWS_REGION: eu-west-2
-      BENCHER_INSTANCE_ID: i-0acfd9d4c0d1a40c4
     outputs:
       use_bencher: ${{ env.USE_BENCHER }}
 
     steps:
-      - name: Get AWS credentials
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: env.USE_BENCHER == 'true'
-        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          role-to-assume: ${{ env.AWS_ROLE }}
-          aws-region: ${{ env.AWS_REGION }}
+          sparse-checkout: .github/actions/wake-bencher
+          sparse-checkout-cone-mode: false
 
-      # Starting a running instance does nothing, and its runner reconnects to GitHub on boot.
-      # Once EC2 reports the instance as stopping, it refuses to start it, so keep asking until
-      # it has stopped and the start is accepted. The machine can still power off just before or
-      # just after this call: its idle check powers it off from inside, and EC2 reports `running`
-      # for a few seconds afterwards. The legs then wait in the queue for the next run's wake.
-      - name: Start the benchmark machine
+      - name: Wake the benchmark machine
         if: env.USE_BENCHER == 'true'
-        run: |
-          for attempt in $(seq 1 30); do
-            if aws ec2 start-instances --instance-ids "$BENCHER_INSTANCE_ID" 2>err; then
-              exit 0
-            fi
-            if ! grep -q IncorrectInstanceState err; then
-              cat err >&2
-              exit 1
-            fi
-            echo "Benchmark machine is powering off; retrying ($attempt/30)"
-            sleep 10
-          done
-          echo "Benchmark machine did not finish powering off" >&2
-          exit 1
+        uses: ./.github/actions/wake-bencher
 
   build-nargo:
     runs-on: ubuntu-22.04
