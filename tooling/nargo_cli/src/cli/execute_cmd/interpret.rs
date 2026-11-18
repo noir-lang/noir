@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::rc::Rc;
 use std::sync::Arc;
 
 use acvm::AcirField;
@@ -220,7 +219,7 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
                 length.evaluate_to_u32(location).expect("Could not evaluate string length to u32");
             assert_eq!(string.len(), length as usize, "String length does not match input length");
             let bytes = string.bytes().collect();
-            Value::String(Rc::new(bytes))
+            Value::String(Arc::new(bytes))
         }
         Type::Tuple(types) => {
             let InputValue::Vec(inputs) = input else {

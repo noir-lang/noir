@@ -1,9 +1,8 @@
 //! Defines [ValueCell], the shared mutable storage the comptime interpreter uses for
 //! tuple elements, struct fields and pointees.
-use std::{
-    cell::{Ref, RefCell, RefMut},
-    rc::Rc,
-};
+use std::sync::{RwLockReadGuard, RwLockWriteGuard};
+
+use crate::Shared;
 
 use super::Value;
 
@@ -17,35 +16,28 @@ use super::Value;
 ///
 /// Code outside the interpreter can only read through a `ValueCell`; creating and
 /// mutating cells is internal to the interpreter.
-#[derive(Debug, Clone)]
-pub struct ValueCell(Rc<RefCell<Value>>);
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValueCell(Shared<Value>);
 
 impl ValueCell {
     pub(in crate::hir::comptime) fn new(value: Value) -> Self {
-        ValueCell(Rc::new(RefCell::new(value)))
+        ValueCell(Shared::new(value))
     }
 
-    pub fn borrow(&self) -> Ref<'_, Value> {
+    /// Borrow the value. Panics if it is currently mutably borrowed.
+    #[track_caller]
+    pub fn borrow(&self) -> RwLockReadGuard<'_, Value> {
         self.0.borrow()
     }
 
-    pub(in crate::hir::comptime) fn borrow_mut(&self) -> RefMut<'_, Value> {
+    /// Mutably borrow the value. Panics if it is currently borrowed.
+    #[track_caller]
+    pub(in crate::hir::comptime) fn borrow_mut(&self) -> RwLockWriteGuard<'_, Value> {
         self.0.borrow_mut()
     }
 
     /// Takes the contained value, cloning it only if other handles to it remain.
     pub(in crate::hir::comptime) fn unwrap_or_clone(self) -> Value {
-        match Rc::try_unwrap(self.0) {
-            Ok(value) => value.into_inner(),
-            Err(rc) => rc.borrow().clone(),
-        }
+        self.0.unwrap_or_clone()
     }
 }
-
-impl PartialEq for ValueCell {
-    fn eq(&self, other: &Self) -> bool {
-        *self.0.borrow() == *other.0.borrow()
-    }
-}
-
-impl Eq for ValueCell {}

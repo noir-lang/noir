@@ -758,7 +758,7 @@ impl Display for Definition {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
     use super::super::ast::{Assign, Expression, IdentId, Literal, LocalId};
     use super::*;
@@ -772,7 +772,7 @@ mod tests {
             definition: Definition::Local(LocalId(id)),
             mutable: true,
             name: name.to_string(),
-            typ: Rc::new(typ),
+            typ: Arc::new(typ),
             id: IdentId(id),
         }
     }
@@ -810,9 +810,9 @@ mod tests {
     #[test]
     fn index_of_clone_wrapping_dereference_is_parenthesized() {
         let bool_t = Type::Bool;
-        let array_bool = Type::Array(3, Rc::new(bool_t.clone()));
-        let ref_array_bool = Type::Reference(Rc::new(array_bool.clone()), true);
-        let outer_array = Type::Array(3, Rc::new(ref_array_bool.clone()));
+        let array_bool = Type::Array(3, Arc::new(bool_t.clone()));
+        let ref_array_bool = Type::Reference(Arc::new(array_bool.clone()), true);
+        let outer_array = Type::Array(3, Arc::new(ref_array_bool.clone()));
 
         // `Index(Clone(Dereference(Index(Ident(d), idx_e))), idx_f)`
         let inner_index = LValue::Index {
@@ -838,8 +838,8 @@ mod tests {
     #[test]
     fn index_of_dereference_is_parenthesized() {
         let bool_t = Type::Bool;
-        let array_bool = Type::Array(3, Rc::new(bool_t.clone()));
-        let ref_array_bool = Type::Reference(Rc::new(array_bool.clone()), true);
+        let array_bool = Type::Array(3, Arc::new(bool_t.clone()));
+        let ref_array_bool = Type::Reference(Arc::new(array_bool.clone()), true);
 
         let deref = LValue::Dereference {
             reference: Box::new(LValue::Ident(local_ident("d", 0, ref_array_bool))),

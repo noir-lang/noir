@@ -33,7 +33,7 @@
 //! [`InterpreterError::ArgumentCountMismatch`] is an example of such an error.
 
 use std::collections::VecDeque;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use acvm::AcirField;
 use imbl::Vector;
@@ -782,7 +782,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let bindings = self.elaborator.interner.try_get_instantiation_bindings(id);
                 let mut bindings = bindings.map_or(TypeBindings::default(), |b| self.bindings(b));
                 resolve_type_bindings(&mut bindings);
-                Ok(Value::Function(*function_id, typ, Rc::new(bindings)))
+                Ok(Value::Function(*function_id, typ, Arc::new(bindings)))
             }
             DefinitionKind::Local(_) => self.lookup(&ident),
             DefinitionKind::Global(global_id) => {
@@ -911,7 +911,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         match self.resolve_trait_item(item, id)? {
             (crate::monomorphization::TraitItem::Method(func_id), bindings) => {
-                Ok(Value::Function(func_id, typ, Rc::new(bindings)))
+                Ok(Value::Function(func_id, typ, Arc::new(bindings)))
             }
             (crate::monomorphization::TraitItem::Constant { id: _, expected_type, value }, _) => {
                 // The value can mention the generics of the function being interpreted, e.g.
@@ -927,7 +927,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLiteral::Unit => Ok(Value::Unit),
             HirLiteral::Bool(value) => Ok(Value::Bool(value)),
             HirLiteral::Integer(value) => self.evaluate_integer_literal(value, id),
-            HirLiteral::Str(string) => Ok(Value::String(Rc::new(string))),
+            HirLiteral::Str(string) => Ok(Value::String(Arc::new(string))),
             HirLiteral::FmtStr(fragments, captures, length) => {
                 self.evaluate_format_string(fragments, captures, length, id)
             }
@@ -973,7 +973,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         let typ = self.expr_type(id).follow_bindings();
-        Ok(Value::FormatString(Rc::new(new_fragments), typ, length))
+        Ok(Value::FormatString(Arc::new(new_fragments), typ, length))
     }
 
     /// Since integers are polymorphic, evaluating one requires the result type.
@@ -1203,7 +1203,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .into_iter()
             .map(|(name, expr)| {
                 let field_value = ValueCell::new(self.evaluate(expr)?);
-                Ok((Rc::new(name.into_string()), field_value))
+                Ok((Arc::new(name.into_string()), field_value))
             })
             .collect::<Result<_, _>>()?;
 
@@ -1443,7 +1443,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     fn evaluate_quote(&mut self, tokens: Tokens) -> IResult<Value> {
         let tokens = self.substitute_unquoted_values_into_tokens(tokens)?;
-        Ok(Value::Quoted(Rc::new(tokens)))
+        Ok(Value::Quoted(Arc::new(tokens)))
     }
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
@@ -1551,7 +1551,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
-                        fields.insert(Rc::new(field_name.into_string()), ValueCell::new(rhs));
+                        fields.insert(Arc::new(field_name.into_string()), ValueCell::new(rhs));
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {

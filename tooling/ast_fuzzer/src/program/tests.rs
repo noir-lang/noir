@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use arbitrary::Unstructured;
 use nargo::errors::Location;
@@ -125,10 +125,10 @@ fn test_recursion_limit_rewrite() {
                         definition: Definition::Function(*callee_id),
                         mutable: false,
                         name: callee_name,
-                        typ: Rc::new(Type::Function(
+                        typ: Arc::new(Type::Function(
                             vec![],
-                            Rc::new(Type::Unit),
-                            Rc::new(Type::Unit),
+                            Arc::new(Type::Unit),
+                            Arc::new(Type::Unit),
                             callee_unconstrained,
                         )),
                         id: ident_id,
@@ -253,13 +253,13 @@ fn test_recursion_limit_rewrite() {
 fn test_assign_ref_element_type() {
     use super::expr::assign_ref;
 
-    let ref_type = Type::Reference(Rc::new(crate::program::types::U32), true);
+    let ref_type = Type::Reference(Arc::new(crate::program::types::U32), true);
     let ident = Ident {
         location: None,
         definition: Definition::Local(LocalId(0)),
         mutable: false,
         name: "r".to_string(),
-        typ: Rc::new(ref_type),
+        typ: Arc::new(ref_type),
         id: IdentId(0),
     };
 
@@ -296,7 +296,7 @@ fn test_wrap_oracle_prints_in_functions() {
     use super::expr;
     use super::rewrite::wrap_oracle_prints_in_functions;
 
-    let array_type = Type::Array(1, Rc::new(Type::Bool));
+    let array_type = Type::Array(1, Arc::new(Type::Bool));
 
     // Build: fn main() { let a = [true]; print_oracle(true, a, "...", false); }
     let mut ctx = Context::new(Config::default());
@@ -319,7 +319,7 @@ fn test_wrap_oracle_prints_in_functions() {
         definition: Definition::Local(LocalId(0)),
         mutable: false,
         name: "a".to_string(),
-        typ: Rc::new(array_type.clone()),
+        typ: Arc::new(array_type.clone()),
         id: IdentId(0),
     };
 
@@ -329,10 +329,10 @@ fn test_wrap_oracle_prints_in_functions() {
             definition: Definition::Oracle { name: "print".to_string(), pure: false },
             mutable: false,
             name: "print_oracle".to_string(),
-            typ: Rc::new(Type::Function(
+            typ: Arc::new(Type::Function(
                 vec![Type::Bool, array_type],
-                Rc::new(Type::Unit),
-                Rc::new(Type::Unit),
+                Arc::new(Type::Unit),
+                Arc::new(Type::Unit),
                 true,
             )),
             id: IdentId(1),
