@@ -1007,6 +1007,7 @@ impl<T> Shared<T> {
     }
 
     /// Borrow the value. Panics if it is currently mutably borrowed.
+    #[track_caller]
     pub fn borrow(&self) -> RwLockReadGuard<'_, T> {
         match self.0.try_read() {
             Ok(guard) => guard,
@@ -1016,6 +1017,7 @@ impl<T> Shared<T> {
     }
 
     /// Mutably borrow the value. Panics if it is currently borrowed.
+    #[track_caller]
     pub fn borrow_mut(&self) -> RwLockWriteGuard<'_, T> {
         match self.0.try_write() {
             Ok(guard) => guard,
@@ -1025,7 +1027,7 @@ impl<T> Shared<T> {
     }
 
     /// Takes the value, cloning it only if other handles to it remain.
-    pub fn unwrap_or_clone(self) -> T
+    pub(crate) fn unwrap_or_clone(self) -> T
     where
         T: Clone,
     {

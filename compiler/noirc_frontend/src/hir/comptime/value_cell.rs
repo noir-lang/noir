@@ -24,10 +24,14 @@ impl ValueCell {
         ValueCell(Shared::new(value))
     }
 
+    /// Borrow the value. Panics if it is currently mutably borrowed.
+    #[track_caller]
     pub fn borrow(&self) -> RwLockReadGuard<'_, Value> {
         self.0.borrow()
     }
 
+    /// Mutably borrow the value. Panics if it is currently borrowed.
+    #[track_caller]
     pub(in crate::hir::comptime) fn borrow_mut(&self) -> RwLockWriteGuard<'_, Value> {
         self.0.borrow_mut()
     }
