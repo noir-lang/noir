@@ -90,6 +90,44 @@ jobs:
             echo "has_projects=true" >> $GITHUB_OUTPUT
           fi
 
+  wake-bencher:
+    name: Wake the benchmark machine
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      # Exchanged for short-lived AWS credentials that can only start the benchmark machine.
+      id-token: write
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+
+    steps:
+      # Timing jobs run on the dedicated benchmark machine for pushes and for PRs from branches in
+      # this repository. PRs from forks stay on GitHub-hosted runners: they must not run code on the
+      # benchmark machine, and GitHub does not issue them OIDC tokens anyway.
+      - name: Pick the runner for timing jobs
+        id: pick
+        run: |
+          if [ "$USE_BENCHER" = "true" ]; then
+            echo 'runner=["self-hosted","noir-bench"]' >> $GITHUB_OUTPUT
+          else
+            echo 'runner="ubuntu-22.04"' >> $GITHUB_OUTPUT
+          fi
+        env:
+          USE_BENCHER: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+
+      - name: Get AWS credentials
+        if: steps.pick.outputs.runner != '"ubuntu-22.04"'
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::257014220042:role/noir-ci-bencher-wake
+          aws-region: eu-west-2
+
+      # Starting an instance that is already running is a no-op. The machine stops itself once it
+      # has been idle for 30 minutes, and its runner reconnects to GitHub on boot.
+      - name: Start the benchmark machine
+        if: steps.pick.outputs.runner != '"ubuntu-22.04"'
+        run: aws ec2 start-instances --instance-ids i-0acfd9d4c0d1a40c4
+
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 15
@@ -362,8 +400,8 @@ jobs:
           overwrite: true
 
   external_repo_reports:
-    needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
-    runs-on: ubuntu-22.04
+    needs: [build-nargo, build-noir-inspector, benchmark-projects-list, wake-bencher]
+    runs-on: ${{ fromJson(needs.wake-bencher.outputs.runner) }}
     timeout-minutes: 20
     permissions:
       contents: read
@@ -374,6 +412,11 @@ jobs:
 
     name: External repo compilation and execution reports - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
+      # The benchmark machine keeps its workspace between jobs, so outputs from a previous project
+      # must not leak into this project's report.
+      - name: Clean workspace
+        run: find "$GITHUB_WORKSPACE" -mindepth 1 -delete
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: |
