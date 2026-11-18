@@ -111,11 +111,14 @@ jobs:
       # Exchanged for short-lived AWS credentials that can only start the benchmark machine.
       id-token: write
     env:
-      # Pushes and PRs from branches in this repository are timed on the benchmark machine. PRs
-      # from forks stay on GitHub-hosted runners, and GitHub does not issue them OIDC tokens. The
-      # machine enforces this itself: its runner rejects any job from a fork's pull request
-      # before the job's first step, whatever `runs-on` the fork's copy of a workflow asks for.
-      USE_BENCHER: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+      # Pushes and PRs from branches in this repository are timed on the benchmark machine, except
+      # Dependabot's: their runs get a restricted token that may not be issued an OIDC token, so
+      # like PRs from forks they stay on GitHub-hosted runners. GitHub does not issue OIDC tokens to fork
+      # PRs, and the machine enforces the fork rule itself: its runner rejects any job from a
+      # fork's pull request before the job's first step, whatever `runs-on` the fork's copy of a
+      # workflow asks for. That job-started hook and the machine's idle check live in
+      # AztecProtocol/claudebox (`scripts/bencher-user-data.yaml`, described in `docs/bencher.md`).
+      USE_BENCHER: ${{ github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]') }}
       AWS_ROLE: arn:aws:iam::257014220042:role/noir-ci-bencher-wake
       AWS_REGION: eu-west-2
       BENCHER_INSTANCE_ID: i-0acfd9d4c0d1a40c4
@@ -132,17 +135,26 @@ jobs:
 
       # Starting a running instance does nothing, and its runner reconnects to GitHub on boot.
       # EC2 refuses to start an instance that is still powering off, so keep asking until it
-      # has stopped and the start is accepted.
+      # has stopped and the start is accepted. An instance that has just begun to power itself
+      # off still reports `running` for a few seconds, so when it was running, ask once more a
+      # minute later: by then a shutdown shows as `stopping` and falls into the retry.
       - name: Start the benchmark machine
         if: env.USE_BENCHER == 'true'
         run: |
+          checked_again=false
           for attempt in $(seq 1 30); do
-            if out=$(aws ec2 start-instances --instance-ids "$BENCHER_INSTANCE_ID" 2>&1); then
-              echo "$out"
-              exit 0
+            if previous=$(aws ec2 start-instances --instance-ids "$BENCHER_INSTANCE_ID" \
+                --query 'StartingInstances[0].PreviousState.Name' --output text 2>&1); then
+              echo "Benchmark machine was $previous"
+              if [ "$previous" != running ] || [ "$checked_again" = true ]; then
+                exit 0
+              fi
+              checked_again=true
+              sleep 60
+              continue
             fi
-            if ! grep -q IncorrectInstanceState <<<"$out"; then
-              echo "$out" >&2
+            if ! grep -q IncorrectInstanceState <<<"$previous"; then
+              echo "$previous" >&2
               exit 1
             fi
             echo "Benchmark machine is powering off; retrying ($attempt/30)"
@@ -435,9 +447,11 @@ jobs:
 
     name: External repo compilation and execution reports - ${{ matrix.repo }}/${{ matrix.path }}
     steps:
-      # The benchmark machine keeps its workspace between jobs, so outputs from a previous project
-      # must not leak into this project's report.
+      # The benchmark machine keeps its workspace between jobs. Checkout's own clean removes the
+      # previous project's files too, but only once a checkout succeeds; this also covers a job
+      # that was cancelled or failed mid-checkout, so nothing from it leaks into this report.
       - name: Clean workspace
+        if: runner.environment == 'self-hosted'
         run: find "$GITHUB_WORKSPACE" -mindepth 1 -delete
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
