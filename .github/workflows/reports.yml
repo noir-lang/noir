@@ -135,8 +135,10 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       # Starting a running instance does nothing, and its runner reconnects to GitHub on boot.
-      # EC2 refuses to start an instance that is still powering off, so keep asking until it
-      # has stopped and the start is accepted.
+      # Once EC2 reports the instance as stopping, it refuses to start it, so keep asking until
+      # it has stopped and the start is accepted. The machine can still power off just before or
+      # just after this call: its idle check powers it off from inside, and EC2 reports `running`
+      # for a few seconds afterwards. The legs then wait in the queue for the next run's wake.
       - name: Start the benchmark machine
         if: env.USE_BENCHER == 'true'
         run: |
@@ -702,7 +704,6 @@ jobs:
           jq --slurp 'map(.compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
         # Only timings measured on the benchmark machine are compared with master's history.
         if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
@@ -753,7 +754,6 @@ jobs:
           jq --slurp 'map(.elaboration_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
         # Only timings measured on the benchmark machine are compared with master's history.
         if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
@@ -804,7 +804,6 @@ jobs:
           jq --slurp 'map(.execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
         # Only timings measured on the benchmark machine are compared with master's history.
         if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
@@ -955,7 +954,6 @@ jobs:
           jq --slurp 'map(.brillig_compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
         # Only timings measured on the benchmark machine are compared with master's history.
         if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
@@ -1006,7 +1004,6 @@ jobs:
           jq --slurp 'map(.brillig_execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
         # Only timings measured on the benchmark machine are compared with master's history.
         if: needs.wake-bencher.outputs.use_bencher == 'true'
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
@@ -1196,6 +1193,7 @@ jobs:
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:
+      - wake-bencher
       - rust_benchmarks
       - upload_compilation_reports
       - upload_elaboration_reports
