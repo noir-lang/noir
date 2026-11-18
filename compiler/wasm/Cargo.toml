@@ -47,5 +47,3 @@ getrandom_v4 = { package = "getrandom", version = "0.4.0-rc.0", features = ["was
 # while simultaneously allowing us to deactivate wasm-opt for speed.
 rust-embed = { workspace = true, features = ["debug-embed"] }
 
-[build-dependencies]
-build-data.workspace = true

@@ -290,12 +290,11 @@ impl<'local> SsaBuilder<'local> {
 
 // Helper to time SSA passes
 pub(super) fn time<T>(name: &str, print_timings: bool, f: impl FnOnce() -> T) -> T {
-    let start_time = chrono::Utc::now().time();
+    let start_time = std::time::Instant::now();
     let result = f();
 
     if print_timings {
-        let end_time = chrono::Utc::now().time();
-        println_to_stdout!("{name}: {} ms", (end_time - start_time).num_milliseconds());
+        println_to_stdout!("{name}: {} ms", start_time.elapsed().as_millis());
     }
 
     result
