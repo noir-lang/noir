@@ -6,6 +6,13 @@ on:
       - master
   pull_request:
 
+# The timing legs share one benchmark machine and run one after another, so a newer push to a PR
+# cancels the run it replaces instead of queueing behind it. Pushes to master get a group of their
+# own, so that every master commit keeps its data point.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 permissions: {}
 
 jobs:
@@ -92,41 +99,57 @@ jobs:
 
   wake-bencher:
     name: Wake the benchmark machine
+    # Started once the binaries exist, so the timing legs are dispatched seconds after the wake.
+    # Waking earlier would hide a cold boot behind the build, but a machine that was already up
+    # could then reach its idle cutoff and power off while the build runs, leaving the legs
+    # queued with no runner. Its idle check counts a running Actions job as busy, so it stays up
+    # once the first leg starts.
+    needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
     runs-on: ubuntu-22.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     permissions:
       # Exchanged for short-lived AWS credentials that can only start the benchmark machine.
       id-token: write
+    env:
+      # Pushes and PRs from branches in this repository are timed on the benchmark machine. PRs
+      # from forks stay on GitHub-hosted runners, and GitHub does not issue them OIDC tokens. The
+      # machine enforces this itself: its runner rejects any job from a fork's pull request
+      # before the job's first step, whatever `runs-on` the fork's copy of a workflow asks for.
+      USE_BENCHER: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
+      AWS_ROLE: arn:aws:iam::257014220042:role/noir-ci-bencher-wake
+      AWS_REGION: eu-west-2
+      BENCHER_INSTANCE_ID: i-0acfd9d4c0d1a40c4
     outputs:
-      runner: ${{ steps.pick.outputs.runner }}
+      use_bencher: ${{ env.USE_BENCHER }}
 
     steps:
-      # Timing jobs run on the dedicated benchmark machine for pushes and for PRs from branches in
-      # this repository. PRs from forks stay on GitHub-hosted runners: they must not run code on the
-      # benchmark machine, and GitHub does not issue them OIDC tokens anyway.
-      - name: Pick the runner for timing jobs
-        id: pick
-        run: |
-          if [ "$USE_BENCHER" = "true" ]; then
-            echo 'runner=["self-hosted","noir-bench"]' >> $GITHUB_OUTPUT
-          else
-            echo 'runner="ubuntu-22.04"' >> $GITHUB_OUTPUT
-          fi
-        env:
-          USE_BENCHER: ${{ github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository }}
-
       - name: Get AWS credentials
-        if: steps.pick.outputs.runner != '"ubuntu-22.04"'
+        if: env.USE_BENCHER == 'true'
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
-          role-to-assume: arn:aws:iam::257014220042:role/noir-ci-bencher-wake
-          aws-region: eu-west-2
+          role-to-assume: ${{ env.AWS_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      # Starting an instance that is already running is a no-op. The machine stops itself once it
-      # has been idle for 30 minutes, and its runner reconnects to GitHub on boot.
+      # Starting a running instance does nothing, and its runner reconnects to GitHub on boot.
+      # EC2 refuses to start an instance that is still powering off, so keep asking until it
+      # has stopped and the start is accepted.
       - name: Start the benchmark machine
-        if: steps.pick.outputs.runner != '"ubuntu-22.04"'
-        run: aws ec2 start-instances --instance-ids i-0acfd9d4c0d1a40c4
+        if: env.USE_BENCHER == 'true'
+        run: |
+          for attempt in $(seq 1 30); do
+            if out=$(aws ec2 start-instances --instance-ids "$BENCHER_INSTANCE_ID" 2>&1); then
+              echo "$out"
+              exit 0
+            fi
+            if ! grep -q IncorrectInstanceState <<<"$out"; then
+              echo "$out" >&2
+              exit 1
+            fi
+            echo "Benchmark machine is powering off; retrying ($attempt/30)"
+            sleep 10
+          done
+          echo "Benchmark machine did not finish powering off" >&2
+          exit 1
 
   build-nargo:
     runs-on: ubuntu-22.04
@@ -401,7 +424,7 @@ jobs:
 
   external_repo_reports:
     needs: [build-nargo, build-noir-inspector, benchmark-projects-list, wake-bencher]
-    runs-on: ${{ fromJson(needs.wake-bencher.outputs.runner) }}
+    runs-on: ${{ needs.wake-bencher.outputs.use_bencher == 'true' && fromJson('["self-hosted","noir-bench"]') || 'ubuntu-22.04' }}
     timeout-minutes: 20
     permissions:
       contents: read
