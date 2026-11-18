@@ -88,7 +88,9 @@ fn run_package_comptime(
         input_value_to_comptime_value(&return_value, func_meta.return_type(), location)
     });
 
-    match context.interpret_function(main_id, func_args, &mut comptime_io) {
+    let force_unconstrained =
+        args.compile_options.force_brillig || args.compile_options.minimal_ssa;
+    match context.interpret_function(main_id, func_args, force_unconstrained, &mut comptime_io) {
         Ok(result) => {
             let result_as_string = output_value_to_string(&result, &context);
 
