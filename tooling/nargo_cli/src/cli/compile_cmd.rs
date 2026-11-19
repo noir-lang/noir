@@ -277,6 +277,9 @@ fn compile_programs(
     Ok(collect_errors(program_results).map(|(_, warnings)| ((), warnings)))
 }
 
+/// Stack size of the threads that compile contracts.
+const CONTRACT_COMPILATION_STACK_SIZE: usize = 8 * 1024 * 1024;
+
 /// Compile the given contracts in the workspace.
 fn compile_contracts(
     file_manager: &Arc<FileManager>,
@@ -285,23 +288,32 @@ fn compile_contracts(
     compile_options: &CompileOptions,
     target_dir: &Path,
 ) -> Result<CompilationResult<()>, CliError> {
-    let contract_results = contract_packages
-        .par_iter()
-        .map(|package| -> Result<CompilationResult<()>, CliError> {
-            match compile_contract(file_manager, parsed_files, package, compile_options) {
-                Ok((contract, warnings)) => {
-                    save_contract(
-                        contract,
-                        package,
-                        target_dir,
-                        compile_options.show_artifact_paths,
-                    )?;
-                    Ok(Ok(((), warnings)))
+    // Packages, and each contract's functions within them, compile in parallel on this one pool,
+    // so the two levels share the cores rather than nesting a pool per package. Its threads get
+    // the stack that the main thread gives a single package.
+    let pool = rayon::ThreadPoolBuilder::new()
+        .stack_size(CONTRACT_COMPILATION_STACK_SIZE)
+        .build()
+        .unwrap();
+    let contract_results = pool.install(|| {
+        contract_packages
+            .par_iter()
+            .map(|package| -> Result<CompilationResult<()>, CliError> {
+                match compile_contract(file_manager, parsed_files, package, compile_options) {
+                    Ok((contract, warnings)) => {
+                        save_contract(
+                            contract,
+                            package,
+                            target_dir,
+                            compile_options.show_artifact_paths,
+                        )?;
+                        Ok(Ok(((), warnings)))
+                    }
+                    Err(errors_and_warnings) => Ok(Err(errors_and_warnings)),
                 }
-                Err(errors_and_warnings) => Ok(Err(errors_and_warnings)),
-            }
-        })
-        .collect::<Result<Vec<_>, CliError>>()?;
+            })
+            .collect::<Result<Vec<_>, CliError>>()
+    })?;
 
     // Collate any warnings/errors which were encountered during compilation.
     let errors = collect_errors(contract_results).map(|(_, warnings)| ((), warnings));

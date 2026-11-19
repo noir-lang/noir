@@ -339,3 +339,66 @@ contract Foo {
     assert!(error_codes.iter().any(|g| g.name == "ERR_NOT_FOUND"));
     assert!(error_codes.iter().any(|g| g.name == "ERR_FORBIDDEN"));
 }
+
+/// Compiles `source` on a rayon pool of `threads` threads, so its entry points are compiled one
+/// at a time with one thread and in parallel with more.
+fn compile_contract_on_threads(
+    source: &str,
+    threads: usize,
+) -> (noirc_artifacts::contract::CompiledContract, Vec<CustomDiagnostic>) {
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(threads)
+        .build()
+        .unwrap()
+        .install(|| compile_contract_with_warnings(source))
+}
+
+#[test]
+fn compiling_entry_points_in_parallel_gives_the_sequential_result() {
+    // Each entry point warns with a message of its own, so the warnings' order shows the order
+    // the entry points' results were collected in.
+    let mut source = String::from(
+        "
+fn check<let CONSTRAINED: u32, let HANDSHAKE: u32>(x: Field, message: str<2>) -> Field {
+    if CONSTRAINED == 1 {
+        assert(HANDSHAKE == 1, message);
+    }
+    x
+}
+
+contract Foo {
+",
+    );
+    let names: Vec<String> = (0..8).map(|i| format!("f{i}")).collect();
+    for (i, name) in names.iter().enumerate() {
+        source.push_str(&format!(
+            "    pub fn {name}(x: pub Field) -> pub Field {{ crate::check::<1, 0>(x + {i}, \"m{i}\") }}\n"
+        ));
+    }
+    source.push('}');
+
+    let (sequential, sequential_warnings) = compile_contract_on_threads(&source, 1);
+    let (parallel, parallel_warnings) = compile_contract_on_threads(&source, 4);
+
+    let function_names: Vec<&str> =
+        sequential.functions.iter().map(|function| function.name.as_str()).collect();
+    assert_eq!(function_names, names, "functions should be in declaration order");
+    assert!(sequential_warnings.len() >= names.len(), "expected a warning per entry point");
+
+    assert_eq!(
+        serde_json::to_value(&parallel.functions).unwrap(),
+        serde_json::to_value(&sequential.functions).unwrap(),
+        "parallel compilation should produce the same functions"
+    );
+    let messages = |warnings: &[CustomDiagnostic]| -> Vec<String> {
+        warnings
+            .iter()
+            .map(|warning| format!("{} {:?}", warning.message, warning.secondaries))
+            .collect()
+    };
+    assert_eq!(
+        messages(&parallel_warnings),
+        messages(&sequential_warnings),
+        "parallel compilation should report the same warnings in the same order"
+    );
+}

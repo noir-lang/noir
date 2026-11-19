@@ -3,6 +3,8 @@
 
 #[cfg(test)]
 use insta as _;
+#[cfg(test)]
+use serde_json as _;
 
 use std::hash::BuildHasher;
 use std::sync::OnceLock;
@@ -723,8 +725,62 @@ fn has_errors(errors: &[CustomDiagnostic], deny_warnings: bool) -> bool {
     if deny_warnings { !errors.is_empty() } else { errors.iter().any(|error| error.is_error()) }
 }
 
-/// Stack size of the threads that compile a contract's functions in parallel.
-const CONTRACT_FUNCTION_THREAD_STACK_SIZE: usize = 16 * 1024 * 1024;
+/// The options an entry point of a contract is compiled with.
+fn contract_function_options(name: &str, options: &CompileOptions) -> CompileOptions {
+    let mut options = options.clone();
+    if name == "public_dispatch" {
+        options.inliner_aggressiveness = 0;
+    }
+
+    if let Some(ref name_filter) = options.show_contract_fn {
+        let show = name == *name_filter;
+        options.show_ssa &= show;
+        if !show {
+            options.show_ssa_pass.clear();
+        }
+    }
+    options
+}
+
+/// Compiles one entry point of a contract into its ABI function, with the warnings it produced.
+fn compile_contract_function(
+    context: &CheckedContext,
+    function_id: FuncId,
+    options: &CompileOptions,
+    package_build_path: &Path,
+) -> Result<(ContractFunction, Vec<SsaReport>), CompileError> {
+    let name = context.function_name(&function_id).to_owned();
+    let options = contract_function_options(&name, options);
+    let function =
+        compile_no_check(context, &options, package_build_path, false, function_id, None, true)?;
+
+    let modifiers = context.def_interner.function_modifiers(&function_id);
+    let is_unconstrained = context.def_interner.function_meta(&function_id).is_unconstrained();
+
+    let custom_attributes = modifiers
+        .attributes
+        .secondary
+        .iter()
+        .filter_map(|attr| match &attr.kind {
+            SecondaryAttributeKind::Tag(contents) => Some(contents.clone()),
+            SecondaryAttributeKind::Meta(meta_attribute) => {
+                context.def_interner.get_meta_attribute_name(meta_attribute)
+            }
+            _ => None,
+        })
+        .collect();
+
+    let contract_function = ContractFunction {
+        name,
+        hash: function.hash,
+        custom_attributes,
+        abi: function.abi,
+        bytecode: function.program,
+        debug: function.debug,
+        is_unconstrained,
+    };
+    Ok((contract_function, function.warnings))
+}
 
 /// Compile all of the functions associated with a Noir contract.
 fn compile_contract_inner(
@@ -733,90 +789,41 @@ fn compile_contract_inner(
     options: &CompileOptions,
     package_build_path: &Path,
 ) -> Result<CompiledContract, ErrorsAndWarnings> {
-    // The entry points to compile, each with the options it is compiled with.
-    let entry_points: Vec<(FuncId, String, CompileOptions)> = contract
+    // We assume that functions have already been type checked.
+    // This is the exact same assumption that compile_no_check makes.
+    // A function that is not an entry point is not compiled, and is not added to the ABI.
+    let entry_points: Vec<FuncId> = contract
         .functions
         .iter()
-        // We assume that functions have already been type checked.
-        // This is the exact same assumption that compile_no_check makes.
-        // If it is not an entry-point point, we can then just skip the
-        // compilation step. It will also not be added to the ABI.
         .filter(|contract_function| contract_function.is_entry_point)
-        .map(|contract_function| {
-            let function_id = contract_function.function_id;
-            let name = context.function_name(&function_id).to_owned();
-
-            let mut options = options.clone();
-            if name == "public_dispatch" {
-                options.inliner_aggressiveness = 0;
-            }
-
-            if let Some(ref name_filter) = options.show_contract_fn {
-                let show = name == *name_filter;
-                options.show_ssa &= show;
-                if !show {
-                    options.show_ssa_pass.clear();
-                }
-            }
-            (function_id, name, options)
-        })
+        .map(|contract_function| contract_function.function_id)
         .collect();
 
     // Each entry point is monomorphized and compiled on its own, reading `context` without
-    // writing to it, so they can be compiled in parallel. The results are collected in
-    // declaration order, so warnings, errors and the artifact come out the same either way.
-    let compile = |(function_id, _, options): &(FuncId, String, CompileOptions)| {
-        compile_no_check(context, options, package_build_path, false, *function_id, None, true)
+    // writing to it, so they can be compiled in parallel. They run on the caller's rayon pool,
+    // which decides the thread count and stack size; where threads aren't available, as on
+    // wasm, rayon runs them on the current thread. The results are collected in declaration
+    // order, so warnings, errors and the artifact come out the same either way.
+    let compile = |function_id: &FuncId| {
+        compile_contract_function(context, *function_id, options, package_build_path)
     };
-    let results: Vec<_> = if options.prints_compilation_steps() || entry_points.len() < 2 {
+    let results: Vec<_> = if options.prints_compilation_steps() {
         entry_points.iter().map(compile).collect()
     } else {
-        // Monomorphization and SSA passes recurse deeply on large programs, so the worker
-        // threads get more stack than rayon's default.
-        let pool = rayon::ThreadPoolBuilder::new()
-            .stack_size(CONTRACT_FUNCTION_THREAD_STACK_SIZE)
-            .build()
-            .expect("failed to build the contract function thread pool");
-        pool.install(|| entry_points.par_iter().map(compile).collect())
+        entry_points.par_iter().map(compile).collect()
     };
 
     let mut functions = Vec::new();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
-    for ((function_id, name, _), result) in entry_points.into_iter().zip(results) {
-        let function = match result {
-            Ok(function) => function,
-            Err(new_error) => {
-                errors.push(new_error.into());
-                continue;
+    for result in results {
+        match result {
+            Ok((function, function_warnings)) => {
+                functions.push(function);
+                warnings.extend(function_warnings);
             }
-        };
-        warnings.extend(function.warnings);
-        let modifiers = context.def_interner.function_modifiers(&function_id);
-        let is_unconstrained = context.def_interner.function_meta(&function_id).is_unconstrained();
-
-        let custom_attributes = modifiers
-            .attributes
-            .secondary
-            .iter()
-            .filter_map(|attr| match &attr.kind {
-                SecondaryAttributeKind::Tag(contents) => Some(contents.clone()),
-                SecondaryAttributeKind::Meta(meta_attribute) => {
-                    context.def_interner.get_meta_attribute_name(meta_attribute)
-                }
-                _ => None,
-            })
-            .collect();
-
-        functions.push(ContractFunction {
-            name,
-            hash: function.hash,
-            custom_attributes,
-            abi: function.abi,
-            bytecode: function.program,
-            debug: function.debug,
-            is_unconstrained,
-        });
+            Err(error) => errors.push(error.into()),
+        }
     }
 
     if errors.is_empty() {
