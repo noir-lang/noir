@@ -67,8 +67,11 @@ pub(crate) fn run(args: ExportCommand, workspace: Workspace) -> Result<(), CliEr
     // Packages, and each package's exported functions within them, compile in parallel on this
     // one pool, unless an option prints the compilation steps, which would then interleave. Its
     // threads get the larger stack `nargo compile` gives programs, since deep functions overflow
-    // rayon's default.
-    let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+    // rayon's default, or `RUST_MIN_STACK` when that is larger.
+    const STACK_SIZE: usize = 4 * 1024 * 1024;
+    let requested_stack = std::env::var("RUST_MIN_STACK").ok().and_then(|size| size.parse().ok());
+    let stack_size = requested_stack.map_or(STACK_SIZE, |size: usize| size.max(STACK_SIZE));
+    let pool = rayon::ThreadPoolBuilder::new().stack_size(stack_size).build().unwrap();
     pool.install(|| {
         if args.compile_options.prints_compilation_steps() {
             library_packages.iter().try_for_each(compile_package)
@@ -87,6 +90,20 @@ struct ExportResults {
     programs: Vec<(String, CompiledProgram)>,
     errors: Vec<CustomDiagnostic>,
     first_panic: Option<Box<dyn Any + Send>>,
+}
+
+/// Reports `errors`, if any, with `report`, and then raises `first_panic` again if there was one.
+/// The errors are reported first, so a panic in one function doesn't hide another's errors.
+fn report_then_resume_panic<E>(
+    errors: Vec<CustomDiagnostic>,
+    first_panic: Option<Box<dyn Any + Send>>,
+    report: impl FnOnce(Vec<CustomDiagnostic>) -> Result<(), E>,
+) -> Result<(), E> {
+    let reported = if errors.is_empty() { Ok(()) } else { report(errors) };
+    if let Some(payload) = first_panic {
+        panic::resume_unwind(payload);
+    }
+    reported
 }
 
 fn split_results(compiled: Vec<(String, CompiledFunction)>) -> ExportResults {
@@ -143,9 +160,7 @@ fn compile_exported_functions(
     // Every function was compiled, so every failure is reported, in the order
     // `get_all_exported_functions_in_crate` returned the functions.
     let ExportResults { programs, errors, first_panic } = split_results(compiled);
-    let reported = if errors.is_empty() {
-        Ok(())
-    } else {
+    report_then_resume_panic(errors, first_panic, |errors| {
         report_errors::<()>(
             Err(errors),
             &context.file_manager,
@@ -153,11 +168,7 @@ fn compile_exported_functions(
             compile_options.deny_warnings,
             compile_options.silence_warnings,
         )
-    };
-    if let Some(payload) = first_panic {
-        panic::resume_unwind(payload);
-    }
-    reported?;
+    })?;
 
     let export_dir = workspace.export_directory_path();
     for (function_name, program) in programs {
@@ -170,7 +181,7 @@ fn compile_exported_functions(
 mod tests {
     use noirc_errors::CustomDiagnostic;
 
-    use super::{CompiledFunction, ExportResults, split_results};
+    use super::{CompiledFunction, ExportResults, report_then_resume_panic, split_results};
 
     #[test]
     fn a_panicking_function_keeps_the_other_functions_errors() {
@@ -188,5 +199,22 @@ mod tests {
         assert_eq!(errors[0].message, "b fails");
         let payload = first_panic.expect("the panic should be kept");
         assert_eq!(payload.downcast_ref::<&str>(), Some(&"a panics"), "the first panic is kept");
+    }
+
+    #[test]
+    fn errors_are_reported_before_a_panic_is_raised_again() {
+        let error = CustomDiagnostic::from_message("b fails", fm::FileId::dummy());
+        let mut reported = Vec::new();
+
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            report_then_resume_panic::<()>(vec![error], Some(Box::new("a panics")), |errors| {
+                reported.extend(errors.into_iter().map(|error| error.message));
+                Err(())
+            })
+        }))
+        .expect_err("the panic should be raised again");
+
+        assert_eq!(reported, vec!["b fails".to_string()]);
+        assert_eq!(panic.downcast_ref::<&str>(), Some(&"a panics"));
     }
 }
