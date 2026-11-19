@@ -7,7 +7,7 @@ set -euo pipefail
 # in every given `cargo bench --output-format bencher` output: the mean of its values, and the
 # largest of its ranges. Benchmarks missing from any of the outputs are left out.
 
-# POSIX awk only: the benchmark machine's `awk` is mawk, which has no capture groups.
+# POSIX awk only: Ubuntu's default `awk` is mawk, which has no capture groups.
 awk -v files="$#" '
   /^test [^ ]+ +\.\.\. bench: +[0-9,.]+ [a-z]+\/[a-z]+ \(\+\/- [0-9,.]+\)$/ {
     name = $2

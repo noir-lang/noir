@@ -23,8 +23,9 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  # The critical libraries that are only checked for correctness. Those whose test suites are timed
-  # (`timeout` above 20 seconds) are checked and timed in `reports.yml`.
+  # The critical libraries to check for correctness. Those whose test suites are timed (`timeout`
+  # above 20 seconds) are checked and timed in `reports.yml`, except in the merge queue, where
+  # `reports.yml` doesn't run and every library is checked here.
   critical-library-list:
     name: Load critical library list
     runs-on: ubuntu-22.04

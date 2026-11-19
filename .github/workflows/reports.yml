@@ -6,7 +6,7 @@ on:
       - master
   pull_request:
     # `labeled` so that adding `bench-show` starts a run that times the PR against its base branch.
-    # Any other label starts a run that does nothing (see the jobs' `if`).
+    # Any other label starts a run that does nothing (see `gate`).
     types: [opened, synchronize, reopened, labeled]
 
 permissions: {}
@@ -19,21 +19,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Decides once what this run does; every root job depends on it.
+  # Decides once what this run does; every root job depends on it. The concurrency group above
+  # repeats the `run` rule, since it can't read job outputs.
   gate:
     name: Decide what to run
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions: {}
     outputs:
-      # `false` for a label other than `bench-show`: it changes nothing that is reported.
-      run: ${{ github.event.action != 'labeled' || github.event.label.name == 'bench-show' }}
-      # Only same-repo PRs labelled `bench-show` time the base branch next to the PR. External PRs
-      # don't store benchmark results, so they have no use for the comparison.
-      time_base: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'bench-show') && (github.event.action != 'labeled' || github.event.label.name == 'bench-show') }}
+      run: ${{ steps.decide.outputs.run }}
+      time_base: ${{ steps.decide.outputs.time_base }}
     steps:
-      - name: Report the decision
-        run: echo "run=${{ github.event.action != 'labeled' || github.event.label.name == 'bench-show' }}"
+      - name: Decide
+        id: decide
+        run: |
+          # `false` for a label other than `bench-show`: it changes nothing that is reported.
+          run=true
+          if [ "$ACTION" = labeled ] && [ "$LABEL" != bench-show ]; then
+            run=false
+          fi
+
+          # Only same-repo PRs labelled `bench-show` time the base branch next to the PR. External
+          # PRs don't store benchmark results, so they have no use for the comparison.
+          time_base=false
+          if [ "$run" = true ] && [ "$EVENT" = pull_request ] && [ "$SAME_REPO" = true ] && [ "$HAS_BENCH_SHOW" = true ]; then
+            time_base=true
+          fi
+
+          echo "run=$run" | tee -a "$GITHUB_OUTPUT"
+          echo "time_base=$time_base" | tee -a "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+          ACTION: ${{ github.event.action }}
+          LABEL: ${{ github.event.label.name }}
+          SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          HAS_BENCH_SHOW: ${{ contains(github.event.pull_request.labels.*.name, 'bench-show') }}
 
   rust_benchmarks:
     name: Rust Benchmarks
@@ -56,12 +76,13 @@ jobs:
       # contents permission to update benchmark contents in gh-pages branch
       contents: write
     outputs:
-      base: ${{ steps.base.outcome }}
+      # Whether the ACVM results were compared with the base branch's.
+      compared: ${{ steps.paired.outcome == 'success' }}
     env:
       TIME_BASE: ${{ needs.gate.outputs.time_base }}
 
     steps:
-      # The benchmark machine keeps its workspace between jobs, including the worktrees below.
+      # The benchmark machine keeps its workspace between jobs.
       - name: Clean workspace
         if: runner.environment == 'self-hosted'
         run: find "$GITHUB_WORKSPACE" -mindepth 1 -delete
@@ -79,7 +100,8 @@ jobs:
       - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           # The benchmark machine runs a newer distribution than the hosted runners, so its build
-          # artifacts must not be restored on a hosted runner.
+          # artifacts must not be restored on a hosted runner. Master only runs on the machine, so a
+          # PR's first run builds the dependencies cold and later runs restore the PR's own cache.
           key: x86_64-unknown-linux-gnu-bench-${{ runner.environment }}
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -97,7 +119,7 @@ jobs:
       # cargo's fingerprints don't tell the two checkouts apart, so the side built second finds the
       # other side's binary up to date and both sides time the same code.
       - name: Run ACVM benchmarks against the base branch
-        id: base
+        id: paired
         if: env.TIME_BASE == 'true'
         # The base branch may fail to build or run where the PR doesn't; the PR's own results are
         # then timed by the next step and stored without a comparison.
@@ -107,15 +129,18 @@ jobs:
           git worktree add --detach "$RUNNER_TEMP/acvm-base" HEAD^1
           mkdir -p target
           cp -a target "$RUNNER_TEMP/target-base"
-          bench() {
-            local dir=$1 target=$2 out=$3
+          bench() { # <base|head> <run>
+            case $1 in
+              base) dir=$RUNNER_TEMP/acvm-base target=$RUNNER_TEMP/target-base ;;
+              head) dir=$GITHUB_WORKSPACE      target=$GITHUB_WORKSPACE/target ;;
+            esac
             rm -rf "$target/criterion"
-            (cd "$dir" && cargo bench -p acvm --target-dir "$target" -- --output-format bencher) | tee "$out"
+            (cd "$dir" && cargo bench -p acvm --target-dir "$target" -- --output-format bencher) | tee "acvm-bench-$1-$2.txt"
           }
-          bench "$RUNNER_TEMP/acvm-base" "$RUNNER_TEMP/target-base" acvm-bench-base-1.txt
-          bench "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/target" acvm-bench-head-1.txt
-          bench "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/target" acvm-bench-head-2.txt
-          bench "$RUNNER_TEMP/acvm-base" "$RUNNER_TEMP/target-base" acvm-bench-base-2.txt
+          bench base 1
+          bench head 1
+          bench head 2
+          bench base 2
           .github/scripts/average-cargo-bench.sh acvm-bench-head-1.txt acvm-bench-head-2.txt > acvm-bench.txt
           .github/scripts/average-cargo-bench.sh acvm-bench-base-1.txt acvm-bench-base-2.txt > acvm-bench-base.txt
           .github/scripts/cargo-bench-to-json.sh acvm-bench-base.txt > acvm-bench-base.json
@@ -124,7 +149,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run ACVM benchmarks
-        if: steps.base.outcome != 'success'
+        if: steps.paired.outcome != 'success'
         shell: bash
         run: |
           rm -rf target/criterion
@@ -147,12 +172,12 @@ jobs:
           auto-push: ${{ github.ref == 'refs/heads/master' }}
           # On PRs, compare against the base branch measured in the same job: it ran on the same
           # machine, so the ratio doesn't depend on which runner the job landed on.
-          external-data-json-path: ${{ steps.base.outcome == 'success' && './baseline_data.json' || '' }}
+          external-data-json-path: ${{ steps.paired.outcome == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
           # Without the base branch's results the comment would compare against the last master
           # commit, timed on another machine.
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') && steps.base.outcome == 'success' }}
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') && steps.paired.outcome == 'success' }}
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -1599,12 +1624,13 @@ jobs:
           fail-on-alert: false
           max-items-in-chart: 50
 
-  # The comparison comments only update when the base branch was timed, so without this a PR whose
-  # base branch failed to build or run would keep showing an earlier push's comparison.
+  # The comparison summaries only update when the base branch was timed, so without this a PR whose
+  # base branch failed to build or run would keep showing an earlier push's comparison. A cancelled
+  # run says nothing: the run that superseded it decides.
   baseline-status:
     name: Report missing base branch timings
     needs: [gate, build-nargo-baseline, rust_benchmarks]
-    if: ${{ always() && needs.gate.outputs.time_base == 'true' }}
+    if: ${{ !cancelled() && needs.gate.outputs.time_base == 'true' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:
@@ -1614,14 +1640,14 @@ jobs:
         uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3
         with:
           header: bench-baseline
-          delete: ${{ needs.build-nargo-baseline.result == 'success' && needs.rust_benchmarks.outputs.base == 'success' }}
+          delete: ${{ needs.build-nargo-baseline.result == 'success' && needs.rust_benchmarks.outputs.compared == 'true' }}
           message: |
-            :warning: The base branch (`${{ github.event.pull_request.base.sha }}`) couldn't be timed for `${{ github.event.pull_request.head.sha }}`, so the benchmark comparisons below are from an earlier push:
+            :warning: `${{ github.event.pull_request.head.sha }}` was not compared with its base branch (`${{ needs.build-nargo-baseline.outputs.sha || github.event.pull_request.base.sha }}`) for:
 
-            - `nargo` timings (compilation, execution, Brillig and test suites): ${{ needs.build-nargo-baseline.result == 'success' && 'compared' || 'not compared' }}
-            - ACVM benchmarks: ${{ needs.rust_benchmarks.outputs.base == 'success' && 'compared' || 'not compared' }}
+            ${{ needs.build-nargo-baseline.result != 'success' && '- Compilation, Elaboration, Execution, Brillig Compilation and Brillig Execution Time, and Test Suite Duration' || '' }}
+            ${{ needs.rust_benchmarks.outputs.compared != 'true' && '- ACVM Benchmarks' || '' }}
 
-            See the [Reports run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+            Their benchmark summaries on this PR, if any, are from an earlier push. See the [Reports run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
