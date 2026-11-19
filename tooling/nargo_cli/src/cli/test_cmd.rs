@@ -11,7 +11,7 @@
 //!    ([`TestRunner::report_as_completed`]).
 
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::{
     cell::RefCell,
     collections::{BTreeMap, HashMap, VecDeque},
@@ -117,10 +117,10 @@ pub(crate) struct TestCommand {
     #[clap(long, conflicts_with("no_fuzz"))]
     only_fuzz: bool,
 
-    /// Elaborate the package again for every test rather than sharing one elaboration per thread
+    /// Elaborate the package again for every test rather than sharing one elaboration between tests
     ///
     /// Sharing is a large speedup on packages with many tests, but it means a test compiles
-    /// against a context that earlier tests on the same thread have already compiled against.
+    /// against a context that other tests have already compiled against.
     /// Use this to check whether a surprising result depends on what ran before it.
     #[clap(long)]
     no_context_reuse: bool,
@@ -335,34 +335,33 @@ impl<'a> TestRunner<'a> {
             self.args.coverage.then(|| coverage::baseline_in_package(&context, crate_id));
 
         // Compiling and executing a test only reads the context, so the package's tests share
-        // this elaboration across the worker threads instead of each thread elaborating the
+        // one elaboration across the worker threads instead of each thread elaborating the
         // package again. Each test holds a handle, so the context is freed once the package's
         // last test is done. Interpreting a test writes to the context, so those tests keep
         // elaborating on their worker thread.
-        let shares_context = !self.args.no_context_reuse
-            && found.iter().any(|(_, function)| {
-                matches!(
-                    self.run_mode(function.has_arguments),
-                    Some(RunMode::CompileOnly | RunMode::Execute)
-                )
-            });
-        let shared = shares_context.then(|| Arc::new(SharedElaboration { context, crate_id }));
+        let shared = (!self.args.no_context_reuse).then(|| {
+            let elaboration = OnceLock::new();
+            // With no more packages than test threads, keeping each package's collection context
+            // holds no more contexts than one per thread would. With more packages, the first test
+            // to need a package elaborates it, so the run never holds every package at once.
+            if self.workspace.members.len() <= self.args.test_threads {
+                let _ = elaboration.set((context, crate_id));
+            }
+            Arc::new(SharedElaboration { package, elaboration })
+        });
 
         let tests = found
             .into_iter()
             .map(|(name, function)| {
                 let run_mode = self.run_mode(function.has_arguments);
-                let shared = match run_mode {
-                    Some(RunMode::CompileOnly | RunMode::Execute) => shared.clone(),
-                    Some(RunMode::Interpret) | None => None,
-                };
+                let reads_only = run_mode.and_then(RunMode::read_mode).is_some();
                 Test {
                     name,
                     package,
                     package_name: package.name.to_string(),
                     has_arguments: function.has_arguments,
                     run_mode,
-                    shared,
+                    shared: if reads_only { shared.clone() } else { None },
                 }
             })
             .collect();
@@ -512,9 +511,11 @@ impl<'a> TestRunner<'a> {
                 // A skipped test needs no context, so the fuzzing flags never elaborate a package
                 // whose tests they all skip.
                 None => TestOutcome::status_only(TestStatus::Skipped),
-                Some(run_mode) => match &test.shared {
-                    Some(shared) => self.run_test_in_shared_context(shared, &test, run_mode),
-                    None => self.run_test(&mut cached, &test, run_mode),
+                Some(run_mode) => match (&test.shared, run_mode.read_mode()) {
+                    (Some(shared), Some(read_mode)) => {
+                        self.run_test_in_shared_context(shared, &test, read_mode)
+                    }
+                    _ => self.run_test(&mut cached, &test, run_mode),
                 },
             };
 
@@ -536,27 +537,22 @@ impl<'a> TestRunner<'a> {
         Ok(())
     }
 
-    /// Runs `test` against its package's shared elaboration. A panic fails only this test, and
-    /// the context stays usable for the package's other tests, since compiling and executing a
-    /// test do not write to it.
+    /// Runs `test` against its package's shared elaboration, elaborating the package first if no
+    /// test has yet. A panic fails only this test, and the context stays usable for the package's
+    /// other tests, since compiling and executing a test do not write to it.
     fn run_test_in_shared_context(
         &'a self,
-        shared: &SharedElaboration,
+        shared: &SharedElaboration<'a>,
         test: &Test<'a>,
-        run_mode: RunMode,
+        read_mode: ReadMode,
     ) -> TestOutcome {
         let outcome = catch_unwind(AssertUnwindSafe(|| {
-            let pattern = FunctionNameMatch::Exact(vec![test.name.clone()]);
-            let test_functions =
-                shared.context.get_all_test_functions_in_crate_matching(&shared.crate_id, &pattern);
-            let (_, test_function) = test_functions.first().expect("Test function should exist");
-            match run_mode {
-                RunMode::CompileOnly => {
-                    TestOutcome::status_only(self.compile_only(&shared.context, test_function))
-                }
-                RunMode::Execute => self.execute(&shared.context, test, test_function),
-                RunMode::Interpret => unreachable!("interpreted tests do not share a context"),
-            }
+            let (context, crate_id) = shared.elaboration.get_or_init(|| {
+                let Elaboration { context, crate_id, result, .. } = self.elaborate(shared.package);
+                result.expect("Any errors should have occurred when collecting test functions");
+                (context, crate_id)
+            });
+            self.run_reading(context, crate_id, test, read_mode)
         }));
         outcome.unwrap_or_else(|panic| test_panicked(&panic))
     }
@@ -615,19 +611,29 @@ impl<'a> TestRunner<'a> {
         run_mode: RunMode,
     ) -> TestOutcome {
         let CachedContext { context, crate_id, tracker_after_elaboration, .. } = cached;
-
-        let pattern = FunctionNameMatch::Exact(vec![test.name.clone()]);
-        let test_functions = context.get_all_test_functions_in_crate_matching(crate_id, &pattern);
-        let (_, test_function) = test_functions.first().expect("Test function should exist");
-
-        match run_mode {
-            RunMode::CompileOnly => {
-                TestOutcome::status_only(self.compile_only(context, test_function))
+        match run_mode.read_mode() {
+            Some(read_mode) => self.run_reading(context, crate_id, test, read_mode),
+            None => {
+                let test_function = find_test_function(context, crate_id, test);
+                self.interpret(context, tracker_after_elaboration, test, &test_function)
             }
-            RunMode::Interpret => {
-                self.interpret(context, tracker_after_elaboration, test, test_function)
+        }
+    }
+
+    /// Compiles, or compiles and executes, `test` against `context`, which it only reads.
+    fn run_reading(
+        &'a self,
+        context: &CheckedContext,
+        crate_id: &CrateId,
+        test: &Test<'a>,
+        read_mode: ReadMode,
+    ) -> TestOutcome {
+        let test_function = find_test_function(context, crate_id, test);
+        match read_mode {
+            ReadMode::CompileOnly => {
+                TestOutcome::status_only(self.compile_only(context, &test_function))
             }
-            RunMode::Execute => self.execute(context, test, test_function),
+            ReadMode::Execute => self.execute(context, test, &test_function),
         }
     }
 
@@ -900,7 +906,7 @@ struct Test<'a> {
     run_mode: Option<RunMode>,
     /// The package's elaboration, shared by the tests that only read it. `None` for a test that
     /// elaborates its package on the worker thread that runs it.
-    shared: Option<Arc<SharedElaboration>>,
+    shared: Option<Arc<SharedElaboration<'a>>>,
 }
 
 /// How a test that is not skipped runs, decided by [`TestRunner::run_mode`].
@@ -911,6 +917,25 @@ enum RunMode {
     /// Run the test in the comptime interpreter.
     Interpret,
     /// Compile and execute the test, fuzzing it if it has arguments.
+    Execute,
+}
+
+impl RunMode {
+    /// How the test runs if running it only reads its package's context, which lets it share
+    /// one elaboration with other threads. Interpreting a test writes to the context.
+    fn read_mode(self) -> Option<ReadMode> {
+        match self {
+            RunMode::CompileOnly => Some(ReadMode::CompileOnly),
+            RunMode::Execute => Some(ReadMode::Execute),
+            RunMode::Interpret => None,
+        }
+    }
+}
+
+/// How a test that only reads its package's context runs.
+#[derive(Clone, Copy)]
+enum ReadMode {
+    CompileOnly,
     Execute,
 }
 
@@ -994,21 +1019,23 @@ struct Elaboration {
     tracker: Option<EvaluationTracker>,
 }
 
-/// A [`CheckedContext`] kept alive across the tests a worker thread runs.
+/// A package's elaboration, shared across the worker threads by the tests that only read it.
 ///
 /// Elaborating a package is the single most expensive part of `nargo test` on a large program and
-/// produces the same result for every test in that package, so a worker holds onto the context it
-/// built and reuses it for the next test from the same package.
+/// produces the same result for every test in that package, so the tests that compile or execute
+/// against it share one.
 ///
-/// Reuse rests on monomorphization not changing what an elaborated context already holds: it
+/// Sharing rests on monomorphization not changing what an elaborated context already holds: it
 /// resolves generics through a substitution of its own rather than by binding the context's type
 /// variables. `noirc_frontend::monomorphization::context_reuse_tests` asserts that a test compiles
-/// to the same program whatever was compiled against the context before it. A context is dropped
-/// when a test unwinds, and `--no-context-reuse` turns sharing off for a whole run.
-/// A package's elaboration, shared by the tests that compile or execute against it.
-struct SharedElaboration {
-    context: CheckedContext,
-    crate_id: CrateId,
+/// to the same program whatever was compiled against the context before it, and
+/// `--no-context-reuse` turns sharing off for a whole run.
+///
+/// `elaboration` is filled while collecting tests when the workspace has no more packages than
+/// test threads, and otherwise by the first test that needs it.
+struct SharedElaboration<'a> {
+    package: &'a Package,
+    elaboration: OnceLock<(CheckedContext, CrateId)>,
 }
 
 /// The outcome of a test whose run panicked.
@@ -1019,6 +1046,20 @@ fn test_panicked(panic: &(dyn std::any::Any + Send)) -> TestOutcome {
     TestOutcome::status_only(TestStatus::Fail { message, error_diagnostic: None })
 }
 
+/// The test function `test` names in `context`.
+fn find_test_function(context: &CheckedContext, crate_id: &CrateId, test: &Test) -> TestFunction {
+    let pattern = FunctionNameMatch::Exact(vec![test.name.clone()]);
+    let test_functions = context.get_all_test_functions_in_crate_matching(crate_id, &pattern);
+    test_functions.into_iter().next().expect("Test function should exist").1
+}
+
+/// A [`CheckedContext`] a worker thread keeps across the tests it interprets, and across every
+/// test it runs under `--no-context-reuse` until that test ends.
+///
+/// Interpreting a test writes to the context, so these tests don't share a package's elaboration
+/// across threads. Instead a worker holds onto the context it built and reuses it for the next
+/// interpreted test from the same package. A context is dropped when a test unwinds, and
+/// `--no-context-reuse` drops it after every test.
 struct CachedContext<'a> {
     package: &'a Package,
     context: CheckedContext,
