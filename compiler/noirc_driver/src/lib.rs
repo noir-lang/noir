@@ -339,7 +339,7 @@ impl CompileOptions {
     /// Whether compiling a function prints or writes out its intermediate steps (SSA, Brillig,
     /// ACIR, the monomorphized program, per-pass timings). Functions compiled in parallel would
     /// interleave that output, so they are compiled one at a time instead.
-    fn prints_compilation_steps(&self) -> bool {
+    pub fn prints_compilation_steps(&self) -> bool {
         self.show_ssa
             || !self.show_ssa_pass.is_empty()
             || self.show_brillig
