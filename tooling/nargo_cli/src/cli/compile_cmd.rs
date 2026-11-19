@@ -276,9 +276,9 @@ fn compile_programs(
     Ok(collect_errors(program_results).map(|(_, warnings)| ((), warnings)))
 }
 
-/// Stack size of the threads that compile packages. Elaborating, monomorphizing and running SSA
-/// passes on a large program recurse deeply, and rayon's default of 2 MiB overflows. 8 MiB matches
-/// the default main-thread stack on Linux and macOS; `RUST_MIN_STACK` raises it.
+/// Stack size of the threads `nargo compile` compiles packages on. Elaborating, monomorphizing and
+/// running SSA passes on a large program recurse deeply, and rayon's default of 2 MiB overflows.
+/// 8 MiB matches the default main-thread stack on Linux and macOS; `RUST_MIN_STACK` raises it.
 fn compilation_stack_size() -> usize {
     const DEFAULT: usize = 8 * 1024 * 1024;
     let requested = std::env::var("RUST_MIN_STACK").ok().and_then(|size| size.parse().ok());
