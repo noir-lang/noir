@@ -53,8 +53,8 @@
     "@types/readable-stream": "^4",
     "@types/sinon": "^22.0.2",
     "@wasm-tool/wasm-pack-plugin": "^1.7.0",
-    "@web/dev-server-esbuild": "^2.0.0",
-    "@web/test-runner": "^1.0.0",
+    "@web/dev-server-esbuild": "^2.0.1",
+    "@web/test-runner": "^1.0.1",
     "@web/test-runner-playwright": "^1.0.0",
     "adm-zip": "^0.6.1",
     "assert": "^2.1.0",
@@ -79,11 +79,11 @@
     "unzipit": "^2.1.1",
     "url": "^0.11.4",
     "webpack": "^5.112.2",
-    "webpack-cli": "^7.2.3",
+    "webpack-cli": "^7.3.1",
     "webpack-dev-server": "^6.1.0"
   },
   "dependencies": {
     "@noir-lang/types": "workspace:*",
-    "pako": "^3.0.2"
+    "pako": "^3.0.3"
   }
 }
