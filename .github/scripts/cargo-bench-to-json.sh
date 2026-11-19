@@ -7,7 +7,7 @@ set -eu
 # `--output-format bencher` as a JSON array of `{ name, value, range, unit }` benches, the shape
 # github-action-benchmark's `cargo` tool stores them in.
 
-sed -nE 's/^test (.+[^ ]) +\.\.\. bench: +([0-9,.]+) ([a-z]+\/[a-z]+) \(\+\/- ([0-9,.]+)\)$/\1\t\2\t\3\t\4/p' "$1" |
+sed -nE 's/^test ([^ ]+) +\.\.\. bench: +([0-9,.]+) ([a-z]+\/[a-z]+) \(\+\/- ([0-9,.]+)\)$/\1\t\2\t\3\t\4/p' "$1" |
   jq --raw-input --slurp '
     split("\n") | map(select(length > 0) | split("\t") | {
       name: .[0],

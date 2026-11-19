@@ -11,16 +11,44 @@ on:
 
 permissions: {}
 
+# A new commit cancels the PR's previous run, and so does adding `bench-show`, which starts the
+# run that times the PR against its base branch. Any other label gets a group of its own, so it
+# cancels nothing; its run does nothing (see `gate`).
+concurrency:
+  group: ${{ github.workflow }}-${{ (github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'bench-show')) && github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
+  # Decides once what this run does; every root job depends on it.
+  gate:
+    name: Decide what to run
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions: {}
+    outputs:
+      # `false` for a label other than `bench-show`: it changes nothing that is reported.
+      run: ${{ github.event.action != 'labeled' || github.event.label.name == 'bench-show' }}
+      # Only same-repo PRs labelled `bench-show` time the base branch next to the PR. External PRs
+      # don't store benchmark results, so they have no use for the comparison.
+      time_base: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'bench-show') && (github.event.action != 'labeled' || github.event.label.name == 'bench-show') }}
+    steps:
+      - name: Report the decision
+        run: echo "run=${{ github.event.action != 'labeled' || github.event.label.name == 'bench-show' }}"
+
   rust_benchmarks:
     name: Rust Benchmarks
-    needs: [wake-bencher]
+    needs: [gate, wake-bencher]
     # Like `external_repo_reports`: master pushes run on the benchmark machine, and PRs on a
-    # GitHub-hosted runner, timing the base branch in the same job to compare against.
-    if: ${{ !cancelled() && needs.wake-bencher.result != 'failure' && (github.event.action != 'labeled' || github.event.label.name == 'bench-show') }}
+    # GitHub-hosted runner, timing the base branch in the same job to compare against. A push whose
+    # wake didn't succeed skips this rather than queueing for a machine that may be off.
+    if: >-
+      ${{ !cancelled()
+        && needs.gate.outputs.run == 'true'
+        && (github.event_name != 'push' || needs.wake-bencher.result == 'success') }}
     runs-on: ${{ github.event_name == 'push' && fromJson('["self-hosted","noir-bench"]') || 'ubuntu-22.04' }}
 
-    timeout-minutes: 30
+    # Timing the base branch runs the benchmarks four times.
+    timeout-minutes: 45
     permissions:
       pull-requests: write
       # deployments permission to deploy GitHub pages website
@@ -28,10 +56,14 @@ jobs:
       # contents permission to update benchmark contents in gh-pages branch
       contents: write
     env:
-      # Like `build-nargo-baseline`: only same-repo PRs labelled `bench-show` time the base branch.
-      TIME_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'bench-show') }}
+      TIME_BASE: ${{ needs.gate.outputs.time_base }}
 
     steps:
+      # The benchmark machine keeps its workspace between jobs, including the worktrees below.
+      - name: Clean workspace
+        if: runner.environment == 'self-hosted'
+        run: find "$GITHUB_WORKSPACE" -mindepth 1 -delete
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The base branch is the merge commit's first parent.
@@ -50,25 +82,42 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      # `target/criterion` must not survive from the cache or from the other run: rust-cache's
+      # `target/criterion` must not survive from the cache or from the previous run: rust-cache's
       # cleanup can strip the files inside it while keeping the directories, and Criterion errors
       # mid-output on such a hollow baseline, which breaks the bencher-format parsing below.
-      - name: Run the base branch's ACVM benchmarks
+      #
+      # The base branch and the PR are timed in ABBA order (base, PR, PR, base) and each side's two
+      # runs are averaged, so a runner that speeds up or slows down over the job shifts both sides
+      # alike instead of favouring whichever ran first. Both are built from a worktree into the same
+      # target directory, so they share the dependencies' build.
+      - name: Run ACVM benchmarks against the base branch
         id: base
         if: env.TIME_BASE == 'true'
         # The base branch may fail to build or run where the PR doesn't; the PR's own results are
-        # then stored without a comparison.
+        # then timed by the next step and stored without a comparison.
         continue-on-error: true
+        shell: bash
         run: |
           git worktree add --detach "$RUNNER_TEMP/acvm-base" HEAD^1
-          rm -rf target/criterion
-          (cd "$RUNNER_TEMP/acvm-base" && cargo bench -p acvm --target-dir "$GITHUB_WORKSPACE/target" -- --output-format bencher) | tee acvm-bench-base.txt
+          git worktree add --detach "$RUNNER_TEMP/acvm-head" HEAD
+          bench() {
+            rm -rf target/criterion
+            (cd "$RUNNER_TEMP/acvm-$1" && cargo bench -p acvm --target-dir "$GITHUB_WORKSPACE/target" -- --output-format bencher) | tee "acvm-bench-$1-$2.txt"
+          }
+          bench base 1
+          bench head 1
+          bench head 2
+          bench base 2
+          .github/scripts/average-cargo-bench.sh acvm-bench-head-1.txt acvm-bench-head-2.txt > acvm-bench.txt
+          .github/scripts/average-cargo-bench.sh acvm-bench-base-1.txt acvm-bench-base-2.txt > acvm-bench-base.txt
           .github/scripts/cargo-bench-to-json.sh acvm-bench-base.txt > acvm-bench-base.json
           BENCH_TOOL=cargo .github/scripts/baseline-benchmark-data.sh "ACVM Benchmarks" "$(git rev-parse HEAD^1)" "" acvm-bench-base.json > baseline_data.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run ACVM benchmarks
+        if: steps.base.outcome != 'success'
+        shell: bash
         run: |
           rm -rf target/criterion
           cargo bench -p acvm -- --output-format bencher | tee acvm-bench.txt
@@ -93,13 +142,16 @@ jobs:
           external-data-json-path: ${{ steps.base.outcome == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          # Without the base branch's results the comment would compare against the last master
+          # commit, timed on another machine.
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') && steps.base.outcome == 'success' }}
           fail-on-alert: false
           max-items-in-chart: 50
 
   benchmark-projects-list:
     name: Load benchmark projects list
-    if: (github.event.action != 'labeled' || github.event.label.name == 'bench-show')
+    needs: [gate]
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:
@@ -152,7 +204,8 @@ jobs:
         uses: ./.github/actions/wake-bencher
 
   build-nargo:
-    if: (github.event.action != 'labeled' || github.event.label.name == 'bench-show')
+    needs: [gate]
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     permissions:
@@ -192,14 +245,12 @@ jobs:
 
   # Builds the base branch's `nargo` so `external_repo_reports` can time it next to the PR's on the
   # same runner. The `upload_*` jobs for times then compare the PR against those results.
+  #
+  # It only reads the cache `build-nargo` saves on master. When a PR's base is behind master or the
+  # cache was evicted, it builds from scratch, which costs about as long as `build-nargo` does cold.
   build-nargo-baseline:
-    # Only PRs labelled `bench-show` show the comparison. External PRs don't store benchmark results,
-    # so they have no use for the baseline either.
-    if: >-
-      ${{ github.event_name == 'pull_request'
-        && github.event.pull_request.head.repo.full_name == github.repository
-        && contains(github.event.pull_request.labels.*.name, 'bench-show')
-        && (github.event.action != 'labeled' || github.event.label.name == 'bench-show') }}
+    needs: [gate]
+    if: needs.gate.outputs.time_base == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     permissions:
@@ -229,7 +280,8 @@ jobs:
           retention-days: 3
 
   build-noir-inspector:
-    if: (github.event.action != 'labeled' || github.event.label.name == 'bench-show')
+    needs: [gate]
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 15
     permissions:
@@ -467,14 +519,14 @@ jobs:
   external_repo_reports:
     needs: [build-nargo, build-nargo-baseline, build-noir-inspector, benchmark-projects-list, wake-bencher]
     # The reports don't depend on `build-nargo-baseline`, which is skipped outside of PRs and only
-    # adds the base branch's timings, nor on `wake-bencher`, which only runs on pushes. A failed
-    # wake skips them rather than leaving them queued for a machine that is off.
+    # adds the base branch's timings. On pushes they run on the benchmark machine, so they need
+    # `wake-bencher` to have succeeded rather than queueing for a machine that may be off.
     if: >-
       ${{ !cancelled()
         && needs.build-nargo.result == 'success'
         && needs.build-noir-inspector.result == 'success'
         && needs.benchmark-projects-list.result == 'success'
-        && needs.wake-bencher.result != 'failure' }}
+        && (github.event_name != 'push' || needs.wake-bencher.result == 'success') }}
     runs-on: ${{ github.event_name == 'push' && fromJson('["self-hosted","noir-bench"]') || 'ubuntu-22.04' }}
     timeout-minutes: 20
     permissions:
@@ -786,7 +838,9 @@ jobs:
           external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          # Without the base branch's results the comment would compare against the last master
+          # commit, timed on another machine.
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') && needs.build-nargo-baseline.result == 'success' }}
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -845,7 +899,9 @@ jobs:
           external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          # Without the base branch's results the comment would compare against the last master
+          # commit, timed on another machine.
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') && needs.build-nargo-baseline.result == 'success' }}
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -904,7 +960,9 @@ jobs:
           external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          # Without the base branch's results the comment would compare against the last master
+          # commit, timed on another machine.
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') && needs.build-nargo-baseline.result == 'success' }}
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -1063,7 +1121,9 @@ jobs:
           external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          # Without the base branch's results the comment would compare against the last master
+          # commit, timed on another machine.
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') && needs.build-nargo-baseline.result == 'success' }}
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -1122,7 +1182,9 @@ jobs:
           external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          # Without the base branch's results the comment would compare against the last master
+          # commit, timed on another machine.
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') && needs.build-nargo-baseline.result == 'success' }}
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -1286,14 +1348,14 @@ jobs:
           fail-on-alert: false
           max-items-in-chart: 50
 
-  # This is a job which depends on all test jobs and reports the overall status.
-  # This allows us to add/remove test jobs without having to update the required workflows.
   # The critical libraries whose test suites are timed (`timeout` above 20 seconds). The rest are
   # only checked for correctness, in `test-js-packages.yml`.
   timed-library-list:
     name: Load timed library list
-    if: (github.event.action != 'labeled' || github.event.label.name == 'bench-show')
+    needs: [gate]
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     permissions:
       contents: read
     outputs:
@@ -1306,35 +1368,24 @@ jobs:
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
-          set -euo pipefail
-          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 5), nargo_args }) | map(select(.timeout > 20))')
-          if [ -z "$LIBRARIES" ] || [ "$LIBRARIES" = "null" ]; then
-            echo "::error::Failed to parse EXTERNAL_NOIR_LIBRARIES.yml — got empty or null library list"
-            exit 1
-          fi
-          NUM_LIBS=$(echo "$LIBRARIES" | jq 'length')
-          if [ "$NUM_LIBS" -eq 0 ]; then
-            echo "::error::EXTERNAL_NOIR_LIBRARIES.yml parsed successfully but contains no libraries"
-            exit 1
-          fi
-          echo "Parsed $NUM_LIBS libraries from EXTERNAL_NOIR_LIBRARIES.yml"
+          LIBRARIES=$(.github/scripts/critical-library-list.sh timed)
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
 
   external_repo_test_suites:
     needs: [build-nargo, build-nargo-baseline, timed-library-list, wake-bencher]
     # The test results don't depend on `build-nargo-baseline`, which only runs on PRs labelled
-    # `bench-show` and only adds the base branch's timings, nor on `wake-bencher`, which only runs on
-    # pushes. A failed wake skips them rather than leaving them queued for a machine that is off.
+    # `bench-show` and only adds the base branch's timings. On pushes they run on the benchmark
+    # machine, so they need `wake-bencher` to have succeeded rather than queueing for a machine
+    # that may be off.
     if: >-
       ${{ !cancelled()
         && needs.build-nargo.result == 'success'
         && needs.timed-library-list.result == 'success'
-        && needs.wake-bencher.result != 'failure' }}
+        && (github.event_name != 'push' || needs.wake-bencher.result == 'success') }}
     runs-on: ${{ github.event_name == 'push' && fromJson('["self-hosted","noir-bench"]') || 'ubuntu-22.04' }}
-    timeout-minutes: 30
+    # Room for the base branch's run, which has its own limit below.
+    timeout-minutes: 45
     permissions:
       contents: read
     strategy:
@@ -1410,8 +1461,10 @@ jobs:
       # Runs after the PR's tests, so anything left warm by the first run can only favour the base.
       - name: Run nargo test with the base branch's nargo
         if: needs.build-nargo-baseline.result == 'success'
-        # The base branch's results only add a comparison, so they never fail the library's checks.
+        # The base branch's results only add a comparison, so they never fail the library's checks,
+        # and a base branch that hangs can't use up the job's time.
         continue-on-error: true
+        timeout-minutes: 15
         run: |
           chmod +x "$NARGO"
 
@@ -1473,6 +1526,7 @@ jobs:
     # fails, but only if the libraries were loaded.
     if: ${{ always() && needs.timed-library-list.result == 'success' }}
     runs-on: ubuntu-22.04
+    timeout-minutes: 5
     permissions:
       pull-requests: write
       # deployments permission to deploy GitHub pages website
@@ -1531,10 +1585,14 @@ jobs:
           external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          # Without the base branch's results the comment would compare against the last master
+          # commit, timed on another machine.
+          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') && needs.build-nargo-baseline.result == 'success' }}
           fail-on-alert: false
           max-items-in-chart: 50
 
+  # This is a job which depends on all test jobs and reports the overall status.
+  # This allows us to add/remove test jobs without having to update the required workflows.
   reports-end:
     name: Report End
     runs-on: ubuntu-22.04

@@ -37,25 +37,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Libraries whose test suites are timed are tested in `reports.yml`, which doesn't run in the
+      # merge queue, so the merge queue tests them all here.
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
-          set -euo pipefail
-          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 5), nargo_args }) | map(select(.timeout <= 20))')
-          if [ -z "$LIBRARIES" ] || [ "$LIBRARIES" = "null" ]; then
-            echo "::error::Failed to parse EXTERNAL_NOIR_LIBRARIES.yml — got empty or null library list"
-            exit 1
-          fi
-          NUM_LIBS=$(echo "$LIBRARIES" | jq 'length')
-          if [ "$NUM_LIBS" -eq 0 ]; then
-            echo "::error::EXTERNAL_NOIR_LIBRARIES.yml parsed successfully but contains no libraries"
-            exit 1
-          fi
-          echo "Parsed $NUM_LIBS libraries from EXTERNAL_NOIR_LIBRARIES.yml"
+          LIBRARIES=$(.github/scripts/critical-library-list.sh "$KIND")
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
-          GH_TOKEN: ${{ github.token }}
+          KIND: ${{ github.event_name == 'merge_group' && 'all' || 'untimed' }}
 
   yarn-lock:
     runs-on: ubuntu-22.04

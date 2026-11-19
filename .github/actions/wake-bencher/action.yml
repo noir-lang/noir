@@ -3,7 +3,7 @@ description: >
   Starts the self-hosted benchmark machine (runner label `noir-bench`), which powers itself off
   after 30 idle minutes. The calling job needs `permissions: id-token: write`: the step exchanges
   the workflow's OIDC token for the AWS role `noir-ci-bencher-wake`, which can only start this one
-  instance and trusts only this repository's pull requests and pushes to master.
+  instance. Only pushes to master use the machine, so only they call this.
 
   The machine-side setup (the runner, its fork guard, the idle check) lives in
   AztecProtocol/claudebox: `scripts/bencher-user-data.yaml`, described in `docs/bencher.md`.
