@@ -570,7 +570,7 @@ impl<'a> TestRunner<'a> {
             });
             self.run_reading(context, crate_id, test, read_mode)
         }));
-        outcome.unwrap_or_else(|panic| test_panicked(&panic))
+        outcome.unwrap_or_else(test_panicked)
     }
 
     /// Runs `test` against the worker's cached context.
@@ -593,14 +593,9 @@ impl<'a> TestRunner<'a> {
             *cached = None;
         }
 
-        outcome.unwrap_or_else(|panic| test_panicked(&panic))
+        outcome.unwrap_or_else(test_panicked)
     }
 
-    /// Return the context to compile `test` against, elaborating `test`'s package into `cached`
-    /// unless it already holds an elaboration of that same package.
-    ///
-    /// A workspace hands its packages to the worker threads through one shared iterator, so
-    /// consecutive tests on a thread are not necessarily from the same package.
     /// Elaborates `package` again, after collecting its tests already reported its errors.
     fn re_elaborate(
         &'a self,
@@ -611,6 +606,11 @@ impl<'a> TestRunner<'a> {
         (context, crate_id, tracker)
     }
 
+    /// Return the context to compile `test` against, elaborating `test`'s package into `cached`
+    /// unless it already holds an elaboration of that same package.
+    ///
+    /// A workspace hands its packages to the worker threads through one shared iterator, so
+    /// consecutive tests on a thread are not necessarily from the same package.
     fn cached_context_for<'b>(
         &'a self,
         cached: &'b mut Option<CachedContext<'a>>,
@@ -1062,8 +1062,8 @@ struct SharedElaboration<'a> {
     elaboration: OnceLock<(CheckedContext, CrateId)>,
 }
 
-/// The outcome of a test whose run panicked.
-fn test_panicked(panic: &(dyn std::any::Any + Send)) -> TestOutcome {
+/// The outcome of a test whose run panicked with the payload `panic`.
+fn test_panicked(panic: Box<dyn std::any::Any + Send>) -> TestOutcome {
     // `panic!("...")` carries a `&str`, and a formatted panic or an `expect` a `String`.
     let message = panic
         .downcast_ref::<&str>()
@@ -1091,4 +1091,25 @@ struct CachedContext<'a> {
     crate_id: CrateId,
     /// What elaboration evaluated at comptime, which each coverage test extends a copy of.
     tracker_after_elaboration: Option<EvaluationTracker>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TestStatus, test_panicked};
+
+    fn failure_message(panic: Box<dyn std::any::Any + Send>) -> String {
+        match test_panicked(panic).status {
+            TestStatus::Fail { message, .. } => message,
+            _ => panic!("a panicking test should fail"),
+        }
+    }
+
+    #[test]
+    fn a_panicking_test_reports_the_panic_message() {
+        let literal = std::panic::catch_unwind(|| panic!("a literal message")).unwrap_err();
+        assert_eq!(failure_message(literal), "a literal message");
+
+        let formatted = std::panic::catch_unwind(|| panic!("a formatted {}", 1)).unwrap_err();
+        assert_eq!(failure_message(formatted), "a formatted 1");
+    }
 }

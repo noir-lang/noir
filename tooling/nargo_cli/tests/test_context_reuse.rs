@@ -275,7 +275,7 @@ fn more_packages_than_threads_give_the_same_results_as_fewer() {
 }
 
 /// A package whose elaboration prints `ELABORATED <package>`, so a run's output counts how many
-/// times each package was elaborated.
+/// times each package was elaborated. It has two regular tests and a fuzz test.
 fn counts_its_elaborations(package: &str) -> String {
     format!(
         r#"
@@ -292,6 +292,11 @@ fn a() {{}}
 
 #[test]
 fn b() {{}}
+
+#[test]
+fn fuzzed(x: Field) {{
+    assert_eq(x, x);
+}}
 "#
     )
 }
@@ -300,7 +305,8 @@ fn b() {{}}
 fn elaborations(dir: &ChildPath, args: &[&str]) -> BTreeMap<String, usize> {
     #[allow(deprecated)]
     let mut cmd = Command::cargo_bin("nargo").unwrap();
-    cmd.current_dir(dir).arg("test").args(args);
+    // The fuzz test only needs to run, not to find anything.
+    cmd.current_dir(dir).arg("test").args(["--fuzz-max-executions", "10"]).args(args);
     let output = cmd.output().expect("failed to run nargo test");
     assert!(output.status.success(), "nargo test failed: {output:?}");
     let stdout = String::from_utf8(output.stdout).unwrap();
@@ -320,15 +326,19 @@ fn tests_share_the_collection_elaboration_when_packages_fit_the_threads() {
     let once = |packages: &[&str]| -> BTreeMap<String, usize> {
         packages.iter().map(|package| (package.to_string(), 1)).collect()
     };
-    let twice = |packages: &[&str]| -> BTreeMap<String, usize> {
-        packages.iter().map(|package| (package.to_string(), 2)).collect()
+    let three_times = |packages: &[&str]| -> BTreeMap<String, usize> {
+        packages.iter().map(|package| (package.to_string(), 3)).collect()
     };
 
     // Three packages on four threads: each package's tests use the context collecting them built.
     assert_eq!(elaborations(&workspace_dir, &["--test-threads", "4"]), once(&["p1", "p2", "p3"]));
 
-    // Three packages on two threads: each package is elaborated again for its tests, once.
-    assert_eq!(elaborations(&workspace_dir, &["--test-threads", "2"]), twice(&["p1", "p2", "p3"]));
+    // Three packages on two threads: each package is elaborated again for its regular tests, which
+    // share that elaboration, and once more for its fuzz test on the fuzz worker.
+    assert_eq!(
+        elaborations(&workspace_dir, &["--test-threads", "2"]),
+        three_times(&["p1", "p2", "p3"])
+    );
 
     // One selected package counts as one, however many members the workspace has.
     assert_eq!(
