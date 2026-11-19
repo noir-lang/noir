@@ -23,6 +23,9 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
+  # The critical libraries to check for correctness. Those whose test suites are timed (`timeout`
+  # above 20 seconds) are checked and timed in `reports.yml`, except in the merge queue, where
+  # `reports.yml` doesn't run and every library is checked here.
   critical-library-list:
     name: Load critical library list
     runs-on: ubuntu-22.04
@@ -35,25 +38,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Libraries whose test suites are timed are tested in `reports.yml`, which doesn't run in the
+      # merge queue, so the merge queue tests them all here.
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
-          set -euo pipefail
-          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 5), nargo_args })')
-          if [ -z "$LIBRARIES" ] || [ "$LIBRARIES" = "null" ]; then
-            echo "::error::Failed to parse EXTERNAL_NOIR_LIBRARIES.yml — got empty or null library list"
-            exit 1
-          fi
-          NUM_LIBS=$(echo "$LIBRARIES" | jq 'length')
-          if [ "$NUM_LIBS" -eq 0 ]; then
-            echo "::error::EXTERNAL_NOIR_LIBRARIES.yml parsed successfully but contains no libraries"
-            exit 1
-          fi
-          echo "Parsed $NUM_LIBS libraries from EXTERNAL_NOIR_LIBRARIES.yml"
+          LIBRARIES=$(.github/scripts/critical-library-list.sh "$KIND")
           echo "libraries=$LIBRARIES"
           echo "libraries=$LIBRARIES" >> $GITHUB_OUTPUT
         env:
-          GH_TOKEN: ${{ github.token }}
+          KIND: ${{ github.event_name == 'merge_group' && 'all' || 'untimed' }}
 
   yarn-lock:
     runs-on: ubuntu-22.04
@@ -731,15 +725,6 @@ jobs:
       - name: Compare test results
         run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
 
-      - name: Upload test report
-        if: ${{ matrix.timeout > 20 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
-        with:
-          name: ${{ steps.test_report_name.outputs.test_report_name }}
-          path: ${{ steps.test_report_name.outputs.test_report_name }}.json
-          retention-days: 3
-          overwrite: true
-
       - name: Check test time limit
         run: |
           TIME=$(jq '.[0].value' ${{ steps.test_report_name.outputs.test_report_name }}.json)
@@ -878,54 +863,6 @@ jobs:
           path: ${{ runner.temp }}/aztec-node-status
           retention-days: 3
           if-no-files-found: ignore
-
-  upload_critical_library_report:
-    name: Upload critical library report
-    needs: [external-repo-checks]
-    # We want this job to run even if one variation of the matrix in `external-repo-checks` fails
-    if: always()
-    runs-on: ubuntu-22.04
-    permissions:
-      pull-requests: write
-      # deployments permission to deploy GitHub pages website
-      deployments: write
-      # contents permission to update benchmark contents in gh-pages branch
-      contents: write
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Download matrix test reports
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          pattern: test_report_*
-          path: ./reports
-          merge-multiple: true
-
-      - name: Merge test reports using jq
-        run: |
-          # Github actions seems to not expand "**" in globs by default.
-          shopt -s globstar
-          jq --slurp '. | flatten' ./reports/* | tee test_bench.json
-
-      - name: Store benchmark result
-        # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
-        uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
-        with:
-          name: "Test Suite Duration"
-          tool: "customSmallerIsBetter"
-          output-file-path: ./test_bench.json
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          # Shallow-clone the gh-pages branch rather than fetching its full history, which is too large to fetch within the job timeout.
-          gh-repository: "github.com/${{ github.repository }}"
-          # We want this to only run on master to avoid garbage data from PRs being added.
-          auto-push: ${{ github.ref == 'refs/heads/master' }}
-          alert-threshold: "120%"
-          comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
-          fail-on-alert: false
-          max-items-in-chart: 50
 
   test-nargo-doc:
     needs: [build-binaries]
