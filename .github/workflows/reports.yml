@@ -55,6 +55,8 @@ jobs:
       deployments: write
       # contents permission to update benchmark contents in gh-pages branch
       contents: write
+    outputs:
+      base: ${{ steps.base.outcome }}
     env:
       TIME_BASE: ${{ needs.gate.outputs.time_base }}
 
@@ -88,8 +90,12 @@ jobs:
       #
       # The base branch and the PR are timed in ABBA order (base, PR, PR, base) and each side's two
       # runs are averaged, so a runner that speeds up or slows down over the job shifts both sides
-      # alike instead of favouring whichever ran first. Both are built from a worktree into the same
-      # target directory, so they share the dependencies' build.
+      # alike instead of favouring whichever ran first.
+      #
+      # The base branch builds into a target directory of its own, seeded from the restored cache so
+      # its dependencies are already built. Do not share one target directory between the two:
+      # cargo's fingerprints don't tell the two checkouts apart, so the side built second finds the
+      # other side's binary up to date and both sides time the same code.
       - name: Run ACVM benchmarks against the base branch
         id: base
         if: env.TIME_BASE == 'true'
@@ -99,15 +105,17 @@ jobs:
         shell: bash
         run: |
           git worktree add --detach "$RUNNER_TEMP/acvm-base" HEAD^1
-          git worktree add --detach "$RUNNER_TEMP/acvm-head" HEAD
+          mkdir -p target
+          cp -a target "$RUNNER_TEMP/target-base"
           bench() {
-            rm -rf target/criterion
-            (cd "$RUNNER_TEMP/acvm-$1" && cargo bench -p acvm --target-dir "$GITHUB_WORKSPACE/target" -- --output-format bencher) | tee "acvm-bench-$1-$2.txt"
+            local dir=$1 target=$2 out=$3
+            rm -rf "$target/criterion"
+            (cd "$dir" && cargo bench -p acvm --target-dir "$target" -- --output-format bencher) | tee "$out"
           }
-          bench base 1
-          bench head 1
-          bench head 2
-          bench base 2
+          bench "$RUNNER_TEMP/acvm-base" "$RUNNER_TEMP/target-base" acvm-bench-base-1.txt
+          bench "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/target" acvm-bench-head-1.txt
+          bench "$GITHUB_WORKSPACE" "$GITHUB_WORKSPACE/target" acvm-bench-head-2.txt
+          bench "$RUNNER_TEMP/acvm-base" "$RUNNER_TEMP/target-base" acvm-bench-base-2.txt
           .github/scripts/average-cargo-bench.sh acvm-bench-head-1.txt acvm-bench-head-2.txt > acvm-bench.txt
           .github/scripts/average-cargo-bench.sh acvm-bench-base-1.txt acvm-bench-base-2.txt > acvm-bench-base.txt
           .github/scripts/cargo-bench-to-json.sh acvm-bench-base.txt > acvm-bench-base.json
@@ -1591,6 +1599,30 @@ jobs:
           fail-on-alert: false
           max-items-in-chart: 50
 
+  # The comparison comments only update when the base branch was timed, so without this a PR whose
+  # base branch failed to build or run would keep showing an earlier push's comparison.
+  baseline-status:
+    name: Report missing base branch timings
+    needs: [gate, build-nargo-baseline, rust_benchmarks]
+    if: ${{ always() && needs.gate.outputs.time_base == 'true' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Add or remove the notice
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3
+        with:
+          header: bench-baseline
+          delete: ${{ needs.build-nargo-baseline.result == 'success' && needs.rust_benchmarks.outputs.base == 'success' }}
+          message: |
+            :warning: The base branch (`${{ github.event.pull_request.base.sha }}`) couldn't be timed for `${{ github.event.pull_request.head.sha }}`, so the benchmark comparisons below are from an earlier push:
+
+            - `nargo` timings (compilation, execution, Brillig and test suites): ${{ needs.build-nargo-baseline.result == 'success' && 'compared' || 'not compared' }}
+            - ACVM benchmarks: ${{ needs.rust_benchmarks.outputs.base == 'success' && 'compared' || 'not compared' }}
+
+            See the [Reports run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   reports-end:
@@ -1602,6 +1634,7 @@ jobs:
     # We want this job to always run (even if the dependant jobs fail) as we want this job to fail rather than skipping.
     if: ${{ always() }}
     needs:
+      - gate
       - upload_test_suite_report
       - wake-bencher
       - rust_benchmarks
@@ -1615,6 +1648,7 @@ jobs:
       - upload_brillig_artifact_reports
       - upload_compilation_memory_report
       - upload_execution_memory_report
+      - baseline-status
 
     steps:
       - name: Report overall success
