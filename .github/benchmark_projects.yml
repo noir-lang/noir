@@ -180,6 +180,17 @@ projects:
     brillig-execution-timeout: 5
     compilation-memory-limit: 450
     execution-memory-limit: 400
+  fp12-tower:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/fp12_tower
+    num_compile_runs: 3
+    num_execute_runs: 3
+    compilation-timeout: 25
+    execution-timeout: 0.5
+    brillig-compilation-timeout: 45
+    brillig-execution-timeout: 0.5
+    compilation-memory-limit: 700
+    execution-memory-limit: 500
   token-contract:
     repo: aztec-labs-eng/aztec-node
     ref: *AZ_NODE_COMMIT
