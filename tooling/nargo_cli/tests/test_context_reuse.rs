@@ -231,9 +231,12 @@ fn tests_sharing_a_context_across_threads_give_the_isolated_results() {
     assert_eq!(shared, isolated_results(&project_dir, &names));
 }
 
-/// Creates a workspace of `members` packages, each with the tests of
-/// [`COMPILE_FAILURE_BETWEEN_TESTS`].
-fn new_workspace(test_dir: &TempDir, members: &[&str]) -> ChildPath {
+/// Creates a workspace of `members` packages, each with the source `source` gives for it.
+fn new_workspace(
+    test_dir: &TempDir,
+    members: &[&str],
+    source: impl Fn(&str) -> String,
+) -> ChildPath {
     let workspace_dir = test_dir.child("workspace");
     std::fs::create_dir(&workspace_dir).unwrap();
     let members_list = members.iter().map(|member| format!("{member:?}")).collect::<Vec<_>>();
@@ -250,7 +253,7 @@ fn new_workspace(test_dir: &TempDir, members: &[&str]) -> ChildPath {
             .child(member)
             .child("src")
             .child("main.nr")
-            .write_str(COMPILE_FAILURE_BETWEEN_TESTS)
+            .write_str(&source(member))
             .unwrap();
     }
     workspace_dir
@@ -259,7 +262,9 @@ fn new_workspace(test_dir: &TempDir, members: &[&str]) -> ChildPath {
 #[test]
 fn more_packages_than_threads_give_the_same_results_as_fewer() {
     let test_dir = TempDir::new().unwrap();
-    let workspace_dir = new_workspace(&test_dir, &["p1", "p2", "p3"]);
+    let workspace_dir = new_workspace(&test_dir, &["p1", "p2", "p3"], |_| {
+        COMPILE_FAILURE_BETWEEN_TESTS.to_string()
+    });
 
     // With more packages than threads, the first test of each package elaborates it again
     // instead of keeping the context test collection built.
@@ -267,4 +272,67 @@ fn more_packages_than_threads_give_the_same_results_as_fewer() {
     let kept_from_collection = test_results(&workspace_dir, &["--test-threads", "4"]);
     assert_eq!(elaborated_per_package, kept_from_collection);
     assert_eq!(elaborated_per_package.len(), 15, "{elaborated_per_package:?}");
+}
+
+/// A package whose elaboration prints `ELABORATED <package>`, so a run's output counts how many
+/// times each package was elaborated.
+fn counts_its_elaborations(package: &str) -> String {
+    format!(
+        r#"
+fn main() {{}}
+
+#[allow(unused_variables)]
+comptime global ELABORATED: Field = {{
+    println("ELABORATED {package}");
+    1
+}};
+
+#[test]
+fn a() {{}}
+
+#[test]
+fn b() {{}}
+"#
+    )
+}
+
+/// How many times each package was elaborated by `nargo test` with `args` in `dir`.
+fn elaborations(dir: &ChildPath, args: &[&str]) -> BTreeMap<String, usize> {
+    #[allow(deprecated)]
+    let mut cmd = Command::cargo_bin("nargo").unwrap();
+    cmd.current_dir(dir).arg("test").args(args);
+    let output = cmd.output().expect("failed to run nargo test");
+    assert!(output.status.success(), "nargo test failed: {output:?}");
+    let stdout = String::from_utf8(output.stdout).unwrap();
+
+    let mut counts = BTreeMap::new();
+    for package in stdout.lines().filter_map(|line| line.strip_prefix("ELABORATED ")) {
+        *counts.entry(package.to_string()).or_default() += 1;
+    }
+    counts
+}
+
+#[test]
+fn tests_share_the_collection_elaboration_when_packages_fit_the_threads() {
+    let test_dir = TempDir::new().unwrap();
+    let workspace_dir = new_workspace(&test_dir, &["p1", "p2", "p3"], counts_its_elaborations);
+
+    let once = |packages: &[&str]| -> BTreeMap<String, usize> {
+        packages.iter().map(|package| (package.to_string(), 1)).collect()
+    };
+    let twice = |packages: &[&str]| -> BTreeMap<String, usize> {
+        packages.iter().map(|package| (package.to_string(), 2)).collect()
+    };
+
+    // Three packages on four threads: each package's tests use the context collecting them built.
+    assert_eq!(elaborations(&workspace_dir, &["--test-threads", "4"]), once(&["p1", "p2", "p3"]));
+
+    // Three packages on two threads: each package is elaborated again for its tests, once.
+    assert_eq!(elaborations(&workspace_dir, &["--test-threads", "2"]), twice(&["p1", "p2", "p3"]));
+
+    // One selected package counts as one, however many members the workspace has.
+    assert_eq!(
+        elaborations(&workspace_dir, &["--package", "p1", "--test-threads", "1"]),
+        once(&["p1"])
+    );
 }

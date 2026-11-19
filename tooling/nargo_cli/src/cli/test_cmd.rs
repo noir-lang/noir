@@ -280,7 +280,15 @@ impl<'a> TestRunner<'a> {
 
     /// Elaborates every package in parallel and returns the tests matching [`Self::pattern`].
     fn collect_tests(&'a self) -> Result<BTreeMap<PackageName, PackageTests<'a>>, CliError> {
-        let num_threads = self.args.test_threads.min(self.workspace.members.len()).max(1);
+        // The packages being tested, which `--package` or the current directory can narrow to
+        // fewer than the workspace's members.
+        let package_count = self.workspace.into_iter().count();
+        // With no more packages than test threads, keeping each package's collection context
+        // holds no more contexts than one per thread would. With more packages, a package is
+        // elaborated again when its tests run, so the run doesn't hold every package at once.
+        let keep_collection_context = package_count <= self.args.test_threads;
+
+        let num_threads = self.args.test_threads.min(package_count).max(1);
         let packages = &Mutex::new(self.workspace.into_iter());
         let (sender, receiver) = mpsc::channel();
 
@@ -292,7 +300,8 @@ impl<'a> TestRunner<'a> {
                         let Some(package) = packages.lock().unwrap().next() else {
                             break;
                         };
-                        if sender.send((package, self.collect_package_tests(package))).is_err() {
+                        let tests = self.collect_package_tests(package, keep_collection_context);
+                        if sender.send((package, tests)).is_err() {
                             break;
                         }
                     }
@@ -317,8 +326,13 @@ impl<'a> TestRunner<'a> {
         }
     }
 
-    /// Elaborates `package`, reporting its errors and warnings, and returns its tests.
-    fn collect_package_tests(&'a self, package: &'a Package) -> Result<PackageTests<'a>, CliError> {
+    /// Elaborates `package`, reporting its errors and warnings, and returns its tests. Tests that
+    /// share the package's elaboration get this one if `keep_collection_context` is set.
+    fn collect_package_tests(
+        &'a self,
+        package: &'a Package,
+        keep_collection_context: bool,
+    ) -> Result<PackageTests<'a>, CliError> {
         let Elaboration { context, crate_id, result, .. } = self.elaborate(package);
         report_errors(
             result,
@@ -339,12 +353,14 @@ impl<'a> TestRunner<'a> {
         // package again. Each test holds a handle, so the context is freed once the package's
         // last test is done. Interpreting a test writes to the context, so those tests keep
         // elaborating on their worker thread.
+        //
+        // When the collection context isn't kept, the package's first such test elaborates it
+        // again. Fuzz tests then don't share it: they run after the regular tests, and their
+        // handle would keep every package's context alive until then. They elaborate on the fuzz
+        // worker instead, which keeps one package's context at a time.
         let shared = (!self.args.no_context_reuse).then(|| {
             let elaboration = OnceLock::new();
-            // With no more packages than test threads, keeping each package's collection context
-            // holds no more contexts than one per thread would. With more packages, the first test
-            // to need a package elaborates it, so the run never holds every package at once.
-            if self.workspace.members.len() <= self.args.test_threads {
+            if keep_collection_context {
                 let _ = elaboration.set((context, crate_id));
             }
             Arc::new(SharedElaboration { package, elaboration })
@@ -355,13 +371,14 @@ impl<'a> TestRunner<'a> {
             .map(|(name, function)| {
                 let run_mode = self.run_mode(function.has_arguments);
                 let reads_only = run_mode.and_then(RunMode::read_mode).is_some();
+                let shares = reads_only && (keep_collection_context || !function.has_arguments);
                 Test {
                     name,
                     package,
                     package_name: package.name.to_string(),
                     has_arguments: function.has_arguments,
                     run_mode,
-                    shared: if reads_only { shared.clone() } else { None },
+                    shared: if shares { shared.clone() } else { None },
                 }
             })
             .collect();
@@ -548,8 +565,7 @@ impl<'a> TestRunner<'a> {
     ) -> TestOutcome {
         let outcome = catch_unwind(AssertUnwindSafe(|| {
             let (context, crate_id) = shared.elaboration.get_or_init(|| {
-                let Elaboration { context, crate_id, result, .. } = self.elaborate(shared.package);
-                result.expect("Any errors should have occurred when collecting test functions");
+                let (context, crate_id, _) = self.re_elaborate(shared.package);
                 (context, crate_id)
             });
             self.run_reading(context, crate_id, test, read_mode)
@@ -585,15 +601,23 @@ impl<'a> TestRunner<'a> {
     ///
     /// A workspace hands its packages to the worker threads through one shared iterator, so
     /// consecutive tests on a thread are not necessarily from the same package.
+    /// Elaborates `package` again, after collecting its tests already reported its errors.
+    fn re_elaborate(
+        &'a self,
+        package: &'a Package,
+    ) -> (CheckedContext, CrateId, Option<EvaluationTracker>) {
+        let Elaboration { context, crate_id, result, tracker } = self.elaborate(package);
+        result.expect("Any errors should have occurred when collecting test functions");
+        (context, crate_id, tracker)
+    }
+
     fn cached_context_for<'b>(
         &'a self,
         cached: &'b mut Option<CachedContext<'a>>,
         test: &Test<'a>,
     ) -> &'b mut CachedContext<'a> {
         if !cached.as_ref().is_some_and(|cached| std::ptr::eq(cached.package, test.package)) {
-            let Elaboration { context, crate_id, result, tracker: tracker_after_elaboration } =
-                self.elaborate(test.package);
-            result.expect("Any errors should have occurred when collecting test functions");
+            let (context, crate_id, tracker_after_elaboration) = self.re_elaborate(test.package);
             *cached = Some(CachedContext {
                 package: test.package,
                 context,
@@ -1031,7 +1055,7 @@ struct Elaboration {
 /// to the same program whatever was compiled against the context before it, and
 /// `--no-context-reuse` turns sharing off for a whole run.
 ///
-/// `elaboration` is filled while collecting tests when the workspace has no more packages than
+/// `elaboration` is filled while collecting tests when no more packages are tested than there are
 /// test threads, and otherwise by the first test that needs it.
 struct SharedElaboration<'a> {
     package: &'a Package,
@@ -1040,9 +1064,12 @@ struct SharedElaboration<'a> {
 
 /// The outcome of a test whose run panicked.
 fn test_panicked(panic: &(dyn std::any::Any + Send)) -> TestOutcome {
-    // `panic!("...")` carries a `&str`, which covers the common case.
-    let message = panic.downcast_ref::<&str>().copied();
-    let message = message.unwrap_or("An unexpected error happened").to_string();
+    // `panic!("...")` carries a `&str`, and a formatted panic or an `expect` a `String`.
+    let message = panic
+        .downcast_ref::<&str>()
+        .map(|message| message.to_string())
+        .or_else(|| panic.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "An unexpected error happened".to_string());
     TestOutcome::status_only(TestStatus::Fail { message, error_diagnostic: None })
 }
 
@@ -1053,13 +1080,11 @@ fn find_test_function(context: &CheckedContext, crate_id: &CrateId, test: &Test)
     test_functions.into_iter().next().expect("Test function should exist").1
 }
 
-/// A [`CheckedContext`] a worker thread keeps across the tests it interprets, and across every
-/// test it runs under `--no-context-reuse` until that test ends.
-///
-/// Interpreting a test writes to the context, so these tests don't share a package's elaboration
-/// across threads. Instead a worker holds onto the context it built and reuses it for the next
-/// interpreted test from the same package. A context is dropped when a test unwinds, and
-/// `--no-context-reuse` drops it after every test.
+/// A [`CheckedContext`] a worker thread elaborated itself. The worker keeps it across the tests of
+/// one package that don't share the package's elaboration: interpreted tests, which write to the
+/// context, and fuzz tests in a run that doesn't keep the collection contexts. Under
+/// `--no-context-reuse` every test elaborates into one and drops it when the test ends. A context
+/// is also dropped when a test unwinds.
 struct CachedContext<'a> {
     package: &'a Package,
     context: CheckedContext,
