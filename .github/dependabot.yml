@@ -2,8 +2,10 @@ version: 2
 updates:
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
-    # Workflow files stored in the default location of `.github/workflows`
-    directory: "/"
+    # `/` covers the workflows in `.github/workflows`; composite actions are listed by directory.
+    directories:
+      - "/"
+      - "/.github/actions/*"
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
