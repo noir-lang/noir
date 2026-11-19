@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["SSA_WORD_SIZE"],"fn":["generate_ssa","validate_ssa","validate_ssa_or_err"],"mod":["context","program","value"],"struct":["Ssa"]};
+window.SIDEBAR_ITEMS = {"constant":["SILENCING_PANICS","SSA_WORD_SIZE"],"fn":["catch_unwind_silently","generate_ssa","validate_ssa","validate_ssa_or_err"],"mod":["context","program","value"],"struct":["Ssa"]};
