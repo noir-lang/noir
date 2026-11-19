@@ -3,6 +3,9 @@ mod program;
 mod tests;
 mod value;
 
+use std::cell::Cell;
+use std::sync::Once;
+
 use acvm::AcirField;
 use noirc_errors::call_stack::CallStack;
 use noirc_frontend::hir_def::expr::Constructor;
@@ -164,16 +167,40 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     validate_ssa_or_err(ssa, true)
 }
 
+thread_local! {
+    /// Whether this thread is inside [`catch_unwind_silently`].
+    static SILENCING_PANICS: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Runs `f`, catching a panic without printing it.
+///
+/// A process has one panic hook, shared by every thread. Swapping it for a silent one around each
+/// call races when several threads validate at once: a thread can restore another thread's silent
+/// hook as the "previous" one, and every later panic in the process then prints nothing. So one
+/// hook is installed, once, around whichever hook was set before it. It stays quiet only on a
+/// thread that is inside this function, and passes every other panic on.
+fn catch_unwind_silently<R>(f: impl FnOnce() -> R) -> std::thread::Result<R> {
+    static INSTALL_HOOK: Once = Once::new();
+    INSTALL_HOOK.call_once(|| {
+        let previous_hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            if !SILENCING_PANICS.with(Cell::get) {
+                previous_hook(info);
+            }
+        }));
+    });
+
+    let was_silencing = SILENCING_PANICS.with(|silencing| silencing.replace(true));
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    SILENCING_PANICS.with(|silencing| silencing.set(was_silencing));
+    result
+}
+
 /// Run the panicky validation, and try to turn it into a [`RuntimeError`] if it fails.
 ///
 /// On failure the SSA is printed when the `NOIR_SHOW_INVALID_SSA` env var is set.
 pub fn validate_ssa_or_err(ssa: Ssa, full: bool) -> Result<Ssa, RuntimeError> {
-    // Temporarily take the hook, so we don't get the panic printout.
-    let old_hook = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_info| {}));
-    let result =
-        std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| validate_ssa(&ssa, full)));
-    std::panic::set_hook(old_hook);
+    let result = catch_unwind_silently(|| validate_ssa(&ssa, full));
 
     if let Err(payload) = result {
         // Print the SSA, but it's potentially massive, and if we resume the unwind it might be displayed
