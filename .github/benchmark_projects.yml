@@ -182,7 +182,7 @@ projects:
     execution-memory-limit: 400
   fp12-tower:
     repo: noir-lang/noir
-    path: test_programs/benchmarks/bench_fp12_tower
+    path: test_programs/benchmarks/fp12_tower
     num_compile_runs: 3
     num_execute_runs: 3
     compilation-timeout: 25

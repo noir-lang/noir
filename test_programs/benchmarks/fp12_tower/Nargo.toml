@@ -1,5 +1,5 @@
 [package]
-name = "bench_fp12_tower"
+name = "fp12_tower"
 type = "bin"
 authors = [""]
 

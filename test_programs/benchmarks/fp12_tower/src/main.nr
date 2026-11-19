@@ -206,8 +206,8 @@ fn coeffs(x: Fp12) -> [u32; 12] {
 fn main(a: [u32; 12], b: [u32; 12]) -> pub [u32; 12] {
     let x = fp12(a);
     let y = fp12(b);
-    // Straight-line on purpose: mem2reg runs before loop unrolling, so a loop body would only
-    // be analysed once.
+    // Straight-line on purpose: the mem2reg run right after inlining comes before loop
+    // unrolling, so a loop body would reach it only once.
     let mut acc = x;
     acc.mul_assign(y);
     acc.mul_assign(y);
