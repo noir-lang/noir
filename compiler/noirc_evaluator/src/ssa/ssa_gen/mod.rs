@@ -174,11 +174,11 @@ thread_local! {
 
 /// Runs `f`, catching a panic without printing it.
 ///
-/// A process has one panic hook, shared by every thread. Swapping it for a silent one around each
-/// call races when several threads validate at once: a thread can restore another thread's silent
-/// hook as the "previous" one, and every later panic in the process then prints nothing. So one
-/// hook is installed, once, around whichever hook was set before it. It stays quiet only on a
-/// thread that is inside this function, and passes every other panic on.
+/// The panic hook is shared by every thread, so it must not be swapped per call while other
+/// threads may panic. One wrapper hook is installed, once, around whichever hook was set before
+/// it. The wrapper stays quiet on a thread that is inside this function and passes every other
+/// panic on. A hook set after the first call replaces the wrapper; panics inside this function
+/// are then printed.
 fn catch_unwind_silently<R>(f: impl FnOnce() -> R) -> std::thread::Result<R> {
     static INSTALL_HOOK: Once = Once::new();
     INSTALL_HOOK.call_once(|| {
