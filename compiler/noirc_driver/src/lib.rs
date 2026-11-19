@@ -336,15 +336,14 @@ impl Default for CompileOptions {
 }
 
 impl CompileOptions {
-    /// Whether compiling a function prints or writes out its intermediate steps (SSA, Brillig,
-    /// ACIR, the monomorphized program, per-pass timings). Functions compiled in parallel would
-    /// interleave that output, so they are compiled one at a time instead.
+    /// Whether compiling a function with [`compile_no_check`] prints or writes out its intermediate
+    /// steps (SSA, Brillig, the monomorphized program, per-pass timings). Output from functions
+    /// compiled at the same time interleaves.
     pub fn prints_compilation_steps(&self) -> bool {
         self.show_ssa
             || !self.show_ssa_pass.is_empty()
             || self.show_brillig
             || self.show_brillig_opcode_advisories
-            || self.print_acir
             || self.show_monomorphized
             || self.emit_ssa
             || self.benchmark_codegen
@@ -604,6 +603,10 @@ pub fn compile_main_with_comptime_io(
 
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
 ///
+/// The contract's entry points compile in parallel on the current rayon pool, which sets the
+/// thread count and the stack size. Call this inside a pool sized for compilation, as nargo's
+/// `compile_contracts` does; outside one, rayon's global pool runs them.
+///
 /// See [`compile_no_check`] for further information about the use of `package_build_path`.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_contract(
@@ -802,8 +805,10 @@ fn compile_contract_inner(
     // Each entry point is monomorphized and compiled on its own, reading `context` without
     // writing to it, so they can be compiled in parallel. They run on the caller's rayon pool,
     // which decides the thread count and stack size; where threads aren't available, as on
-    // wasm, rayon runs them on the current thread. The results are collected in declaration
-    // order, so warnings, errors and the artifact come out the same either way.
+    // wasm, rayon runs them on the current thread. When an option prints the compilation steps
+    // they are compiled one at a time, so each function's output stays in one piece. The results
+    // are collected in declaration order, so warnings, errors and the artifact come out the same
+    // either way.
     let compile = |function_id: &FuncId| {
         compile_contract_function(context, *function_id, options, package_build_path)
     };
