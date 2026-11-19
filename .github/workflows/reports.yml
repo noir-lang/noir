@@ -76,7 +76,8 @@ jobs:
       # contents permission to update benchmark contents in gh-pages branch
       contents: write
     outputs:
-      # Whether the ACVM results were compared with the base branch's.
+      # Whether the ACVM benchmarks were timed against the base branch. A summary that then fails to
+      # post fails this job, and with it Report End, rather than showing here.
       compared: ${{ steps.paired.outcome == 'success' }}
     env:
       TIME_BASE: ${{ needs.gate.outputs.time_base }}
