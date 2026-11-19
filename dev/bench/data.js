@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795119629238,
+  "lastUpdate": 1795119642088,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a9658af8a9138cc56e44ac821b10c6c1c002080d",
-          "message": "chore(deps): bump launch-editor from 2.14.1 to 2.14.2 (#14079)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-10-21T12:17:20Z",
-          "tree_id": "b27786d4b13df1b2f30f2ab68373df478ffa514a",
-          "url": "https://github.com/noir-lang/noir/commit/a9658af8a9138cc56e44ac821b10c6c1c002080d"
-        },
-        "date": 1792587343541,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 295.45,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 358.86,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 335.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 392.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 392.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 392.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 392.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 7950,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 7950,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 392.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 600.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 533.39,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 392.44,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 86.24,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 101.18,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4994,6 +4895,110 @@ window.BENCHMARK_DATA = {
           {
             "name": "token_contract",
             "value": 498.18,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5f006383c217a6311192c7763d8a43a8b31429b9",
+          "message": "fix(ssa): keep the panic hook when several threads validate SSA at once (#14201)",
+          "timestamp": "2026-11-19T19:31:06Z",
+          "tree_id": "8e889356915b0f1b8716f5ff5908fdb4858cfa78",
+          "url": "https://github.com/noir-lang/noir/commit/5f006383c217a6311192c7763d8a43a8b31429b9"
+        },
+        "date": 1795119626840,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.25,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 359.58,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 336.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 7960,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 7960,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 608.75,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 546.59,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 542.53,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 86.24,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 101.16,
+            "unit": "MB"
+          },
+          {
+            "name": "token_contract",
+            "value": 498.17,
             "unit": "MB"
           }
         ]
