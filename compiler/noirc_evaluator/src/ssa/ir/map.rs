@@ -236,6 +236,17 @@ impl<K, V> DenseSideTable<K, V> {
         self.storage.get(id.index as usize)
     }
 
+    /// Returns a mutable reference to the entry for `id`, or `None` if `id` is past the end of the
+    /// table.
+    pub(crate) fn get_mut(&mut self, id: Id<K>) -> Option<&mut V> {
+        self.storage.get_mut(id.index as usize)
+    }
+
+    /// Iterates over every slot in the table, in increasing id order, paired with its id.
+    pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item = (Id<K>, &V)> {
+        self.storage.iter().enumerate().map(|(index, value)| (Id::new(index as u32), value))
+    }
+
     /// Appends the entry for `id`. Panics unless `id` is the next id after the last entry.
     pub(crate) fn push(&mut self, id: Id<K>, value: V) {
         assert_eq!(

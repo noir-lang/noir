@@ -9,10 +9,10 @@ use serde::{Deserialize, Serialize};
 use crate::ssa::ir::instruction::Instruction;
 use crate::ssa::ir::post_order::PostOrder;
 
-use super::basic_block::BasicBlockId;
+use super::basic_block::{BasicBlock, BasicBlockId};
 use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::TerminatorInstruction;
-use super::map::Id;
+use super::map::{DenseSideTable, Id};
 use super::types::{NumericType, Type};
 use super::value::{Value, ValueId};
 
@@ -208,15 +208,18 @@ impl Function {
     /// whether reachable or not. This function should be used if you
     /// want to iterate only reachable blocks.
     pub(crate) fn reachable_blocks(&self) -> BTreeSet<BasicBlockId> {
-        let mut blocks = BTreeSet::new();
+        let mut visited = DenseSideTable::<BasicBlock, bool>::default();
+        let mut blocks = Vec::new();
         let mut stack = vec![self.entry_block];
 
         while let Some(block) = stack.pop() {
-            if blocks.insert(block) {
+            if !visited.get(block).copied().unwrap_or(false) {
+                visited.set(block, true);
+                blocks.push(block);
                 stack.extend(self.dfg[block].successors());
             }
         }
-        blocks
+        BTreeSet::from_iter(blocks)
     }
 
     pub(crate) fn signature(&self) -> Signature {

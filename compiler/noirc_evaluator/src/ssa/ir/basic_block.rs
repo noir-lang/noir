@@ -150,13 +150,19 @@ impl BasicBlock {
         &self,
     ) -> impl ExactSizeIterator<Item = BasicBlockId> + DoubleEndedIterator {
         match &self.terminator {
-            Some(TerminatorInstruction::Jmp { destination, .. }) => vec![*destination].into_iter(),
+            Some(TerminatorInstruction::Jmp { destination, .. }) => {
+                smallvec::smallvec![*destination].into_iter()
+            }
             Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) => {
-                vec![*then_destination, *else_destination].into_iter()
+                smallvec::SmallVec::<[BasicBlockId; 2]>::from_buf([
+                    *then_destination,
+                    *else_destination,
+                ])
+                .into_iter()
             }
             Some(TerminatorInstruction::Return { .. })
             | Some(TerminatorInstruction::Unreachable { .. })
-            | None => vec![].into_iter(),
+            | None => smallvec::SmallVec::new().into_iter(),
         }
     }
 }
