@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0](https://github.com/noir-lang/noir/compare/v1.0.0...v1.1.0) (2026-11-20)
+
+
+### Features
+
+* **brillig:** Skip jumps to the next emitted block ([#14128](https://github.com/noir-lang/noir/issues/14128)) ([5a90e04](https://github.com/noir-lang/noir/commit/5a90e04ef4fa087eed4af3d744310d80827408b2))
+* **brillig:** Skip shift overflow check for constant in-range shift amounts ([#14127](https://github.com/noir-lang/noir/issues/14127)) ([db4c4cc](https://github.com/noir-lang/noir/commit/db4c4ccad61301761b386abe6e7dad9637baa76e))
+* **frontend:** Emit primitive operators for generic operands resolved to primitives ([#14143](https://github.com/noir-lang/noir/issues/14143)) ([e5a1160](https://github.com/noir-lang/noir/commit/e5a1160aa6dea59567a95f382a366e72dd0ffa86))
+* **perf:** Store instruction results and call stacks in dense vectors ([#14208](https://github.com/noir-lang/noir/issues/14208)) ([3124253](https://github.com/noir-lang/noir/commit/312425357d8d67d9d6f669e2c903e47bb1b6d9b1))
+* **ssa:** Enforce bit-shift overflow with a range check ([#14138](https://github.com/noir-lang/noir/issues/14138)) ([e0ca395](https://github.com/noir-lang/noir/commit/e0ca3950281d8fd47f0468ffbb11d0985d2488e1))
+
+
+### Bug Fixes
+
+* **nargo:** Use one stack size for all compilation threads ([#14205](https://github.com/noir-lang/noir/issues/14205)) ([ea5b3f8](https://github.com/noir-lang/noir/commit/ea5b3f8b62585ad368f5dafc0252852df2f7e31e))
+* **ssa:** Compare semi-flattened index against semi-flattened length in array_set merge ([#14183](https://github.com/noir-lang/noir/issues/14183)) ([4e448b6](https://github.com/noir-lang/noir/commit/4e448b628ee1fc3ef2acc11edbce9dfce5c989ea))
+* **ssa:** Explore Brillig argument ancestry lazily in the missing constraints check ([#14202](https://github.com/noir-lang/noir/issues/14202)) ([ea30573](https://github.com/noir-lang/noir/commit/ea305739aeb89bbbcd7bc0e3ffd54bf296456c47))
+* **ssa:** Keep the panic hook when several threads validate SSA at once ([#14201](https://github.com/noir-lang/noir/issues/14201)) ([5f00638](https://github.com/noir-lang/noir/commit/5f006383c217a6311192c7763d8a43a8b31429b9))
+
 ## [1.0.0](https://github.com/noir-lang/noir/compare/v1.0.0-rc.7...v1.0.0) (2026-10-29)
 
 
