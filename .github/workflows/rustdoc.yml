@@ -25,7 +25,7 @@ jobs:
       - uses: taiki-e/install-action@just
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.89.0
+        uses: dtolnay/rust-toolchain@1.120.0
 
       - name: Configure cache
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
