@@ -242,11 +242,11 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.2/dist/Chart.min.js"></script>
     <script src="data.js"></script>
+    <script src="steps.js"></script>
     <script id="main-script">
       'use strict';
       (function () {
         const OVERVIEW = 'Overview';
-        const BIGGER_IS_BETTER = new Set(['customBiggerIsBetter', 'benchmarkjs', 'benchmarkluau']);
         const COLOR_LINE = '#57606a';
         const COLOR_WORSE = '#cf222e';
         const COLOR_BETTER = '#1a7f37';
@@ -287,123 +287,27 @@
           return { name, benches };
         });
 
-        // Relative change of each point against the previous point of the same benchmark.
-        // `pct` is signed so that a positive value is always a regression.
-        function changesOf(points) {
-          const out = [];
-          for (let i = 1; i < points.length; i++) {
-            const prev = points[i - 1].value;
-            const cur = points[i].value;
-            if (!prev) continue;
-            const raw = (cur - prev) / Math.abs(prev) * 100;
-            const pct = BIGGER_IS_BETTER.has(points[i].tool) ? -raw : raw;
-            out.push({ index: i, prev, cur, raw, pct });
-          }
-          return out;
-        }
-
-        function median(xs) {
-          const s = xs.slice().sort((a, b) => a - b);
-          const m = s.length >> 1;
-          return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
-        }
-
-        function quantile(xs, q) {
-          const s = xs.slice().sort((a, b) => a - b);
-          return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 0;
-        }
-
-        // Timing benchmarks run on shared CI runners and routinely jump 20-80% between
-        // consecutive commits with no code change (some flip between two levels depending on
-        // the runner, others are rounded to the millisecond so 2ms -> 3ms reads as +50%).
-        // Comparing a commit only with its predecessor therefore flags nearly every commit.
-        // Instead, a commit is flagged when the median of the WINDOW points from it onwards
-        // differs from the median of the WINDOW points before it by at least:
-        //   - the user's threshold,
-        //   - NOISE_MULTIPLE times the benchmark's noise (the 75th percentile of its
-        //     commit-to-commit relative changes, excluding the largest), and
-        //   - more than RESOLUTION_MULTIPLE times the measurement's rounding step (one unit
-        //     in the last decimal place the values are recorded with).
-        // A one-off spike moves neither median. Deterministic benchmarks (opcodes, sizes)
-        // have zero noise, so any step at or above the threshold is flagged.
-        const WINDOW = 5;
-        const NOISE_MULTIPLE = 3;
-        const RESOLUTION_MULTIPLE = 2;
-
-        function resolutionOf(vals) {
-          let decimals = 0;
-          for (const v of vals) {
-            const m = /\.(\d+)$/.exec(String(v));
-            if (m) decimals = Math.max(decimals, m[1].length);
-          }
-          return Math.pow(10, -decimals);
-        }
-
-        // Returns [{ index, before, after, pct, raw }] where `index` is the commit that
-        // introduced the step, `before`/`after` are the window medians, `raw` is the signed
-        // relative change and `pct` is signed so that a positive value is a regression.
-        function stepsOf(points) {
-          const vals = points.map(p => p.value);
-          // The largest commit-to-commit change is left out of the noise estimate: in a short
-          // or otherwise flat series it is the step being looked for, not noise.
-          const rel = changesOf(points).map(c => Math.abs(c.raw)).sort((a, b) => a - b).slice(0, -1);
-          const noise = quantile(rel, 0.75);
-          const minAbs = RESOLUTION_MULTIPLE * resolutionOf(vals);
-          const cutoff = Math.max(state.threshold, NOISE_MULTIPLE * noise);
-          // A non-deterministic benchmark needs at least two points after a step to tell it
-          // apart from a spike; a deterministic one (no noise) is trusted from one point.
-          const minAfter = noise === 0 ? 1 : 2;
-          const biggerIsBetter = points.length > 0 && BIGGER_IS_BETTER.has(points[0].tool);
-
-          const cand = [];
-          for (let i = 1; i < vals.length; i++) {
-            const after = vals.slice(i, i + WINDOW);
-            if (after.length < minAfter) continue;
-            const b = median(vals.slice(Math.max(0, i - WINDOW), i));
-            const a = median(after);
-            if (!b || Math.abs(a - b) <= minAbs) continue;
-            const raw = (a - b) / Math.abs(b) * 100;
-            cand.push({ index: i, before: b, after: a, raw, pct: biggerIsBetter ? -raw : raw });
-          }
-
-          // Window medians shift over several neighbouring commits around one real step.
-          // Collapse each run of same-direction candidates above the cutoff into one step,
-          // attributed to the commit inside the run with the largest single-commit move.
-          const steps = [];
-          let run = [];
-          const flush = () => {
-            if (!run.length) return;
-            const sign = Math.sign(run[0].raw);
-            let best = run[0];
-            for (const c of run) {
-              if ((vals[c.index] - vals[c.index - 1]) * sign > (vals[best.index] - vals[best.index - 1]) * sign) best = c;
-            }
-            const peak = run.reduce((m, c) => (Math.abs(c.raw) > Math.abs(m.raw) ? c : m), run[0]);
-            steps.push(Object.assign({}, peak, { index: best.index }));
-            run = [];
-          };
-          for (const c of cand) {
-            const hit = Math.abs(c.raw) >= cutoff;
-            const contiguous = run.length && c.index === run[run.length - 1].index + 1 && Math.sign(c.raw) === Math.sign(run[0].raw);
-            if (!hit || !contiguous) flush();
-            if (hit) run.push(c);
-          }
-          flush();
-          return steps;
-        }
-
-        function significantChanges(suite) {
-          const rows = [];
-          for (const [benchName, points] of suite.benches) {
-            for (const s of stepsOf(points)) {
-              rows.push(Object.assign({ suite: suite.name, bench: benchName, point: points[s.index] }, s));
-            }
-          }
-          return rows;
-        }
-
         function matchesFilter(benchName) {
           return !state.filter || benchName.toLowerCase().includes(state.filter);
+        }
+
+        // Steps at the current threshold for every benchmark that passes the name filter,
+        // computed once per render so the tab badges, the tables and the chart colours all
+        // come from the same result.
+        // Map<suiteName, { benches: [{ name, points, steps }], rows: Step & { suite, bench, point }[] }>
+        let analysis = new Map();
+        function analyse() {
+          analysis = new Map(suites.map(suite => {
+            const benches = [];
+            const rows = [];
+            for (const [name, points] of suite.benches) {
+              if (!matchesFilter(name)) continue;
+              const steps = BenchSteps.stepsOf(points, state.threshold);
+              benches.push({ name, points, steps });
+              for (const step of steps) rows.push(Object.assign({ suite: suite.name, bench: name, point: points[step.index] }, step));
+            }
+            return [suite.name, { benches, rows }];
+          }));
         }
 
         // ---- Formatting -------------------------------------------------------
@@ -443,8 +347,15 @@
         function readHash() {
           const raw = location.hash.slice(1);
           const slash = raw.indexOf('/');
-          const suiteName = decodeURIComponent(slash < 0 ? raw : raw.slice(0, slash));
-          const benchName = slash < 0 ? null : decodeURIComponent(raw.slice(slash + 1));
+          let suiteName = null;
+          let benchName = null;
+          try {
+            suiteName = decodeURIComponent(slash < 0 ? raw : raw.slice(0, slash));
+            benchName = slash < 0 ? null : decodeURIComponent(raw.slice(slash + 1));
+          } catch (e) {
+            // A truncated or hand-edited link (e.g. `#Opcode%2`) is not valid URI encoding;
+            // show the Overview rather than a blank page.
+          }
           const suite = suites.find(s => s.name === suiteName);
           state.active = suite ? suite.name : OVERVIEW;
           state.bench = suite && benchName !== null && suite.benches.has(benchName) ? benchName : null;
@@ -483,7 +394,7 @@
             const a = el('a', { href: hrefFor(name), text: name });
             if (name === state.active) a.className = 'active';
             if (name !== OVERVIEW) {
-              const rows = significantChanges(suites.find(s => s.name === name)).filter(r => matchesFilter(r.bench));
+              const rows = analysis.get(name).rows;
               const worse = rows.filter(r => r.pct > 0).length;
               const better = rows.length - worse;
               if (worse) a.appendChild(el('span', { class: 'badge worse', title: worse + ' regressions', text: String(worse) }));
@@ -507,17 +418,18 @@
           main.appendChild(el('h2', { text: 'Commits with significant changes' }));
           main.appendChild(el('p', {
             class: 'hint',
-            text: 'Master commits after which at least one benchmark settled at a level ' + state.threshold +
-              '% or more away from where it was before, newest first. The comparison is between the medians of the ' +
-              WINDOW + ' commits before and from that commit, and must also exceed ' + NOISE_MULTIPLE +
-              '× the benchmark\'s usual commit-to-commit noise, so one-off spikes and runner-to-runner variance are ignored.',
+            text: 'Master commits that moved at least one benchmark by ' + state.threshold + '% or more, newest first. ' +
+              'Opcode counts, sizes and memory are reproducible, so every change between two consecutive commits counts. ' +
+              'Timings are noisy on CI runners, so a commit counts only when the median of the ' + BenchSteps.WINDOW +
+              ' timings from it onwards differs from the median of the ' + BenchSteps.WINDOW + ' before it by more than ' +
+              BenchSteps.NOISE_MULTIPLE + '× the benchmark\'s usual noise; this ignores one-off spikes, and a timing change ' +
+              'shows up once ' + BenchSteps.MIN_SIDE + ' commits confirm it.',
           }));
 
           // Group significant changes by commit across all suites.
           const byCommit = new Map();
-          for (const suite of suites) {
-            for (const row of significantChanges(suite)) {
-              if (!matchesFilter(row.bench)) continue;
+          for (const { rows } of analysis.values()) {
+            for (const row of rows) {
               const id = row.point.commit.id;
               let g = byCommit.get(id);
               if (!g) {
@@ -561,8 +473,9 @@
         }
 
         function renderSuite(main, suite) {
-          const rows = significantChanges(suite)
-            .filter(r => matchesFilter(r.bench))
+          const { benches, rows: unsorted } = analysis.get(suite.name);
+          const rows = unsorted
+            .slice()
             .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
 
           main.appendChild(el('h2', { text: suite.name + ': changes ≥ ' + state.threshold + '%' }));
@@ -570,7 +483,7 @@
             main.appendChild(el('p', { class: 'empty', text: 'No changes at or above the threshold.' }));
           } else {
             const table = el('table', { class: 'changes' }, [
-              el('thead', {}, [el('tr', {}, ['Benchmark', 'Change', 'Before (median)', 'After (median)', 'Commit', 'Message'].map(t => el('th', { text: t })))]),
+              el('thead', {}, [el('tr', {}, ['Benchmark', 'Change', 'Before', 'After', 'Commit', 'Message'].map(t => el('th', { text: t })))]),
             ]);
             const tbody = el('tbody');
             for (const r of rows) {
@@ -595,15 +508,33 @@
           }));
           const grid = el('div', { class: 'grid' });
           main.appendChild(grid);
-          for (const [benchName, points] of suite.benches) {
-            if (!matchesFilter(benchName)) continue;
-            grid.appendChild(renderChart(suite.name, benchName, points));
+          for (const { name, points, steps } of benches) {
+            grid.appendChild(renderChart(suite.name, name, points, steps));
           }
         }
 
-        function renderChart(suiteName, benchName, points) {
-          const changeAt = new Map(changesOf(points).map(c => [c.index, c]));
-          const stepAt = new Map(stepsOf(points).map(s => [s.index, s]));
+        // Y axis zoomed to the data, but never narrower than MIN_Y_SPAN of the median value: a
+        // 2% step is then visible on a small chart, while sub-percent jitter (memory reports
+        // vary by ~0.01 MB) stays flat instead of being stretched across the whole chart.
+        const MIN_Y_SPAN = 0.1;
+        function yRange(points) {
+          const vals = points.map(p => p.value);
+          let lo = Math.min(...vals);
+          let hi = Math.max(...vals);
+          const sorted = vals.slice().sort((a, b) => a - b);
+          const span = MIN_Y_SPAN * Math.abs(sorted[sorted.length >> 1]);
+          if (hi - lo < span) {
+            const mid = (hi + lo) / 2;
+            lo = mid - span / 2;
+            hi = mid + span / 2;
+          }
+          const pad = (hi - lo) * 0.05;
+          return { suggestedMin: Math.max(0, lo - pad), suggestedMax: hi + pad };
+        }
+
+        function renderChart(suiteName, benchName, points, steps) {
+          const changeAt = new Map(BenchSteps.changesOf(points).map(c => [c.index, c]));
+          const stepAt = new Map(steps.map(s => [s.index, s]));
           const colors = points.map((_, i) => {
             const s = stepAt.get(i);
             if (!s) return COLOR_LINE;
@@ -647,7 +578,7 @@
               scales: {
                 xAxes: [{ display: false }],
                 yAxes: [{
-                  ticks: { beginAtZero: true, maxTicksLimit: 4, fontSize: 10, callback: v => fmtValue(v) },
+                  ticks: Object.assign({ maxTicksLimit: 4, fontSize: 10, callback: v => fmtValue(v) }, yRange(points)),
                 }],
               },
               tooltips: {
@@ -664,7 +595,7 @@
                     const c = changeAt.get(item.index);
                     if (c) label += '  ' + fmtPct(c.raw) + ' vs previous';
                     const s = stepAt.get(item.index);
-                    if (!s) return label;
+                    if (!s || BenchSteps.isDeterministic(points)) return label;
                     return [label, 'Step: ' + fmtValue(s.before) + ' → ' + fmtValue(s.after) + ' ' + p.unit + ' (' + fmtPct(s.raw) + ')'];
                   },
                   afterLabel: item => points[item.index].extra || '',
@@ -687,6 +618,7 @@
         }
 
         function render() {
+          analyse();
           destroyCharts();
           renderTabs();
           const main = document.getElementById('main');
@@ -709,7 +641,8 @@
           const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
           const a = el('a', { href: URL.createObjectURL(blob), download: 'benchmark_data.json' });
           a.click();
-          URL.revokeObjectURL(a.href);
+          // Revoking synchronously can cancel the download in some browsers (Safari).
+          setTimeout(() => URL.revokeObjectURL(a.href), 1000);
         };
 
         const thresholdInput = document.getElementById('threshold');
