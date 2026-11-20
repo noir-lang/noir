@@ -265,7 +265,7 @@ fn compile_programs(
     let num_threads = rayon::current_num_threads().min(binary_packages.len()).max(1);
     let pool = rayon::ThreadPoolBuilder::new()
         .num_threads(num_threads)
-        .stack_size(compilation_stack_size())
+        .stack_size(nargo::compilation_stack_size())
         .build()
         .unwrap();
     let program_results = pool.install(|| {
@@ -274,15 +274,6 @@ fn compile_programs(
 
     // Collate any warnings/errors which were encountered during compilation.
     Ok(collect_errors(program_results).map(|(_, warnings)| ((), warnings)))
-}
-
-/// Stack size of the threads `nargo compile` compiles packages on. Elaborating, monomorphizing and
-/// running SSA passes on a large program recurse deeply, and rayon's default of 2 MiB overflows.
-/// 8 MiB matches the default main-thread stack on Linux and macOS; `RUST_MIN_STACK` raises it.
-fn compilation_stack_size() -> usize {
-    const DEFAULT: usize = 8 * 1024 * 1024;
-    let requested = std::env::var("RUST_MIN_STACK").ok().and_then(|size| size.parse().ok());
-    requested.map_or(DEFAULT, |requested: usize| requested.max(DEFAULT))
 }
 
 /// Compile the given contracts in the workspace.
@@ -299,8 +290,10 @@ fn compile_contracts(
 
     // Packages, and each contract's functions within them, compile in parallel on this one pool,
     // so both levels share its threads.
-    let pool =
-        rayon::ThreadPoolBuilder::new().stack_size(compilation_stack_size()).build().unwrap();
+    let pool = rayon::ThreadPoolBuilder::new()
+        .stack_size(nargo::compilation_stack_size())
+        .build()
+        .unwrap();
     let contract_results = pool.install(|| {
         contract_packages
             .par_iter()

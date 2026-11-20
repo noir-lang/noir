@@ -797,15 +797,15 @@ fn next_result_for(
     }
 }
 
-/// Worker threads get a larger-than-default stack (the default is 2MB) so that compiling large
-/// programs doesn't overflow it.
-const STACK_SIZE: usize = 4 * 1024 * 1024;
-
+/// Spawns a worker thread with the stack size nargo uses for compiling, as workers compile packages.
 fn spawn_worker<'scope, T: Send + 'scope>(
     scope: &'scope thread::Scope<'scope, '_>,
     work: impl FnOnce() -> T + Send + 'scope,
 ) -> thread::ScopedJoinHandle<'scope, T> {
-    thread::Builder::new().stack_size(STACK_SIZE).spawn_scoped(scope, work).unwrap()
+    thread::Builder::new()
+        .stack_size(nargo::compilation_stack_size())
+        .spawn_scoped(scope, work)
+        .unwrap()
 }
 
 /// The command's error when writing the test results fails.
