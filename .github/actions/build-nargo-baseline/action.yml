@@ -24,7 +24,7 @@ runs:
         echo "sha=$(git -C "$RUNNER_TEMP/nargo-baseline-src" rev-parse HEAD)" >> $GITHUB_OUTPUT
 
     - name: Setup toolchain
-      uses: dtolnay/rust-toolchain@1.89.0
+      uses: dtolnay/rust-toolchain@1.120.0
 
     - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       with:
