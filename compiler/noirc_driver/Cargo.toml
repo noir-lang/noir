@@ -12,9 +12,6 @@ workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[build-dependencies]
-build-data.workspace = true
-
 [dependencies]
 clap.workspace = true
 noirc_errors.workspace = true
