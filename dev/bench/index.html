@@ -136,6 +136,73 @@
       .card-title .latest { margin-left: auto; color: var(--muted); font-weight: 400; white-space: nowrap; }
       .chart-box { position: relative; height: 140px; }
 
+      .table-wrap { overflow-x: auto; }
+      table.changes td { overflow-wrap: anywhere; }
+
+      @media (max-width: 700px) {
+        html { font-size: 13px; }
+        header { padding: 6px 10px 0; }
+        .header-row { gap: 2px 10px; }
+        .header-row h1 { font-size: 16px; }
+        .header-row .spacer { display: none; }
+        .controls { width: 100%; padding: 4px 0 2px; }
+        /* 16px stops iOS Safari from zooming the page when an input is focused. */
+        .controls input { font-size: 16px; }
+        .controls input[type=search] { flex: 1; width: auto; min-width: 0; }
+        .controls label { white-space: nowrap; }
+
+        /* One swipeable row of tabs instead of a wrapped block that fills the screen. */
+        nav#tabs {
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          scrollbar-width: none;
+          margin-top: 4px;
+        }
+        nav#tabs::-webkit-scrollbar { display: none; }
+        nav#tabs a { padding: 8px 10px; }
+
+        main { padding: 8px 10px 16px; }
+        h2 { margin-top: 12px; }
+
+        /* Each table row becomes a small card; cells with a data-label show it inline. */
+        table.changes thead { display: none; }
+        table.changes, table.changes tbody { display: block; }
+        table.changes tr {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: baseline;
+          gap: 2px 10px;
+          padding: 6px 8px;
+          margin-bottom: 6px;
+          border: 1px solid var(--border);
+          border-radius: 6px;
+        }
+        table.changes td {
+          display: block;
+          border: none;
+          padding: 0;
+          text-align: left;
+        }
+        table.changes td.num { text-align: left; }
+        table.changes td.msg {
+          flex: 1 1 100%;
+          max-width: none;
+          white-space: normal;
+          color: var(--muted);
+        }
+        table.changes td.wide { flex: 1 1 100%; }
+        table.changes td.grow { flex: 1 1 auto; font-weight: 600; }
+        table.changes td.labelled::before {
+          content: attr(data-label) " ";
+          color: var(--muted);
+          font-weight: 400;
+        }
+
+        .grid { grid-template-columns: 1fr; gap: 6px; }
+        .chart-box { height: 120px; }
+        footer { padding: 10px; }
+      }
+
       footer {
         display: flex;
         align-items: center;
@@ -183,6 +250,7 @@
         const COLOR_LINE = '#57606a';
         const COLOR_WORSE = '#cf222e';
         const COLOR_BETTER = '#1a7f37';
+        const NO_HOVER = window.matchMedia('(hover: none)').matches;
 
         const data = window.BENCHMARK_DATA;
         const state = {
@@ -410,6 +478,7 @@
         function renderTabs() {
           const nav = document.getElementById('tabs');
           nav.textContent = '';
+          let activeTab = null;
           for (const name of [OVERVIEW].concat(suites.map(s => s.name))) {
             const a = el('a', { href: hrefFor(name), text: name });
             if (name === state.active) a.className = 'active';
@@ -421,6 +490,11 @@
               if (better) a.appendChild(el('span', { class: 'badge better', title: better + ' improvements', text: String(better) }));
             }
             nav.appendChild(a);
+            if (name === state.active) activeTab = a;
+          }
+          // When the tabs are a single scrollable row (narrow screens), keep the active one visible.
+          if (activeTab && nav.scrollWidth > nav.clientWidth) {
+            nav.scrollLeft = activeTab.offsetLeft - nav.offsetLeft - (nav.clientWidth - activeTab.offsetWidth) / 2;
           }
         }
 
@@ -467,7 +541,7 @@
             const worse = g.rows.filter(r => r.pct > 0);
             const better = g.rows.filter(r => r.pct <= 0);
             const top = g.rows.slice().sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 3);
-            const topCell = el('td');
+            const topCell = el('td', { class: 'wide' });
             top.forEach((r, i) => {
               if (i) topCell.appendChild(document.createTextNode(', '));
               topCell.appendChild(el('a', { href: hrefFor(r.suite, r.bench), title: r.suite }, [r.bench + ' ']));
@@ -477,13 +551,13 @@
             tbody.appendChild(el('tr', {}, [
               el('td', {}, [commitLink(g.commit)]),
               el('td', { class: 'msg', title: g.commit.message, text: firstLine(g.commit.message) }),
-              el('td', { class: 'num' + (worse.length ? ' worse' : ''), text: String(worse.length) }),
-              el('td', { class: 'num' + (better.length ? ' better' : ''), text: String(better.length) }),
+              el('td', { class: 'num labelled' + (worse.length ? ' worse' : ''), 'data-label': 'Regressions', text: String(worse.length) }),
+              el('td', { class: 'num labelled' + (better.length ? ' better' : ''), 'data-label': 'Improvements', text: String(better.length) }),
               topCell,
             ]));
           }
           table.appendChild(tbody);
-          main.appendChild(table);
+          main.appendChild(el('div', { class: 'table-wrap' }, [table]));
         }
 
         function renderSuite(main, suite) {
@@ -501,22 +575,23 @@
             const tbody = el('tbody');
             for (const r of rows) {
               tbody.appendChild(el('tr', {}, [
-                el('td', {}, [el('a', { href: hrefFor(suite.name, r.bench), text: r.bench })]),
+                el('td', { class: 'grow' }, [el('a', { href: hrefFor(suite.name, r.bench), text: r.bench })]),
                 changeCell(r),
-                el('td', { class: 'num', text: fmtValue(r.before) + ' ' + r.point.unit }),
-                el('td', { class: 'num', text: fmtValue(r.after) + ' ' + r.point.unit }),
+                el('td', { class: 'num labelled', 'data-label': 'Before', text: fmtValue(r.before) + ' ' + r.point.unit }),
+                el('td', { class: 'num labelled', 'data-label': 'After', text: fmtValue(r.after) + ' ' + r.point.unit }),
                 el('td', {}, [commitLink(r.point.commit)]),
                 el('td', { class: 'msg', title: r.point.commit.message, text: firstLine(r.point.commit.message) }),
               ]));
             }
             table.appendChild(tbody);
-            main.appendChild(table);
+            main.appendChild(el('div', { class: 'table-wrap' }, [table]));
           }
 
           main.appendChild(el('h2', { text: 'Charts' }));
           main.appendChild(el('p', {
             class: 'hint',
-            text: 'Red points mark regressions and green points improvements (see Overview for how they are detected). Hover for details; click a point to open its commit.',
+            text: 'Red points mark regressions and green points improvements (see Overview for how they are detected). ' +
+              (NO_HOVER ? 'Tap a point for details; tap it again to open its commit.' : 'Hover for details; click a point to open its commit.'),
           }));
           const grid = el('div', { class: 'grid' });
           main.appendChild(grid);
@@ -539,6 +614,7 @@
           const last = points[points.length - 1];
 
           const canvas = el('canvas');
+          let lastTapped = null;
           const selected = suiteName === state.active && benchName === state.bench ? ' selected' : '';
           const card = el('div', { class: 'card ' + flagged + selected, 'data-bench': benchName }, [
             el('div', { class: 'card-title' }, [
@@ -588,14 +664,22 @@
                     const c = changeAt.get(item.index);
                     if (c) label += '  ' + fmtPct(c.raw) + ' vs previous';
                     const s = stepAt.get(item.index);
-                    if (s) label += '\nStep: ' + fmtValue(s.before) + ' → ' + fmtValue(s.after) + ' (' + fmtPct(s.raw) + ')';
-                    return label;
+                    if (!s) return label;
+                    return [label, 'Step: ' + fmtValue(s.before) + ' → ' + fmtValue(s.after) + ' ' + p.unit + ' (' + fmtPct(s.raw) + ')'];
                   },
                   afterLabel: item => points[item.index].extra || '',
                 },
               },
               onClick: (_ev, active) => {
-                if (active.length) window.open(points[active[0]._index].commit.url, '_blank');
+                if (!active.length) return;
+                const index = active[0]._index;
+                // Without hover, the first tap on a point is the only way to see its tooltip,
+                // so only a second tap on the same point opens the commit.
+                if (NO_HOVER && lastTapped !== index) {
+                  lastTapped = index;
+                  return;
+                }
+                window.open(points[index].commit.url, '_blank');
               },
             },
           }));
