@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795206714216,
+  "lastUpdate": 1795206724795,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -40729,105 +40729,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "be9ed513c90b6034ae5a87f2a72be5a02f786b5e",
-          "message": "chore(deps): bump the hardhat group with 10 updates (#14091)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-10-23T12:44:29Z",
-          "tree_id": "e77092b3cb116c9f1803281fc53069868eef810b",
-          "url": "https://github.com/noir-lang/noir/commit/be9ed513c90b6034ae5a87f2a72be5a02f786b5e"
-        },
-        "date": 1792761390428,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 863.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 940,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 700.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 400.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 420.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 519.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 322.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 780.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 818.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 525.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 800,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 961,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 310.3,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2080.5,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 156.1,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "d56c6153b45dea3d58d2202f3c1696deaac3d131",
           "message": "chore(deps-dev): bump cspell from 10.3.6 to 10.4.0 in the npm-minor-and-patch group (#14093)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-10-23T12:58:51Z",
@@ -45707,6 +45608,120 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ea5b3f8b62585ad368f5dafc0252852df2f7e31e"
         },
         "date": 1795201826124,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fp12-tower",
+            "value": 1391.4,
+            "unit": "KB"
+          },
+          {
+            "name": "fp12-tower-hints",
+            "value": 1598.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 865.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 955.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 704.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 399.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 420.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 518.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 321.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 779.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 817.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 526.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 803.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 963.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 310.4,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2080.3,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 154.5,
+            "unit": "KB"
+          },
+          {
+            "name": "token-contract",
+            "value": 3415.8,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "312425357d8d67d9d6f669e2c903e47bb1b6d9b1",
+          "message": "feat(perf): store instruction results and call stacks in dense vectors (#14208)",
+          "timestamp": "2026-11-20T19:12:23Z",
+          "tree_id": "3d1dfccba3aa800a4e51d5e3eccf685504a67e05",
+          "url": "https://github.com/noir-lang/noir/commit/312425357d8d67d9d6f669e2c903e47bb1b6d9b1"
+        },
+        "date": 1795206660929,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
