@@ -1,0 +1,6 @@
+[package]
+name = "fp12_tower"
+type = "bin"
+authors = [""]
+
+[dependencies]
