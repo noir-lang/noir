@@ -3,9 +3,13 @@
 //! This ordering is beneficial to the efficiency of various algorithms, such as those for dead
 //! code elimination and calculating dominance trees.
 
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
-use crate::ssa::ir::{basic_block::BasicBlockId, function::Function};
+use crate::ssa::ir::{
+    basic_block::{BasicBlock, BasicBlockId},
+    function::Function,
+    map::DenseSideTable,
+};
 
 use super::cfg::ControlFlowGraph;
 
@@ -363,7 +367,7 @@ impl PostOrder {
         roots: Vec<BasicBlockId>,
     ) -> Vec<BasicBlockId> {
         let mut stack = vec![];
-        let mut visited: HashSet<BasicBlockId> = HashSet::new();
+        let mut visited = DenseSideTable::<BasicBlock, bool>::default();
         let mut post_order: Vec<BasicBlockId> = Vec::new();
 
         // Set root blocks
@@ -372,15 +376,14 @@ impl PostOrder {
         while let Some((visit, block_id)) = stack.pop() {
             match visit {
                 Visit::First => {
-                    if !visited.contains(&block_id) {
+                    if visited.mark(block_id) {
                         // This is the first time we pop the block, so we need to scan its
                         // successors and then revisit it.
-                        visited.insert(block_id);
                         stack.push((Visit::Last, block_id));
                         // Stack successors for visiting. Because items are taken from the top of the
                         // stack, we push the item that's due for a visit first to the top.
                         for successor_id in cfg.successors(block_id).rev() {
-                            if !visited.contains(&successor_id) {
+                            if !visited.contains(successor_id) {
                                 // This not visited check would also be covered by the next
                                 // iteration, but checking here too saves an iteration per successor.
                                 stack.push((Visit::First, successor_id));

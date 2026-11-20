@@ -3,20 +3,57 @@ use std::collections::BTreeSet;
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::Function,
+    map::DenseSideTable,
 };
-use rustc_hash::FxHashMap as HashMap;
-use std::collections::HashSet;
+use smallvec::SmallVec;
+
+/// A set of blocks, sorted by id so that iterating it is deterministic.
+///
+/// Most blocks have at most two successors and two predecessors, so the set is stored inline.
+#[derive(Clone, Default)]
+struct BlockSet(SmallVec<[BasicBlockId; 2]>);
+
+impl BlockSet {
+    /// Inserts `block`, returning `false` if it was already present.
+    ///
+    /// Edges are usually added in increasing block order, which makes this an append.
+    fn insert(&mut self, block: BasicBlockId) -> bool {
+        if self.0.last().is_none_or(|last| *last < block) {
+            self.0.push(block);
+            return true;
+        }
+        match self.0.binary_search(&block) {
+            Ok(_) => false,
+            Err(index) => {
+                self.0.insert(index, block);
+                true
+            }
+        }
+    }
+
+    fn remove(&mut self, block: BasicBlockId) {
+        if let Ok(index) = self.0.binary_search(&block) {
+            self.0.remove(index);
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn iter(&self) -> std::iter::Copied<std::slice::Iter<'_, BasicBlockId>> {
+        self.0.iter().copied()
+    }
+}
 
 /// A container for the successors and predecessors of some Block.
 #[derive(Clone, Default)]
 struct CfgNode {
-    /// Set of blocks that containing jumps that target this block.
-    /// The predecessor set has no meaningful order.
-    pub(crate) predecessors: BTreeSet<BasicBlockId>,
+    /// Blocks containing jumps that target this block, in increasing id order.
+    predecessors: BlockSet,
 
-    /// Set of blocks that are the targets of jumps in this block.
-    /// The successors set has no meaningful order.
-    pub(crate) successors: BTreeSet<BasicBlockId>,
+    /// Blocks this block jumps to, in increasing id order.
+    successors: BlockSet,
 }
 
 #[derive(Clone, Default)]
@@ -24,7 +61,9 @@ struct CfgNode {
 /// and successors where predecessors are basic blocks and successors are
 /// basic blocks.
 pub(crate) struct ControlFlowGraph {
-    data: HashMap<BasicBlockId, CfgNode>,
+    /// The node of each block in the CFG, indexed by block id. A block is in the CFG when its
+    /// slot is `Some`: the entry block, and every block at either end of an edge.
+    data: DenseSideTable<BasicBlock, Option<CfgNode>>,
     /// Flag stating whether this CFG has been reversed.
     /// In a reversed CFG, successors become predecessors.
     reversed: bool,
@@ -36,12 +75,8 @@ impl ControlFlowGraph {
         // It is expected to be safe to query the control flow graph for any reachable block,
         // therefore we must ensure that a node exists for the entry block, regardless of whether
         // it later comes to describe any edges after calling compute.
-        let entry_block = func.entry_block();
-        let empty_node = CfgNode { predecessors: BTreeSet::new(), successors: BTreeSet::new() };
-        let mut data = HashMap::default();
-        data.insert(entry_block, empty_node);
-
-        let mut cfg = ControlFlowGraph { data, reversed: false };
+        let mut cfg = ControlFlowGraph::default();
+        cfg.node_mut(func.entry_block());
         cfg.compute(func);
         cfg
     }
@@ -61,22 +96,43 @@ impl ControlFlowGraph {
         }
     }
 
+    /// The node of `block`, if `block` is in the CFG.
+    fn node(&self, block: BasicBlockId) -> Option<&CfgNode> {
+        self.data.get(block).and_then(Option::as_ref)
+    }
+
+    /// The node of `block`, adding an empty one if `block` is not in the CFG yet.
+    fn node_mut(&mut self, block: BasicBlockId) -> &mut CfgNode {
+        if self.data.get(block).is_none() {
+            // Grow the table to cover `block`.
+            self.data.set(block, None);
+        }
+        self.data[block].get_or_insert_with(CfgNode::default)
+    }
+
+    /// Iterates over the blocks in the CFG, in increasing id order.
+    fn blocks(&self) -> impl Iterator<Item = BasicBlockId> + '_ {
+        self.data.iter().filter_map(|(block, node)| node.as_ref().map(|_| block))
+    }
+
     /// Clears out a given block's successors. This also removes the given block from
     /// being a predecessor of any of its previous successors.
     pub(crate) fn invalidate_block_successors(&mut self, basic_block_id: BasicBlockId) {
         let node = self
             .data
-            .get_mut(&basic_block_id)
+            .get_mut(basic_block_id)
+            .and_then(Option::as_mut)
             .expect("ICE: Attempted to invalidate cfg node successors for non-existent node.");
 
         let old_successors = std::mem::take(&mut node.successors);
 
-        for successor_id in old_successors {
+        for successor_id in old_successors.iter() {
             self.data
-                .get_mut(&successor_id)
+                .get_mut(successor_id)
+                .and_then(Option::as_mut)
                 .expect("ICE: Cfg node successor doesn't exist.")
                 .predecessors
-                .remove(&basic_block_id);
+                .remove(basic_block_id);
         }
     }
 
@@ -92,15 +148,16 @@ impl ControlFlowGraph {
 
     /// Add a directed edge making `from` a predecessor of `to`.
     fn add_edge(&mut self, from: BasicBlockId, to: BasicBlockId) {
-        let predecessor_node = self.data.entry(from).or_default();
-        if !self.reversed {
+        let reversed = self.reversed;
+        let predecessor_node = self.node_mut(from);
+        if !reversed {
             assert!(
                 predecessor_node.successors.len() < 2,
                 "ICE: A cfg node cannot have more than two successors"
             );
         }
         predecessor_node.successors.insert(to);
-        let successor_node = self.data.entry(to).or_default();
+        let successor_node = self.node_mut(to);
         successor_node.predecessors.insert(from);
     }
 
@@ -109,12 +166,10 @@ impl ControlFlowGraph {
         &self,
         basic_block_id: BasicBlockId,
     ) -> impl ExactSizeIterator<Item = BasicBlockId> + '_ {
-        self.data
-            .get(&basic_block_id)
+        self.node(basic_block_id)
             .expect("ICE: Attempted to iterate predecessors of block not found within cfg.")
             .predecessors
             .iter()
-            .copied()
     }
 
     /// The blocks of the natural loop with the given `header` and back-edge source
@@ -144,23 +199,21 @@ impl ControlFlowGraph {
         &self,
         basic_block_id: BasicBlockId,
     ) -> impl ExactSizeIterator<Item = BasicBlockId> + DoubleEndedIterator + '_ {
-        self.data
-            .get(&basic_block_id)
+        self.node(basic_block_id)
             .expect("ICE: Attempted to iterate successors of block not found within cfg.")
             .successors
             .iter()
-            .copied()
     }
 
     /// Reverse the control flow graph
     pub(crate) fn reverse(&self) -> Self {
         let mut reversed_cfg = ControlFlowGraph { reversed: true, ..Default::default() };
 
-        for (block_id, node) in &self.data {
+        for block_id in self.blocks() {
             // For each block, reverse the edges
             // In the reversed CFG, successors becomes predecessors
-            for &successor in &node.successors {
-                reversed_cfg.add_edge(successor, *block_id);
+            for successor in self.successors(block_id) {
+                reversed_cfg.add_edge(successor, block_id);
             }
         }
 
@@ -169,7 +222,7 @@ impl ControlFlowGraph {
 
     /// Returns the entry blocks for a CFG. This is all nodes without any predecessors.
     pub(crate) fn compute_entry_blocks(&self) -> Vec<BasicBlockId> {
-        self.data.keys().filter(|&&block| self.predecessors(block).len() == 0).copied().collect()
+        self.blocks().filter(|&block| self.predecessors(block).len() == 0).collect()
     }
 
     /// Computes the reverse graph of the extended CFG.
@@ -215,14 +268,17 @@ impl ControlFlowGraph {
         let mut cfg = Self::with_function(func);
         // Exit blocks are the ones having no successor
         let exit_nodes: Vec<BasicBlockId> =
-            cfg.data.keys().filter(|&&block| cfg.successors(block).len() == 0).copied().collect();
+            cfg.blocks().filter(|&block| cfg.successors(block).len() == 0).collect();
         // Traverse the reverse CFG from the exit blocks
         let reverse = cfg.reverse();
         let post_order = crate::ssa::ir::post_order::PostOrder::with_cfg(&reverse);
         // Extract blocks that are not reachable from the exit blocks
-        let rpo_traversal: HashSet<BasicBlockId> = HashSet::from_iter(post_order.into_vec());
+        let mut rpo_traversal = DenseSideTable::<BasicBlock, bool>::default();
+        for block in post_order.into_vec() {
+            rpo_traversal.mark(block);
+        }
         let dead_blocks: Vec<BasicBlockId> =
-            cfg.data.keys().filter(|&block| !rpo_traversal.contains(block)).copied().collect();
+            cfg.blocks().filter(|block| !rpo_traversal.contains(*block)).collect();
 
         // If some blocks, that we call 'dead' blocks, are not in the post-order traversal of the reverse CFG,
         // or if there are multiple exit nodes, then the reverse CFG is not a CFG because
@@ -231,7 +287,7 @@ impl ControlFlowGraph {
         if exit_nodes.len() > 1 || !dead_blocks.is_empty() {
             // Create a fake 'exit' block
             let exit = func.dfg.make_block();
-            cfg.data.insert(exit, CfgNode::default());
+            cfg.node_mut(exit);
             // Connect the exit nodes to it
             for e in exit_nodes {
                 cfg.add_edge(e, exit);
@@ -253,7 +309,24 @@ mod tests {
     };
     use noirc_errors::call_stack::CallStackId;
 
-    use super::{super::function::Function, ControlFlowGraph};
+    use super::{super::function::Function, BlockSet, ControlFlowGraph};
+
+    #[test]
+    fn block_set_stays_sorted_and_deduplicated() {
+        let b = |id| BasicBlockId::test_new(id);
+        let mut set = BlockSet::default();
+        assert!(set.insert(b(5)));
+        assert!(set.insert(b(1)));
+        assert!(set.insert(b(9)));
+        assert!(set.insert(b(3)));
+        assert!(!set.insert(b(5)));
+        assert!(!set.insert(b(9)));
+        assert_eq!(set.iter().collect::<Vec<_>>(), vec![b(1), b(3), b(5), b(9)]);
+
+        set.remove(b(3));
+        set.remove(b(4));
+        assert_eq!(set.iter().collect::<Vec<_>>(), vec![b(1), b(5), b(9)]);
+    }
 
     #[test]
     fn empty() {

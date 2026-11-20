@@ -236,6 +236,17 @@ impl<K, V> DenseSideTable<K, V> {
         self.storage.get(id.index as usize)
     }
 
+    /// Returns a mutable reference to the entry for `id`, or `None` if `id` is past the end of the
+    /// table.
+    pub(crate) fn get_mut(&mut self, id: Id<K>) -> Option<&mut V> {
+        self.storage.get_mut(id.index as usize)
+    }
+
+    /// Iterates over every slot in the table, in increasing id order, paired with its id.
+    pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item = (Id<K>, &V)> {
+        self.storage.iter().enumerate().map(|(index, value)| (Id::new(index as u32), value))
+    }
+
     /// Appends the entry for `id`. Panics unless `id` is the next id after the last entry.
     pub(crate) fn push(&mut self, id: Id<K>, value: V) {
         assert_eq!(
@@ -255,6 +266,22 @@ impl<K, V: Clone + Default> DenseSideTable<K, V> {
             self.storage.resize(index + 1, V::default());
         }
         self.storage[index] = value;
+    }
+}
+
+impl<K> DenseSideTable<K, bool> {
+    /// Returns `true` if `id` has been marked.
+    pub(crate) fn contains(&self, id: Id<K>) -> bool {
+        self.get(id).copied().unwrap_or(false)
+    }
+
+    /// Marks `id`, returning `true` if it was not marked before.
+    pub(crate) fn mark(&mut self, id: Id<K>) -> bool {
+        let newly_marked = !self.contains(id);
+        if newly_marked {
+            self.set(id, true);
+        }
+        newly_marked
     }
 }
 
@@ -340,6 +367,16 @@ mod tests {
         assert_eq!(table.get(Id::test_new(0)), Some(&0));
         assert_eq!(table.get(Id::test_new(2)), Some(&7));
         assert_eq!(table.get(Id::test_new(3)), None);
+    }
+
+    #[test]
+    fn dense_side_table_mark_reports_first_marking() {
+        let mut visited = DenseSideTable::<(), bool>::default();
+        assert!(!visited.contains(Id::test_new(3)));
+        assert!(visited.mark(Id::test_new(3)));
+        assert!(!visited.mark(Id::test_new(3)));
+        assert!(visited.contains(Id::test_new(3)));
+        assert!(!visited.contains(Id::test_new(1)));
     }
 
     #[test]
