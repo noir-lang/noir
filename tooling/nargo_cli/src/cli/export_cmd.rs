@@ -1,15 +1,15 @@
-use nargo::errors::CompileError;
 use nargo::ops::{check_crate_and_report_errors, report_errors};
 use noir_artifact_cli::fs::artifact::save_program_to_file;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
+use std::any::Any;
+use std::panic::{self, AssertUnwindSafe};
 use std::path::Path;
 use std::sync::Arc;
 
 use fm::FileManager;
-use iter_extended::try_vecmap;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
@@ -54,18 +54,70 @@ pub(crate) fn run(args: ExportCommand, workspace: Workspace) -> Result<(), CliEr
     let library_packages: Vec<_> =
         workspace.into_iter().filter(|package| package.is_library()).collect();
 
-    library_packages
-        .par_iter()
-        .map(|package| {
-            compile_exported_functions(
-                &workspace_file_manager,
-                &parsed_files,
-                &workspace,
-                package,
-                &args.compile_options,
-            )
-        })
-        .collect()
+    let compile_package = |package: &&Package| {
+        compile_exported_functions(
+            &workspace_file_manager,
+            &parsed_files,
+            &workspace,
+            package,
+            &args.compile_options,
+        )
+    };
+
+    // Packages, and each package's exported functions within them, compile in parallel on this
+    // one pool, unless an option prints the compilation steps, which would then interleave. Its
+    // threads get the larger stack `nargo compile` gives programs, since deep functions overflow
+    // rayon's default, or `RUST_MIN_STACK` when that is larger.
+    const STACK_SIZE: usize = 4 * 1024 * 1024;
+    let requested_stack = std::env::var("RUST_MIN_STACK").ok().and_then(|size| size.parse().ok());
+    let stack_size = requested_stack.map_or(STACK_SIZE, |size: usize| size.max(STACK_SIZE));
+    let pool = rayon::ThreadPoolBuilder::new().stack_size(stack_size).build().unwrap();
+    pool.install(|| {
+        if args.compile_options.prints_compilation_steps() {
+            library_packages.iter().try_for_each(compile_package)
+        } else {
+            library_packages.par_iter().map(compile_package).collect()
+        }
+    })
+}
+
+/// What compiling one exported function produced: a program, an ordinary error, or a panic.
+type CompiledFunction = std::thread::Result<Result<CompiledProgram, CustomDiagnostic>>;
+
+/// The exported functions that compiled, the errors of those that didn't, and the payload of the
+/// first function that panicked, all in the order of `compiled`.
+struct ExportResults {
+    programs: Vec<(String, CompiledProgram)>,
+    errors: Vec<CustomDiagnostic>,
+    first_panic: Option<Box<dyn Any + Send>>,
+}
+
+/// Reports `errors`, if any, with `report`, and then raises `first_panic` again if there was one.
+/// The errors are reported first, so a panic in one function doesn't hide another's errors.
+fn report_then_resume_panic<E>(
+    errors: Vec<CustomDiagnostic>,
+    first_panic: Option<Box<dyn Any + Send>>,
+    report: impl FnOnce(Vec<CustomDiagnostic>) -> Result<(), E>,
+) -> Result<(), E> {
+    let reported = if errors.is_empty() { Ok(()) } else { report(errors) };
+    if let Some(payload) = first_panic {
+        panic::resume_unwind(payload);
+    }
+    reported
+}
+
+fn split_results(compiled: Vec<(String, CompiledFunction)>) -> ExportResults {
+    let mut results = ExportResults { programs: Vec::new(), errors: Vec::new(), first_panic: None };
+    for (function_name, program) in compiled {
+        match program {
+            Ok(Ok(program)) => results.programs.push((function_name, program)),
+            Ok(Err(error)) => results.errors.push(error),
+            Err(payload) => {
+                results.first_panic.get_or_insert(payload);
+            }
+        }
+    }
+    results
 }
 
 fn compile_exported_functions(
@@ -80,11 +132,13 @@ fn compile_exported_functions(
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
 
-    let exported_programs = try_vecmap(
-        exported_functions,
-        |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
-            // TODO: We should to refactor how to deal with compilation errors to avoid this.
-            let program = compile_no_check(
+    // Each exported function is compiled on its own, reading `context` without writing to it, so
+    // they are compiled in parallel, unless an option prints the compilation steps, which would
+    // then interleave. A panic is caught so that the other functions' errors are still reported
+    // before it is raised again.
+    let compile = |(function_name, function_id): (String, _)| -> (String, CompiledFunction) {
+        let program = panic::catch_unwind(AssertUnwindSafe(|| {
+            compile_no_check(
                 &context,
                 compile_options,
                 Path::new(""),
@@ -93,23 +147,74 @@ fn compile_exported_functions(
                 None,
                 false,
             )
-            .map_err(|error| vec![CustomDiagnostic::from(error)]);
+            .map_err(CustomDiagnostic::from)
+        }));
+        (function_name, program)
+    };
+    let compiled: Vec<_> = if compile_options.prints_compilation_steps() {
+        exported_functions.into_iter().map(compile).collect()
+    } else {
+        exported_functions.into_par_iter().map(compile).collect()
+    };
 
-            let program = report_errors(
-                program.map(|program| (program, Vec::new())),
-                &context.file_manager,
-                &context.parsed_files,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            )?;
-
-            Ok((function_name, program))
-        },
-    )?;
+    // Every function was compiled, so every failure is reported, in the order
+    // `get_all_exported_functions_in_crate` returned the functions.
+    let ExportResults { programs, errors, first_panic } = split_results(compiled);
+    report_then_resume_panic(errors, first_panic, |errors| {
+        report_errors::<()>(
+            Err(errors),
+            &context.file_manager,
+            &context.parsed_files,
+            compile_options.deny_warnings,
+            compile_options.silence_warnings,
+        )
+    })?;
 
     let export_dir = workspace.export_directory_path();
-    for (function_name, program) in exported_programs {
+    for (function_name, program) in programs {
         save_program_to_file(&program.into(), &function_name.parse().unwrap(), &export_dir)?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use noirc_errors::CustomDiagnostic;
+
+    use super::{CompiledFunction, ExportResults, report_then_resume_panic, split_results};
+
+    #[test]
+    fn a_panicking_function_keeps_the_other_functions_errors() {
+        let error = CustomDiagnostic::from_message("b fails", fm::FileId::dummy());
+        let compiled: Vec<(String, CompiledFunction)> = vec![
+            ("a".to_string(), Err(Box::new("a panics"))),
+            ("b".to_string(), Ok(Err(error))),
+            ("c".to_string(), Err(Box::new("c panics"))),
+        ];
+
+        let ExportResults { programs, errors, first_panic } = split_results(compiled);
+
+        assert!(programs.is_empty());
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].message, "b fails");
+        let payload = first_panic.expect("the panic should be kept");
+        assert_eq!(payload.downcast_ref::<&str>(), Some(&"a panics"), "the first panic is kept");
+    }
+
+    #[test]
+    fn errors_are_reported_before_a_panic_is_raised_again() {
+        let error = CustomDiagnostic::from_message("b fails", fm::FileId::dummy());
+        let mut reported = Vec::new();
+
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            report_then_resume_panic::<()>(vec![error], Some(Box::new("a panics")), |errors| {
+                reported.extend(errors.into_iter().map(|error| error.message));
+                Err(())
+            })
+        }))
+        .expect_err("the panic should be raised again");
+
+        assert_eq!(reported, vec!["b fails".to_string()]);
+        assert_eq!(panic.downcast_ref::<&str>(), Some(&"a panics"));
+    }
 }
