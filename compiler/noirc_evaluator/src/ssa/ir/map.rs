@@ -269,6 +269,22 @@ impl<K, V: Clone + Default> DenseSideTable<K, V> {
     }
 }
 
+impl<K> DenseSideTable<K, bool> {
+    /// Returns `true` if `id` has been marked.
+    pub(crate) fn contains(&self, id: Id<K>) -> bool {
+        self.get(id).copied().unwrap_or(false)
+    }
+
+    /// Marks `id`, returning `true` if it was not marked before.
+    pub(crate) fn mark(&mut self, id: Id<K>) -> bool {
+        let newly_marked = !self.contains(id);
+        if newly_marked {
+            self.set(id, true);
+        }
+        newly_marked
+    }
+}
+
 impl<K, V> Default for DenseSideTable<K, V> {
     fn default() -> Self {
         Self { storage: Vec::new(), _marker: std::marker::PhantomData }
@@ -351,6 +367,16 @@ mod tests {
         assert_eq!(table.get(Id::test_new(0)), Some(&0));
         assert_eq!(table.get(Id::test_new(2)), Some(&7));
         assert_eq!(table.get(Id::test_new(3)), None);
+    }
+
+    #[test]
+    fn dense_side_table_mark_reports_first_marking() {
+        let mut visited = DenseSideTable::<(), bool>::default();
+        assert!(!visited.contains(Id::test_new(3)));
+        assert!(visited.mark(Id::test_new(3)));
+        assert!(!visited.mark(Id::test_new(3)));
+        assert!(visited.contains(Id::test_new(3)));
+        assert!(!visited.contains(Id::test_new(1)));
     }
 
     #[test]

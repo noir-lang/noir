@@ -6,9 +6,8 @@ use super::{
     map::DenseSideTable,
 };
 use smallvec::SmallVec;
-use std::collections::HashSet;
 
-/// A set of blocks, kept sorted by id so that iteration order matches a `BTreeSet`.
+/// A set of blocks, sorted by id so that iterating it is deterministic.
 ///
 /// Most blocks have at most two successors and two predecessors, so the set is stored inline.
 #[derive(Clone, Default)]
@@ -19,22 +18,16 @@ impl BlockSet {
     ///
     /// Edges are usually added in increasing block order, which makes this an append.
     fn insert(&mut self, block: BasicBlockId) -> bool {
-        match self.0.last() {
-            Some(last) if *last < block => {
-                self.0.push(block);
+        if self.0.last().is_none_or(|last| *last < block) {
+            self.0.push(block);
+            return true;
+        }
+        match self.0.binary_search(&block) {
+            Ok(_) => false,
+            Err(index) => {
+                self.0.insert(index, block);
                 true
             }
-            None => {
-                self.0.push(block);
-                true
-            }
-            Some(_) => match self.0.binary_search(&block) {
-                Ok(_) => false,
-                Err(index) => {
-                    self.0.insert(index, block);
-                    true
-                }
-            },
         }
     }
 
@@ -56,12 +49,10 @@ impl BlockSet {
 /// A container for the successors and predecessors of some Block.
 #[derive(Clone, Default)]
 struct CfgNode {
-    /// Set of blocks that containing jumps that target this block.
-    /// The predecessor set has no meaningful order.
+    /// Blocks containing jumps that target this block, in increasing id order.
     predecessors: BlockSet,
 
-    /// Set of blocks that are the targets of jumps in this block.
-    /// The successors set has no meaningful order.
+    /// Blocks this block jumps to, in increasing id order.
     successors: BlockSet,
 }
 
@@ -112,10 +103,11 @@ impl ControlFlowGraph {
 
     /// The node of `block`, adding an empty one if `block` is not in the CFG yet.
     fn node_mut(&mut self, block: BasicBlockId) -> &mut CfgNode {
-        if self.node(block).is_none() {
-            self.data.set(block, Some(CfgNode::default()));
+        if self.data.get(block).is_none() {
+            // Grow the table to cover `block`.
+            self.data.set(block, None);
         }
-        self.data[block].as_mut().expect("node was just inserted")
+        self.data[block].get_or_insert_with(CfgNode::default)
     }
 
     /// Iterates over the blocks in the CFG, in increasing id order.
@@ -281,9 +273,12 @@ impl ControlFlowGraph {
         let reverse = cfg.reverse();
         let post_order = crate::ssa::ir::post_order::PostOrder::with_cfg(&reverse);
         // Extract blocks that are not reachable from the exit blocks
-        let rpo_traversal: HashSet<BasicBlockId> = HashSet::from_iter(post_order.into_vec());
+        let mut rpo_traversal = DenseSideTable::<BasicBlock, bool>::default();
+        for block in post_order.into_vec() {
+            rpo_traversal.mark(block);
+        }
         let dead_blocks: Vec<BasicBlockId> =
-            cfg.blocks().filter(|block| !rpo_traversal.contains(block)).collect();
+            cfg.blocks().filter(|block| !rpo_traversal.contains(*block)).collect();
 
         // If some blocks, that we call 'dead' blocks, are not in the post-order traversal of the reverse CFG,
         // or if there are multiple exit nodes, then the reverse CFG is not a CFG because
@@ -292,7 +287,7 @@ impl ControlFlowGraph {
         if exit_nodes.len() > 1 || !dead_blocks.is_empty() {
             // Create a fake 'exit' block
             let exit = func.dfg.make_block();
-            cfg.data.set(exit, Some(CfgNode::default()));
+            cfg.node_mut(exit);
             // Connect the exit nodes to it
             for e in exit_nodes {
                 cfg.add_edge(e, exit);

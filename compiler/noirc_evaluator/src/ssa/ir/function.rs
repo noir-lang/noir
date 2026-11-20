@@ -213,8 +213,7 @@ impl Function {
         let mut stack = vec![self.entry_block];
 
         while let Some(block) = stack.pop() {
-            if !visited.get(block).copied().unwrap_or(false) {
-                visited.set(block, true);
+            if visited.mark(block) {
                 blocks.push(block);
                 stack.extend(self.dfg[block].successors());
             }

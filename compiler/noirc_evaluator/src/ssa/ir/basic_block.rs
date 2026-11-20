@@ -149,20 +149,17 @@ impl BasicBlock {
     pub(crate) fn successors(
         &self,
     ) -> impl ExactSizeIterator<Item = BasicBlockId> + DoubleEndedIterator {
-        match &self.terminator {
+        let successors: smallvec::SmallVec<[BasicBlockId; 2]> = match &self.terminator {
             Some(TerminatorInstruction::Jmp { destination, .. }) => {
-                smallvec::smallvec![*destination].into_iter()
+                smallvec::smallvec![*destination]
             }
             Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) => {
-                smallvec::SmallVec::<[BasicBlockId; 2]>::from_buf([
-                    *then_destination,
-                    *else_destination,
-                ])
-                .into_iter()
+                smallvec::smallvec![*then_destination, *else_destination]
             }
             Some(TerminatorInstruction::Return { .. })
             | Some(TerminatorInstruction::Unreachable { .. })
-            | None => smallvec::SmallVec::new().into_iter(),
-        }
+            | None => smallvec::SmallVec::new(),
+        };
+        successors.into_iter()
     }
 }
