@@ -216,6 +216,68 @@ impl<T> std::ops::IndexMut<Id<T>> for DenseMap<T> {
     }
 }
 
+/// A side table holding a `V` for each id of a [`DenseMap<K>`], stored in a `Vec` indexed by the
+/// id instead of a map keyed by it.
+///
+/// Like `DenseMap`, it is indexed by `Id<K>` and never exposes raw indices, so it cannot be
+/// indexed with an id of another type. Entries that were never written read as absent from
+/// [`get`](Self::get).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(transparent, bound(serialize = "V: Serialize", deserialize = "V: Deserialize<'de>"))]
+pub(crate) struct DenseSideTable<K, V> {
+    storage: Vec<V>,
+    #[serde(skip)]
+    _marker: std::marker::PhantomData<K>,
+}
+
+impl<K, V> DenseSideTable<K, V> {
+    /// Returns the entry for `id`, or `None` if `id` is past the end of the table.
+    pub(crate) fn get(&self, id: Id<K>) -> Option<&V> {
+        self.storage.get(id.index as usize)
+    }
+
+    /// Appends the entry for `id`, which must be the next id after the last entry.
+    pub(crate) fn push(&mut self, id: Id<K>, value: V) {
+        debug_assert_eq!(
+            self.storage.len(),
+            id.index as usize,
+            "DenseSideTable::push must be given the next id in sequence"
+        );
+        self.storage.push(value);
+    }
+}
+
+impl<K, V: Clone + Default> DenseSideTable<K, V> {
+    /// Sets the entry for `id`, filling any gap before it with `V::default()`.
+    pub(crate) fn set(&mut self, id: Id<K>, value: V) {
+        let index = id.index as usize;
+        if self.storage.len() <= index {
+            self.storage.resize(index + 1, V::default());
+        }
+        self.storage[index] = value;
+    }
+}
+
+impl<K, V> Default for DenseSideTable<K, V> {
+    fn default() -> Self {
+        Self { storage: Vec::new(), _marker: std::marker::PhantomData }
+    }
+}
+
+impl<K, V> std::ops::Index<Id<K>> for DenseSideTable<K, V> {
+    type Output = V;
+
+    fn index(&self, id: Id<K>) -> &Self::Output {
+        &self.storage[id.index as usize]
+    }
+}
+
+impl<K, V> std::ops::IndexMut<Id<K>> for DenseSideTable<K, V> {
+    fn index_mut(&mut self, id: Id<K>) -> &mut Self::Output {
+        &mut self.storage[id.index as usize]
+    }
+}
+
 /// A `SparseMap` is a `HashMap` wrapper where each element corresponds
 /// to a unique ID that can be used to access the element. No direct
 /// access to indices is provided.
@@ -263,5 +325,41 @@ impl<T> std::ops::Index<Id<T>> for SparseMap<T> {
 impl<T> std::ops::IndexMut<Id<T>> for SparseMap<T> {
     fn index_mut(&mut self, id: Id<T>) -> &mut Self::Output {
         self.storage.get_mut(&id).expect("Invalid id used in SparseMap::index_mut")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DenseSideTable, Id};
+
+    #[test]
+    fn dense_side_table_set_fills_gaps_with_default() {
+        let mut table = DenseSideTable::<(), u32>::default();
+        table.set(Id::test_new(2), 7);
+
+        assert_eq!(table.get(Id::test_new(0)), Some(&0));
+        assert_eq!(table.get(Id::test_new(2)), Some(&7));
+        assert_eq!(table.get(Id::test_new(3)), None);
+    }
+
+    #[test]
+    fn dense_side_table_serializes_as_a_list() {
+        let mut table = DenseSideTable::<(), u32>::default();
+        table.push(Id::test_new(0), 5);
+        table.push(Id::test_new(1), 6);
+
+        let json = serde_json::to_string(&table).unwrap();
+        assert_eq!(json, "[5,6]");
+
+        let table: DenseSideTable<(), u32> = serde_json::from_str(&json).unwrap();
+        assert_eq!(table[Id::test_new(1)], 6);
+    }
+
+    #[test]
+    #[should_panic(expected = "next id in sequence")]
+    #[cfg(debug_assertions)]
+    fn dense_side_table_push_out_of_sequence_panics() {
+        let mut table = DenseSideTable::<(), u32>::default();
+        table.push(Id::test_new(1), 5);
     }
 }

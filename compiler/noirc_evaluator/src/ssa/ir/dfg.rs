@@ -19,7 +19,7 @@ use super::{
         TerminatorInstruction,
     },
     integer::IntegerConstant,
-    map::DenseMap,
+    map::{DenseMap, DenseSideTable},
     types::{NumericType, Type},
     value::{Value, ValueId, ValueMapping},
 };
@@ -64,10 +64,11 @@ pub(crate) struct DataFlowGraph {
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
     ///
-    /// Indexed by `InstructionId`. Instruction ids are dense indices into `instructions`, so a
-    /// `Vec` gives the same lookups as a map without hashing, and keeps the near-sequential
-    /// access pattern of passes walking a block's instructions cache-friendly.
-    results: Vec<smallvec::SmallVec<[ValueId; 1]>>,
+    /// Instruction ids are dense indices into `instructions`, so a [`DenseSideTable`] gives the
+    /// same lookups as a map without hashing, and keeps the near-sequential access pattern of
+    /// passes walking a block's instructions cache-friendly. It has exactly one entry per
+    /// instruction: `make_instruction` appends it.
+    results: DenseSideTable<Instruction, smallvec::SmallVec<[ValueId; 1]>>,
 
     /// Storage for all of the values defined in this
     /// function.
@@ -110,10 +111,10 @@ pub(crate) struct DataFlowGraph {
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
     ///
-    /// Indexed by `InstructionId`, like `results`. Instructions without a location, including
-    /// ids past the end of the `Vec`, have the default `CallStackId`.
+    /// Instructions without a location, including ids past the end of the table, have the
+    /// default `CallStackId`.
     #[serde(skip)]
-    locations: Vec<CallStackId>,
+    locations: DenseSideTable<Instruction, CallStackId>,
 
     pub(crate) call_stack_data: CallStackHelper,
 
@@ -153,7 +154,7 @@ pub struct GlobalsGraph {
     /// All of the instructions in the global value space.
     /// These are expected to all be `Instruction::MakeArray`
     instructions: DenseMap<Instruction>,
-    results: Vec<smallvec::SmallVec<[ValueId; 1]>>,
+    results: DenseSideTable<Instruction, smallvec::SmallVec<[ValueId; 1]>>,
     #[serde(skip)]
     constants: HashMap<(FieldElement, NumericType), ValueId>,
 }
@@ -257,7 +258,8 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
     ) -> InstructionId {
         let id = self.instructions.insert(instruction_data);
-        self.make_instruction_results(id, ctrl_typevars);
+        let results = self.make_instruction_results(id, ctrl_typevars);
+        self.results.push(id, results);
         id
     }
 
@@ -283,7 +285,7 @@ impl DataFlowGraph {
     ) -> InstructionId {
         let id = self.make_instruction(instruction_data, ctrl_typevars);
         self.blocks[block].insert_instruction(id);
-        set_dense(&mut self.locations, id, call_stack);
+        self.locations.set(id, call_stack);
         id
     }
 
@@ -517,17 +519,12 @@ impl DataFlowGraph {
         self.intrinsics.get(&intrinsic)
     }
 
-    /// Attaches results to the instruction, clearing any previous results.
-    ///
-    /// This does not normally need to be called manually as it is called within
-    /// `make_instruction` automatically.
-    ///
-    /// Returns the results of the instruction
-    pub(crate) fn make_instruction_results(
+    /// Creates the result values of a newly inserted instruction and returns them.
+    fn make_instruction_results(
         &mut self,
         instruction: InstructionId,
         ctrl_typevars: Option<Vec<Type>>,
-    ) {
+    ) -> smallvec::SmallVec<[ValueId; 1]> {
         let mut results = smallvec::SmallVec::new();
         let mut position = 0;
         self.for_each_instruction_result_type(instruction, ctrl_typevars, |this, typ| {
@@ -535,8 +532,7 @@ impl DataFlowGraph {
             position += 1;
             results.push(result);
         });
-
-        set_dense(&mut self.results, instruction, results);
+        results
     }
 
     /// Return the result types of this instruction.
@@ -700,10 +696,7 @@ impl DataFlowGraph {
 
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
-        self.results
-            .get(instruction_id.to_u32() as usize)
-            .expect("expected a list of Values")
-            .as_slice()
+        self.results.get(instruction_id).expect("expected a list of Values").as_slice()
     }
 
     /// Returns N results, asserting that there are exactly N items.
@@ -723,7 +716,7 @@ impl DataFlowGraph {
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
         self.instructions[instruction] = Instruction::Noop;
-        self.results[instruction.to_u32() as usize] = smallvec::SmallVec::new();
+        self.results[instruction] = smallvec::SmallVec::new();
     }
 
     /// Remove instructions for which the `keep` functions returns `false`.
@@ -886,7 +879,7 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
-        self.locations.get(instruction.to_u32() as usize).copied().unwrap_or_default()
+        self.locations.get(instruction).copied().unwrap_or_default()
     }
 
     pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {
@@ -1193,16 +1186,6 @@ impl std::ops::Index<usize> for InsertInstructionResult<'_> {
             }
         }
     }
-}
-
-/// Sets the entry for `id` in a side table indexed by `InstructionId`, growing it with default
-/// entries as needed.
-fn set_dense<T: Clone + Default>(table: &mut Vec<T>, id: InstructionId, value: T) {
-    let index = id.to_u32() as usize;
-    if table.len() <= index {
-        table.resize(index + 1, T::default());
-    }
-    table[index] = value;
 }
 
 #[cfg(test)]
