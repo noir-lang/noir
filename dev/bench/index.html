@@ -137,6 +137,7 @@
       .chart-box { position: relative; height: 140px; }
 
       .table-wrap { overflow-x: auto; }
+      .gap { color: var(--muted); font-size: 11px; white-space: nowrap; }
       table.changes td { overflow-wrap: anywhere; }
 
       @media (max-width: 700px) {
@@ -263,10 +264,11 @@
         // ---- Data preparation -------------------------------------------------
 
         // suites: [{ name, benches: Map<benchName, Point[]> }]
-        // Point: { commit, date, tool, value, unit, range, extra }
+        // Point: { commit, date, tool, value, unit, range, extra, entry }, where `entry` is the
+        // position of the commit among all commits recorded for the suite.
         const suites = Object.keys(data.entries).map(name => {
           const benches = new Map();
-          for (const entry of data.entries[name]) {
+          data.entries[name].forEach((entry, entryIndex) => {
             for (const bench of entry.benches) {
               let points = benches.get(bench.name);
               if (!points) {
@@ -281,9 +283,10 @@
                 unit: bench.unit,
                 range: bench.range,
                 extra: bench.extra,
+                entry: entryIndex,
               });
             }
-          }
+          });
           return { name, benches };
         });
 
@@ -294,7 +297,7 @@
         // Steps at the current threshold for every benchmark that passes the name filter,
         // computed once per render so the tab badges, the tables and the chart colours all
         // come from the same result.
-        // Map<suiteName, { benches: [{ name, points, steps }], rows: Step & { suite, bench, point }[] }>
+        // Map<suiteName, { benches: [{ name, points, steps }], rows: Step & { suite, bench, point, prevPoint }[] }>
         let analysis = new Map();
         function analyse() {
           analysis = new Map(suites.map(suite => {
@@ -304,7 +307,9 @@
               if (!matchesFilter(name)) continue;
               const steps = BenchSteps.stepsOf(points, state.threshold);
               benches.push({ name, points, steps });
-              for (const step of steps) rows.push(Object.assign({ suite: suite.name, bench: name, point: points[step.index] }, step));
+              for (const step of steps) {
+                rows.push(Object.assign({ suite: suite.name, bench: name, point: points[step.index], prevPoint: points[step.index - 1] }, step));
+              }
             }
             return [suite.name, { benches, rows }];
           }));
@@ -337,6 +342,18 @@
         }
         function commitLink(commit) {
           return el('a', { href: commit.url, target: '_blank', rel: 'noopener' }, [el('code', { text: commit.id.slice(0, 7) })]);
+        }
+        function missingText(n) {
+          return n + (n === 1 ? ' commit' : ' commits') + ' with no result';
+        }
+        // When a benchmark has no value for the commits just before a step, the change may come
+        // from any of them: link the whole range instead of implying this commit caused it.
+        function gapNote(row) {
+          if (!row.missing) return document.createTextNode('');
+          const href = data.repoUrl + '/compare/' + row.prevPoint.commit.id + '...' + row.point.commit.id;
+          return el('span', { class: 'gap', title: 'The change may come from any commit in this range' }, [
+            ' after ', el('a', { href, target: '_blank', rel: 'noopener', text: missingText(row.missing) }),
+          ]);
         }
 
         // ---- Routing ----------------------------------------------------------
@@ -459,6 +476,7 @@
               topCell.appendChild(el('a', { href: hrefFor(r.suite, r.bench), title: r.suite }, [r.bench + ' ']));
               topCell.appendChild(el('span', { class: r.pct > 0 ? 'worse' : 'better', text: fmtPct(r.raw) }));
               topCell.appendChild(el('span', { class: 'meta', text: ' (' + r.suite + ')' }));
+              topCell.appendChild(gapNote(r));
             });
             tbody.appendChild(el('tr', {}, [
               el('td', {}, [commitLink(g.commit)]),
@@ -492,7 +510,7 @@
                 changeCell(r),
                 el('td', { class: 'num labelled', 'data-label': 'Before', text: fmtValue(r.before) + ' ' + r.point.unit }),
                 el('td', { class: 'num labelled', 'data-label': 'After', text: fmtValue(r.after) + ' ' + r.point.unit }),
-                el('td', {}, [commitLink(r.point.commit)]),
+                el('td', {}, [commitLink(r.point.commit), gapNote(r)]),
                 el('td', { class: 'msg', title: r.point.commit.message, text: firstLine(r.point.commit.message) }),
               ]));
             }
@@ -594,9 +612,15 @@
                     if (p.range) label += ' (' + p.range + ')';
                     const c = changeAt.get(item.index);
                     if (c) label += '  ' + fmtPct(c.raw) + ' vs previous';
+                    const lines = [label];
                     const s = stepAt.get(item.index);
-                    if (!s || BenchSteps.isDeterministic(points)) return label;
-                    return [label, 'Step: ' + fmtValue(s.before) + ' → ' + fmtValue(s.after) + ' ' + p.unit + ' (' + fmtPct(s.raw) + ')'];
+                    // A step measured against the previous point repeats the line above.
+                    if (s && !(c && s.before === c.before && s.after === c.after)) {
+                      lines.push('Step: ' + fmtValue(s.before) + ' → ' + fmtValue(s.after) + ' ' + p.unit + ' (' + fmtPct(s.raw) + ')');
+                    }
+                    const missing = (c || s || {}).missing;
+                    if (missing) lines.push('First value after ' + missingText(missing));
+                    return lines;
                   },
                   afterLabel: item => points[item.index].extra || '',
                 },

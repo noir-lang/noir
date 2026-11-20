@@ -1,22 +1,27 @@
 // Step detection for the benchmark dashboard: decides which commits moved a benchmark.
 //
 // Loaded by index.html as a classic script (exposes the global `BenchSteps`) and by
-// steps.test.js under Node (`node --test dev/bench/`), which pins the behaviour below.
+// steps.test.js under Node (`node --test dev/bench/steps.test.js`), which pins the behaviour below.
 //
-// A point is { value, unit, tool, ... } as recorded by github-action-benchmark; points are in
-// commit order. A step is { index, before, after, raw, pct }:
-//   - index:  position of the commit that introduced the change;
+// A point is { value, unit, tool, entry?, ... } as recorded by github-action-benchmark; points
+// are in commit order. `entry` is the point's position among all the commits recorded for its
+// suite: a benchmark can be missing from some of them, so consecutive points are not always
+// consecutive commits. A step is { index, before, after, raw, pct, missing }:
+//   - index:   position of the commit that introduced the change;
 //   - before, after: the levels on either side of it;
-//   - raw:    signed relative change in percent;
-//   - pct:    the same, signed so that a positive value is always a regression.
+//   - raw:     signed relative change in percent;
+//   - pct:     the same, signed so that a positive value is always a regression;
+//   - missing: how many commits between this point and the previous one have no value. When
+//              it is not 0, the change may come from any of them, not only from this commit.
 'use strict';
 
 const BenchSteps = (() => {
   const BIGGER_IS_BETTER = new Set(['customBiggerIsBetter', 'benchmarkjs', 'benchmarkluau']);
 
   // Counts and sizes are reproducible: the same commit always yields the same value, give or
-  // take a few KB of allocator jitter in the memory reports. Every change at or above the
-  // threshold between two consecutive commits is real, including one reverted a commit later.
+  // take ~0.01 MB of allocator jitter in the memory reports (far below any useful threshold).
+  // Every change at or above the threshold between two consecutive commits is real, including
+  // one reverted a commit later, and however few units it is.
   const DETERMINISTIC_UNITS = new Set(['opcodes', 'gates', 'B', 'bytes', 'KB', 'KiB', 'MB', 'MiB', 'GB', 'GiB']);
 
   // Timings run on shared CI runners and routinely jump 20-80% between consecutive commits
@@ -28,7 +33,8 @@ const BenchSteps = (() => {
   //   - NOISE_MULTIPLE times the benchmark's noise (the 75th percentile of its
   //     commit-to-commit relative changes, excluding the largest, which in a short series
   //     is the step being looked for), and
-  //   - more than RESOLUTION_MULTIPLE times the measurement's rounding step.
+  //   - more than RESOLUTION_MULTIPLE times the measurement's rounding step, so that
+  //     millisecond rounding (2ms -> 3ms) is not a step.
   // Both windows need at least MIN_SIDE points: the median of three values ignores a single
   // spike, while the median of two is their mean and moves by half the spike. So a timing
   // change on one of the two newest (or two oldest) commits is not flagged yet. A commit is
@@ -72,28 +78,33 @@ const BenchSteps = (() => {
     return points.length > 0 && DETERMINISTIC_UNITS.has(points[0].unit);
   }
 
-  // Change of each point against the previous one: { index, before, after, raw, pct }.
+  function missingBefore(points, i) {
+    const a = points[i - 1].entry;
+    const b = points[i].entry;
+    return a === undefined || b === undefined ? 0 : Math.max(0, b - a - 1);
+  }
+
+  function step(points, index, before, after) {
+    const raw = relative(before, after);
+    return { index, before, after, raw, pct: regressionSign(points[index]) * raw, missing: missingBefore(points, index) };
+  }
+
+  // Change of each point against the previous one, in the same shape as a step.
   function changesOf(points) {
     const out = [];
     for (let i = 1; i < points.length; i++) {
-      const before = points[i - 1].value;
-      const after = points[i].value;
-      if (!before) continue;
-      const raw = relative(before, after);
-      out.push({ index: i, before, after, raw, pct: regressionSign(points[i]) * raw });
+      if (points[i - 1].value) out.push(step(points, i, points[i - 1].value, points[i].value));
     }
     return out;
   }
 
   function stepsOf(points, threshold) {
-    const minAbs = RESOLUTION_MULTIPLE * resolutionOf(points.map(p => p.value));
-    if (isDeterministic(points)) {
-      return changesOf(points).filter(c => Math.abs(c.raw) >= threshold && Math.abs(c.after - c.before) > minAbs);
-    }
-    return windowedSteps(points, threshold, minAbs);
+    if (isDeterministic(points)) return changesOf(points).filter(c => Math.abs(c.raw) >= threshold);
+    return windowedSteps(points, threshold);
   }
 
-  function windowedSteps(points, threshold, minAbs) {
+  function windowedSteps(points, threshold) {
+    const minAbs = RESOLUTION_MULTIPLE * resolutionOf(points.map(p => p.value));
     const vals = points.map(p => p.value);
     const rel = changesOf(points).map(c => Math.abs(c.raw)).sort((a, b) => a - b).slice(0, -1);
     const cutoff = Math.max(threshold, NOISE_MULTIPLE * quantile(rel, 0.75));
@@ -107,8 +118,8 @@ const BenchSteps = (() => {
       // otherwise the windows straddle a change that happened at a neighbouring commit.
       const nearer = (v, a, b) => Math.abs(v - a) < Math.abs(v - b);
       if (!nearer(vals[i], after, before) || !nearer(vals[i - 1], before, after)) continue;
-      const raw = relative(before, after);
-      if (Math.abs(raw) >= cutoff) cand.push({ index: i, before, after, raw, pct: regressionSign(points[i]) * raw });
+      const c = step(points, i, before, after);
+      if (Math.abs(c.raw) >= cutoff) cand.push(c);
     }
 
     // The window medians shift over several neighbouring commits around one real step.
@@ -132,7 +143,7 @@ const BenchSteps = (() => {
     return steps;
   }
 
-  return { WINDOW, MIN_SIDE, NOISE_MULTIPLE, changesOf, stepsOf, isDeterministic };
+  return { WINDOW, MIN_SIDE, NOISE_MULTIPLE, changesOf, stepsOf };
 })();
 
 if (typeof module !== 'undefined') module.exports = BenchSteps;
