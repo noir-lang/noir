@@ -169,6 +169,17 @@ projects:
     brillig-execution-timeout: 0.6
     compilation-memory-limit: 450
     execution-memory-limit: 400
+  fp12-tower-hints:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/fp12_tower_hints
+    num_compile_runs: 3
+    num_execute_runs: 3
+    compilation-timeout: 40
+    execution-timeout: 0.5
+    brillig-compilation-timeout: 40
+    brillig-execution-timeout: 0.5
+    compilation-memory-limit: 900
+    execution-memory-limit: 450
   sha512-100-bytes:
     repo: noir-lang/noir
     path: test_programs/benchmarks/sha512_100_bytes
