@@ -35,8 +35,6 @@ use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
 use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
-use serde_with::DisplayFromStr;
-use serde_with::serde_as;
 use simplify::{SimplifyResult, simplify};
 
 pub(crate) mod simplify;
@@ -46,7 +44,6 @@ pub(crate) mod vector_capacity;
 /// its blocks, instructions, and values. This struct is largely responsible for
 /// owning most data in a function and handing out Ids to this data that can be
 /// shared without worrying about ownership.
-#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct DataFlowGraph {
     /// Runtime of the [function][super::function::Function] that owns this [`DataFlowGraph`].
@@ -66,8 +63,11 @@ pub(crate) struct DataFlowGraph {
     /// Currently, we need to define them in a better way
     /// Call instructions require the func signature, but
     /// other instructions may need some more reading on my part
-    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
-    results: HashMap<InstructionId, smallvec::SmallVec<[ValueId; 1]>>,
+    ///
+    /// Indexed by `InstructionId`. Instruction ids are dense indices into `instructions`, so a
+    /// `Vec` gives the same lookups as a map without hashing, and keeps the near-sequential
+    /// access pattern of passes walking a block's instructions cache-friendly.
+    results: Vec<smallvec::SmallVec<[ValueId; 1]>>,
 
     /// Storage for all of the values defined in this
     /// function.
@@ -109,8 +109,11 @@ pub(crate) struct DataFlowGraph {
     ///
     /// Instructions inserted by internal SSA passes that don't correspond to user code
     /// may not have a corresponding location.
+    ///
+    /// Indexed by `InstructionId`, like `results`. Instructions without a location, including
+    /// ids past the end of the `Vec`, have the default `CallStackId`.
     #[serde(skip)]
-    locations: HashMap<InstructionId, CallStackId>,
+    locations: Vec<CallStackId>,
 
     pub(crate) call_stack_data: CallStackHelper,
 
@@ -143,7 +146,6 @@ pub(crate) struct DataFlowGraph {
 /// The `GlobalsGraph` contains the actual global data.
 /// Global data is expected to only be numeric constants or array constants (which are represented by `Instruction::MakeArray`).
 /// The global's data will shared across functions and should be accessible inside of a function's `DataFlowGraph`.
-#[serde_as]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GlobalsGraph {
     /// Storage for all of the global values
@@ -151,8 +153,7 @@ pub struct GlobalsGraph {
     /// All of the instructions in the global value space.
     /// These are expected to all be `Instruction::MakeArray`
     instructions: DenseMap<Instruction>,
-    #[serde_as(as = "HashMap<DisplayFromStr, _>")]
-    results: HashMap<InstructionId, smallvec::SmallVec<[ValueId; 1]>>,
+    results: Vec<smallvec::SmallVec<[ValueId; 1]>>,
     #[serde(skip)]
     constants: HashMap<(FieldElement, NumericType), ValueId>,
 }
@@ -282,7 +283,7 @@ impl DataFlowGraph {
     ) -> InstructionId {
         let id = self.make_instruction(instruction_data, ctrl_typevars);
         self.blocks[block].insert_instruction(id);
-        self.locations.insert(id, call_stack);
+        set_dense(&mut self.locations, id, call_stack);
         id
     }
 
@@ -535,7 +536,7 @@ impl DataFlowGraph {
             results.push(result);
         });
 
-        self.results.insert(instruction, results);
+        set_dense(&mut self.results, instruction, results);
     }
 
     /// Return the result types of this instruction.
@@ -699,7 +700,10 @@ impl DataFlowGraph {
 
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
-        self.results.get(&instruction_id).expect("expected a list of Values").as_slice()
+        self.results
+            .get(instruction_id.to_u32() as usize)
+            .expect("expected a list of Values")
+            .as_slice()
     }
 
     /// Returns N results, asserting that there are exactly N items.
@@ -719,7 +723,7 @@ impl DataFlowGraph {
     /// Doing this avoids shifting over each instruction after this one in its block's instructions vector.
     pub(crate) fn remove_instruction(&mut self, instruction: InstructionId) {
         self.instructions[instruction] = Instruction::Noop;
-        self.results.insert(instruction, smallvec::SmallVec::new());
+        self.results[instruction.to_u32() as usize] = smallvec::SmallVec::new();
     }
 
     /// Remove instructions for which the `keep` functions returns `false`.
@@ -882,7 +886,7 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn get_instruction_call_stack_id(&self, instruction: InstructionId) -> CallStackId {
-        self.locations.get(&instruction).copied().unwrap_or_default()
+        self.locations.get(instruction.to_u32() as usize).copied().unwrap_or_default()
     }
 
     pub(crate) fn get_call_stack(&self, call_stack: CallStackId) -> CallStack {
@@ -1189,6 +1193,16 @@ impl std::ops::Index<usize> for InsertInstructionResult<'_> {
             }
         }
     }
+}
+
+/// Sets the entry for `id` in a side table indexed by `InstructionId`, growing it with default
+/// entries as needed.
+fn set_dense<T: Clone + Default>(table: &mut Vec<T>, id: InstructionId, value: T) {
+    let index = id.to_u32() as usize;
+    if table.len() <= index {
+        table.resize(index + 1, T::default());
+    }
+    table[index] = value;
 }
 
 #[cfg(test)]
