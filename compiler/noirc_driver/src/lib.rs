@@ -338,7 +338,8 @@ impl Default for CompileOptions {
 impl CompileOptions {
     /// Whether compiling a function with [`compile_no_check`] prints or writes out its intermediate
     /// steps (SSA, Brillig, the monomorphized program, per-pass timings). Output from functions
-    /// compiled at the same time interleaves.
+    /// compiled at the same time interleaves, and a cached artifact has no steps to show, so
+    /// [`reusable_cached_program`] compiles again when this is set.
     fn prints_compilation_steps(&self) -> bool {
         self.show_ssa
             || !self.show_ssa_pass.is_empty()
@@ -1062,17 +1063,15 @@ fn reusable_cached_program(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Option<CompiledProgram> {
-    // If user has specified that they want to see intermediate steps printed then we should
-    // force compilation even if the program hasn't changed.
+    // A program that hasn't changed is still compiled again when the user asked to see its
+    // compilation steps or its ACIR, which a cached artifact can't show, or for an option that
+    // changes the compiled program without changing the monomorphized one it was hashed from.
     let force_compile = force_compile
+        || options.prints_compilation_steps()
         || options.print_acir
-        || options.show_brillig
         || options.force_brillig
-        || count_array_copies
-        || options.show_ssa
-        || !options.show_ssa_pass.is_empty()
-        || options.emit_ssa
-        || options.minimal_ssa;
+        || options.minimal_ssa
+        || count_array_copies;
 
     let cached_program = cached_program?;
     if force_compile || cached_program.hash != monomorphized.hash {
