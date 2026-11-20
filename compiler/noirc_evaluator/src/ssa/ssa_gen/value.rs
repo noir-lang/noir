@@ -178,4 +178,18 @@ impl Tree<Value> {
     pub(super) fn into_value_list(self, ctx: &mut FunctionContext) -> Vec<IrValueId> {
         vecmap(self.flatten(), |value| value.eval(ctx))
     }
+
+    /// Loads every `Value::Mutable` leaf at this point, so the result no longer depends on
+    /// stores made to those cells afterwards.
+    pub(super) fn eval_now(self, ctx: &mut FunctionContext) -> Values {
+        self.map(|value| value.eval(ctx).into())
+    }
+
+    /// True if no leaf is a `Value::Mutable` still waiting to be loaded.
+    pub(super) fn is_evaluated(&self) -> bool {
+        match self {
+            Tree::Branch(trees) => trees.iter().all(Tree::is_evaluated),
+            Tree::Leaf(value) => matches!(value, Value::Normal(_)),
+        }
+    }
 }
