@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795191181116,
+  "lastUpdate": 1795191239542,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23256,48 +23256,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "5c98fecd3fe6c51bd9e3a605cafe412d25ae8915",
-          "message": "chore: bump Node.js to 22.23.4 (#14086)",
-          "timestamp": "2026-10-22T21:58:13Z",
-          "tree_id": "cbf437c2d02a46f79609e0d74197b3f965fecae8",
-          "url": "https://github.com/noir-lang/noir/commit/5c98fecd3fe6c51bd9e3a605cafe412d25ae8915"
-        },
-        "date": 1792707992072,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 74146,
-            "range": "± 2196",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 67271,
-            "range": "± 2212",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1903251,
-            "range": "± 42296",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "bb56b16a43aee6f6c7ce2cddc31af409c2dfb0e1",
           "message": "chore: bump bb to 6.0.0 (#13980)",
           "timestamp": "2026-10-23T10:46:48Z",
@@ -25339,6 +25297,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2212409,
             "range": "± 3541",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea305739aeb89bbbcd7bc0e3ffd54bf296456c47",
+          "message": "fix(ssa): explore Brillig argument ancestry lazily in the missing constraints check (#14202)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2026-11-20T14:51:41Z",
+          "tree_id": "1dbd71fbf208a962d7902203a72c7f731b797fa6",
+          "url": "https://github.com/noir-lang/noir/commit/ea305739aeb89bbbcd7bc0e3ffd54bf296456c47"
+        },
+        "date": 1795191232092,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 164108,
+            "range": "± 261",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138257,
+            "range": "± 284",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2212473,
+            "range": "± 1931",
             "unit": "ns/iter"
           }
         ]
