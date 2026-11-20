@@ -20,12 +20,13 @@ use itertools::Itertools;
 use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, VecDeque};
 
 use super::brillig_block_variables::{BlockVariables, allocate_value_with_type};
 use super::brillig_fn::FunctionContext;
 use super::brillig_globals::HoistedConstantsToBrilligGlobals;
 use super::constant_allocation::InstructionLocation;
+use super::spill_manager::Promotion;
 
 /// Context structure for compiling a [function block][crate::ssa::ir::basic_block::BasicBlock] into Brillig bytecode.
 pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
@@ -49,6 +50,22 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     /// For example, liveness analysis for globals is unnecessary (and adds complexity),
     /// and instead globals live throughout the entirety of the program.
     pub(crate) building_globals: bool,
+}
+
+/// Register-to-register moves returned by `jmp_setup` for the caller to emit, plus the
+/// temporaries some of them read from. The temporaries stay allocated until this is dropped,
+/// so nothing can reuse them before the moves have been emitted.
+struct ParallelMoves<Registers: RegisterAllocator> {
+    moves: Vec<(MemoryAddress, MemoryAddress)>,
+    _temps: Vec<Allocated<MemoryAddress, Registers>>,
+}
+
+/// A store of a jump argument into its destination parameter's permanent spill slot.
+struct ParamSlotStore {
+    arg: ValueId,
+    param: ValueId,
+    /// The parameter's spill slot.
+    offset: usize,
 }
 
 impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
@@ -193,14 +210,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             .is_some_and(|sm| sm.is_spilled(value_id, &self.variables))
     }
 
-    /// Returns `true` if the value was transiently spilled and is currently reloaded into a register.
-    fn is_transient_reloaded(&self, value_id: &ValueId) -> bool {
-        self.function_context
-            .spill_manager
-            .as_ref()
-            .is_some_and(|sm| sm.is_transient_reloaded(value_id, &self.variables))
-    }
-
     /// Check if allocating `n` more registers would exceed the stack frame limit.
     fn needs_spill_for(&self, n: usize) -> bool {
         if self.building_globals || !self.spill_enabled() {
@@ -288,26 +297,22 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     pub(crate) fn spill_value(&mut self, value_id: ValueId, permanent: bool, emit_store: bool) {
         // For a permanent spill, try to promote an existing record first.
         if permanent {
-            // A reloaded transient value holds a register that must be freed when promoted to a
-            // permanent spill. A value not currently in a register must not have its register
-            // freed here — it may still be live (e.g. the condition register of a jmpif when
-            // spill_non_param_live_ins fires multiple times). Capture this before promoting.
-            let was_transient_reloaded = self.is_transient_reloaded(&value_id);
-            let promoted = self
+            let sm = self
                 .function_context
                 .spill_manager
                 .as_mut()
-                .expect("ICE: spill_value called without spill manager")
-                .ensure_permanent_spill(&value_id);
-            if promoted {
-                if was_transient_reloaded {
+                .expect("ICE: spill_value called without spill manager");
+            match sm.ensure_permanent_spill(&value_id, &self.variables) {
+                Promotion::NoRecord => {}
+                Promotion::KeepsRegister => return,
+                Promotion::FreesRegister => {
                     self.variables.remove_variable(
                         &value_id,
                         self.function_context,
                         self.brillig_context,
                     );
+                    return;
                 }
-                return;
             }
         }
 
@@ -590,8 +595,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // predecessor's terminator.
                 self.spill_non_param_live_ins(*then_destination, dfg);
                 self.spill_non_param_live_ins(*else_destination, dfg);
-                let condition = self.convert_ssa_single_addr_value(*condition, dfg);
-                self.jmpif_to_then_block(dfg, condition, *then_destination, then_arguments);
+                self.jmpif_to_then_block(dfg, *condition, *then_destination, then_arguments);
                 self.jmp(dfg, *else_destination, else_arguments);
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
@@ -617,7 +621,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
     fn jmp(&mut self, dfg: &DataFlowGraph, destination: BasicBlockId, arguments: &[ValueId]) {
         let moves = self.jmp_setup(dfg, destination, arguments, None);
-        for (src, dst) in &moves {
+        for (src, dst) in &moves.moves {
             self.brillig_context.mov_instruction(*dst, *src);
         }
 
@@ -628,8 +632,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// Lower a jmp/jmpif's parameter passing into Brillig instructions.
     ///
     /// Spill-slot stores for params with eagerly-spilled destinations are emitted
-    /// directly here. Register-to-register moves are *returned* (not emitted) so
-    /// the caller can wrap them with a conditional move when lowering a `JmpIf`
+    /// directly here, by [`Self::codegen_param_slot_stores`]. Register-to-register moves
+    /// are *returned* (not emitted) so the caller can wrap them with a conditional move when lowering a `JmpIf`
     /// then-branch. When `condition` is `Some(_)`, the spill-slot stores are also
     /// guarded by the condition; this prevents a `JmpIf` else-branch from leaving a
     /// then-arg in the then-destination param's spill slot.
@@ -639,7 +643,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         destination: BasicBlockId,
         arguments: &[ValueId],
         condition: Option<MemoryAddress>,
-    ) -> Vec<(MemoryAddress, MemoryAddress)> {
+    ) -> ParallelMoves<Registers> {
         // Permanently spill non-param live-ins BEFORE the arg/param parallel moves.
         // The parallel moves may overwrite registers that hold values
         // we need to store to spill slots. By spilling first, we guarantee
@@ -648,12 +652,9 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         self.spill_non_param_live_ins(destination, dfg);
 
         let destination_block = &dfg[destination];
-        let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
-
+        let mut slot_stores = Vec::new();
+        let mut register_params = Vec::new();
         for (arg, param) in arguments.iter().zip_eq(destination_block.parameters()) {
-            let arg_var = self.convert_ssa_value(*arg, dfg);
-            let arg_reg = arg_var.extract_register();
-
             // Check if the param was eagerly spilled as a successor block
             // param. Use the permanent record (not the transient `spilled`
             // map) so ALL Jmp sites consistently write to the spill slot,
@@ -663,23 +664,25 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 .spill_manager
                 .as_ref()
                 .and_then(|sm| sm.get_permanent_spill_offset(param));
-
-            if let Some(offset) = spill_offset {
-                // Param was spilled — write arg directly to param's spill slot.
-                // Guard the store with `condition` for JmpIf then-args so an
-                // else-taken branch leaves the slot intact.
-                match condition {
-                    Some(c) => self.codegen_conditional_spill_store(offset, arg_reg, c),
-                    None => self.codegen_spill_store(offset, arg_reg),
+            match spill_offset {
+                Some(offset) => {
+                    slot_stores.push(ParamSlotStore { arg: *arg, param: *param, offset });
                 }
-            } else {
-                let param_reg =
-                    self.variables.get_allocation(self.function_context, *param).extract_register();
+                None => register_params.push((*arg, *param)),
+            }
+        }
 
-                // Filter out self-moves (e.g. from coalesced args that already share the param register).
-                if arg_reg != param_reg {
-                    moves.push((arg_reg, param_reg));
-                }
+        self.codegen_param_slot_stores(dfg, slot_stores, condition);
+
+        let mut moves: Vec<(MemoryAddress, MemoryAddress)> = Vec::new();
+        for (arg, param) in register_params {
+            let arg_reg = self.convert_ssa_value(arg, dfg).extract_register();
+            let param_reg =
+                self.variables.get_allocation(self.function_context, param).extract_register();
+
+            // Filter out self-moves (e.g. from coalesced args that already share the param register).
+            if arg_reg != param_reg {
+                moves.push((arg_reg, param_reg));
             }
         }
 
@@ -694,9 +697,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         // temporary first.
         let dest_set: HashSet<MemoryAddress> = moves.iter().map(|(_, d)| *d).collect();
 
-        // `Allocated` automatically deallocates the register when dropped,
-        // so we collect the temporaries here to keep them alive until all
-        // moves have been emitted.
         let mut temps = Vec::new();
         for (src, _dst) in &mut moves {
             if dest_set.contains(src) {
@@ -706,7 +706,113 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 temps.push(temp);
             }
         }
-        moves
+        ParallelMoves { moves, _temps: temps }
+    }
+
+    /// Write each argument into its destination parameter's spill slot, as one simultaneous
+    /// assignment.
+    ///
+    /// An argument can itself be a parameter of the destination (a loop passing its state
+    /// back to its own header, e.g. `jmp b1(v3, v2)` into `b1(v2, v3)`). Such a parameter's
+    /// value lives in the very slot this edge writes, and reading it may mean reloading from
+    /// that slot — the argument may be spilled already, or be evicted while earlier stores
+    /// make room for reloads, and an evicted value with a slot is never stored back. So a
+    /// parameter's slot is written only once no pending store still reads that parameter.
+    /// When every pending store is blocked the remaining stores form cycles; one is broken by
+    /// copying a blocked parameter into a register that no SSA value owns and redirecting its
+    /// readers to the copy.
+    fn codegen_param_slot_stores(
+        &mut self,
+        dfg: &DataFlowGraph,
+        stores: Vec<ParamSlotStore>,
+        condition: Option<MemoryAddress>,
+    ) {
+        // Where a pending store reads its argument from.
+        #[derive(Clone, Copy)]
+        enum Source {
+            Value(ValueId),
+            Register(MemoryAddress),
+        }
+
+        // A store that writes its own parameter back is never blocked and blocks nothing.
+        let reads_other_param = |store: &ParamSlotStore| store.arg != store.param;
+
+        let store_of_param: HashMap<ValueId, usize> =
+            stores.iter().enumerate().map(|(index, store)| (store.param, index)).collect();
+        // For each destination parameter, the pending stores that still read it.
+        let mut readers: HashMap<ValueId, Vec<usize>> = HashMap::default();
+        for (index, store) in stores.iter().enumerate() {
+            if reads_other_param(store) && store_of_param.contains_key(&store.arg) {
+                readers.entry(store.arg).or_default().push(index);
+            }
+        }
+        let is_blocked = |readers: &HashMap<ValueId, Vec<usize>>, param: &ValueId| {
+            readers.get(param).is_some_and(|indices| !indices.is_empty())
+        };
+
+        let mut pending: Vec<Option<(Source, usize)>> =
+            stores.iter().map(|store| Some((Source::Value(store.arg), store.offset))).collect();
+        // Processed in argument order, so an edge without hazards emits its stores unchanged.
+        let mut ready: VecDeque<usize> =
+            (0..stores.len()).filter(|&i| !is_blocked(&readers, &stores[i].param)).collect();
+        let mut remaining = stores.len();
+        // The current cycle-breaking copy. When every pending store is blocked, each pending
+        // parameter is read by exactly one pending store, so the pending stores form disjoint
+        // cycles; the ready loop then emits a broken cycle completely, including the copy's only
+        // reader, before the next break. One copy at a time is therefore enough.
+        let mut copy: Option<Allocated<MemoryAddress, Registers>> = None;
+
+        while remaining > 0 {
+            while let Some(index) = ready.pop_front() {
+                let Some((source, offset)) = pending[index].take() else {
+                    continue;
+                };
+                remaining -= 1;
+                let src = match source {
+                    Source::Value(value) => self.convert_ssa_value(value, dfg).extract_register(),
+                    Source::Register(register) => register,
+                };
+                match condition {
+                    Some(c) => self.codegen_conditional_spill_store(offset, src, c),
+                    None => self.codegen_spill_store(offset, src),
+                }
+
+                // This store no longer reads its argument, which may unblock that
+                // parameter's own store.
+                let store = &stores[index];
+                if let Source::Value(arg) = source
+                    && reads_other_param(store)
+                    && let Some(indices) = readers.get_mut(&arg)
+                {
+                    indices.retain(|&reader| reader != index);
+                    if indices.is_empty() {
+                        ready.push_back(store_of_param[&arg]);
+                    }
+                }
+            }
+
+            if remaining == 0 {
+                break;
+            }
+
+            // Every pending store is blocked by another pending store reading its parameter.
+            let blocked = pending.iter().position(Option::is_some).expect("a store is pending");
+            let param = stores[blocked].param;
+            // Release the previous cycle's copy before taking room for this one.
+            drop(copy.take());
+            // One register for a possible reload of `param`, one for the copy.
+            self.ensure_register_capacity(2);
+            let value = self.convert_ssa_value(param, dfg).extract_register();
+            let new_copy = self.brillig_context.allocate_register();
+            self.brillig_context.mov_instruction(*new_copy, value);
+            for reader in readers.remove(&param).unwrap_or_default() {
+                if let Some((source, _)) = &mut pending[reader] {
+                    *source = Source::Register(*new_copy);
+                }
+            }
+            copy = Some(new_copy);
+            ready.push_back(blocked);
+        }
     }
 
     /// Conditionally move only the `then_arguments` of a jmpif terminator then
@@ -724,22 +830,47 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// arguments can be moved unconditionally. The same applies to spill-slot writes for
     /// then-arguments whose destination param was eagerly spilled — those writes are guarded
     /// by `condition` inside [`Self::jmp_setup`].
+    ///
+    /// With then-arguments, the condition is read many times: as the guard of every
+    /// conditional spill store and conditional move, and finally by the `JumpIf`. Its own
+    /// register is not safe across those reads: a then-move targets it when the condition is
+    /// a parameter of `then_destination`, and a then-argument reload can evict it and hand its
+    /// register to the reloaded value. So the edge is guarded by a private copy, which is
+    /// neither an SSA value (the spill LRU cannot evict it) nor a block parameter (no move
+    /// targets it). Without then-arguments the condition is read once, by the `JumpIf`, and
+    /// its own register is used.
     fn jmpif_to_then_block(
         &mut self,
         dfg: &DataFlowGraph,
-        condition: SingleAddrVariable,
+        condition: ValueId,
         then_destination: BasicBlockId,
         then_arguments: &[ValueId],
     ) {
-        let moves = self.jmp_setup(dfg, then_destination, then_arguments, Some(condition.address));
-        for (src, dst) in &moves {
+        // `_predicate` keeps the private copy allocated until the `JumpIf` has been emitted.
+        let (condition, _predicate) = if then_arguments.is_empty() {
+            (self.convert_ssa_single_addr_value(condition, dfg).address, None)
+        } else {
+            // One register for a possible reload of the condition, one for the copy.
+            self.ensure_register_capacity(2);
+            let condition = self.convert_ssa_single_addr_value(condition, dfg).address;
+            let predicate = self.brillig_context.allocate_register();
+            self.brillig_context.mov_instruction(*predicate, condition);
+            (*predicate, Some(predicate))
+        };
+
+        let moves = self.jmp_setup(dfg, then_destination, then_arguments, Some(condition));
+        for (src, dst) in &moves.moves {
+            assert_ne!(
+                *dst, condition,
+                "ICE: JmpIf then-argument move would overwrite the branch condition register"
+            );
             // The else_address is the same as the destination here to avoid modification if the
             // condition is false.
-            self.brillig_context.conditional_move_instruction(condition.address, *src, *dst, *dst);
+            self.brillig_context.conditional_move_instruction(condition, *src, *dst, *dst);
         }
 
         self.brillig_context.jump_if_instruction(
-            condition.address,
+            condition,
             self.create_block_label_for_current_function(then_destination),
         );
     }
