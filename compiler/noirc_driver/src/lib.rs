@@ -339,7 +339,7 @@ impl CompileOptions {
     /// Whether compiling a function with [`compile_no_check`] prints or writes out its intermediate
     /// steps (SSA, Brillig, the monomorphized program, per-pass timings). Output from functions
     /// compiled at the same time interleaves.
-    pub fn prints_compilation_steps(&self) -> bool {
+    fn prints_compilation_steps(&self) -> bool {
         self.show_ssa
             || !self.show_ssa_pass.is_empty()
             || self.show_brillig
