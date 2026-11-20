@@ -924,6 +924,46 @@ mod tests {
     }
 
     #[test]
+    fn simplifies_array_get_from_previous_array_set_with_composite_array_param_in_bounds() {
+        // `array_get` indices are semi-flattened: in `[(Field, u32); 2]`, index 3 is the `u32`
+        // of the last element. It is in bounds even though it is not less than the element count.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [(Field, u32); 2]):
+            v1 = array_set mut v0, index u32 0, value Field 4
+            v2 = array_get v1, index u32 2 -> Field
+            v3 = array_get v1, index u32 3 -> u32
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [(Field, u32); 2]):
+            v3 = array_set mut v0, index u32 0, value Field 4
+            v5 = array_get v0, index u32 2 -> Field
+            v7 = array_get v0, index u32 3 -> u32
+            return v5, v7
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_array_get_from_previous_array_set_with_composite_array_param_out_of_bounds()
+     {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: [(Field, u32); 2]):
+            v3 = array_set mut v0, index u32 0, value Field 4
+            v5 = array_get v3, index u32 4 -> Field
+            return v5
+        }
+        ";
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    #[test]
     fn does_not_drop_truncate_on_field_division_result() {
         // Regression: the truncate simplifier reasons about the bit size of `div` results
         // using integer division logic (quotient_bits = numerator_bits - divisor_bits).
