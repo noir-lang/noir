@@ -177,17 +177,29 @@ fn compile_workspace(
         .cloned()
         .partition(|package| package.is_binary());
 
-    // Compile all of the packages in parallel.
-    let program_warnings_or_errors: CompilationResult<()> =
-        compile_programs(file_manager, parsed_files, workspace, &binary_packages, compile_options)?;
+    if binary_packages.is_empty() && contract_packages.is_empty() {
+        return Ok(Ok(((), Vec::new())));
+    }
 
-    let contract_warnings_or_errors: CompilationResult<()> = compile_contracts(
-        file_manager,
-        parsed_files,
-        &contract_packages,
-        compile_options,
-        &workspace.target_directory_path(),
-    )?;
+    // Programs and contracts compile on one pool, in parallel across packages.
+    let pool = compilation_pool();
+    let (program_warnings_or_errors, contract_warnings_or_errors) = pool.install(|| {
+        let programs = compile_programs(
+            file_manager,
+            parsed_files,
+            workspace,
+            &binary_packages,
+            compile_options,
+        )?;
+        let contracts = compile_contracts(
+            file_manager,
+            parsed_files,
+            &contract_packages,
+            compile_options,
+            &workspace.target_directory_path(),
+        )?;
+        Ok::<_, CliError>((programs, contracts))
+    })?;
 
     let result = match (program_warnings_or_errors, contract_warnings_or_errors) {
         (Ok((_, program_warnings)), Ok((_, contract_warnings))) => {
@@ -261,19 +273,23 @@ fn compile_programs(
         }
     };
 
-    // Limit threads to the number of packages we actually need to compile.
-    let num_threads = rayon::current_num_threads().min(binary_packages.len()).max(1);
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(num_threads)
-        .stack_size(nargo::compilation_stack_size())
-        .build()
-        .unwrap();
-    let program_results = pool.install(|| {
-        binary_packages.par_iter().map(compile_package).collect::<Result<Vec<_>, _>>()
-    })?;
+    let program_results =
+        binary_packages.par_iter().map(compile_package).collect::<Result<Vec<_>, _>>()?;
 
     // Collate any warnings/errors which were encountered during compilation.
     Ok(collect_errors(program_results).map(|(_, warnings)| ((), warnings)))
+}
+
+/// The thread pool `nargo compile` compiles a workspace's programs and contracts on.
+///
+/// The pool is not sized by the number of packages: compiler passes such as DIE and the
+/// underconstrained value checks parallelize over the pool they run on, so even a single
+/// package uses every available thread. `RAYON_NUM_THREADS` limits it.
+fn compilation_pool() -> rayon::ThreadPool {
+    rayon::ThreadPoolBuilder::new()
+        .stack_size(nargo::compilation_stack_size())
+        .build()
+        .expect("failed to build the compilation thread pool")
 }
 
 /// Compile the given contracts in the workspace.
@@ -284,29 +300,23 @@ fn compile_contracts(
     compile_options: &CompileOptions,
     target_dir: &Path,
 ) -> Result<CompilationResult<()>, CliError> {
-    let pool = rayon::ThreadPoolBuilder::new()
-        .stack_size(nargo::compilation_stack_size())
-        .build()
-        .unwrap();
-    let contract_results = pool.install(|| {
-        contract_packages
-            .par_iter()
-            .map(|package| -> Result<CompilationResult<()>, CliError> {
-                match compile_contract(file_manager, parsed_files, package, compile_options) {
-                    Ok((contract, warnings)) => {
-                        save_contract(
-                            contract,
-                            package,
-                            target_dir,
-                            compile_options.show_artifact_paths,
-                        )?;
-                        Ok(Ok(((), warnings)))
-                    }
-                    Err(errors_and_warnings) => Ok(Err(errors_and_warnings)),
+    let contract_results = contract_packages
+        .par_iter()
+        .map(|package| -> Result<CompilationResult<()>, CliError> {
+            match compile_contract(file_manager, parsed_files, package, compile_options) {
+                Ok((contract, warnings)) => {
+                    save_contract(
+                        contract,
+                        package,
+                        target_dir,
+                        compile_options.show_artifact_paths,
+                    )?;
+                    Ok(Ok(((), warnings)))
                 }
-            })
-            .collect::<Result<Vec<_>, CliError>>()
-    })?;
+                Err(errors_and_warnings) => Ok(Err(errors_and_warnings)),
+            }
+        })
+        .collect::<Result<Vec<_>, CliError>>()?;
 
     // Collate any warnings/errors which were encountered during compilation.
     let errors = collect_errors(contract_results).map(|(_, warnings)| ((), warnings));
