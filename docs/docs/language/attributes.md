@@ -83,6 +83,10 @@ To change the warning into a hard error, `deny` can be specified on the attribut
 fn broken() {}
 ```
 
+On a trait method, the warning covers calls through the trait as well as calls that resolve to an implementation of the method on a concrete type. Implementing a deprecated trait method does not warn.
+
+The attribute has no effect on a method inside a trait `impl`, and generates a warning there: deprecate the method on the trait instead.
+
 ### `field`
 
 Can be used on functions to enable conditional compilation of code depending on the field size.
