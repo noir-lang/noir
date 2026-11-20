@@ -284,6 +284,12 @@ fn compile_contracts(
     compile_options: &CompileOptions,
     target_dir: &Path,
 ) -> Result<CompilationResult<()>, CliError> {
+    if contract_packages.is_empty() {
+        return Ok(Ok(((), Vec::new())));
+    }
+
+    // Packages, and each contract's functions within them, compile in parallel on this one pool,
+    // so both levels share its threads.
     let pool = rayon::ThreadPoolBuilder::new()
         .stack_size(nargo::compilation_stack_size())
         .build()

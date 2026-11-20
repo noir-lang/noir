@@ -3,6 +3,8 @@
 
 #[cfg(test)]
 use insta as _;
+#[cfg(test)]
+use serde_json as _;
 
 use std::hash::BuildHasher;
 use std::sync::OnceLock;
@@ -45,6 +47,7 @@ use noirc_frontend::monomorphization::{
 };
 use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
+use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use tracing::info;
@@ -333,6 +336,20 @@ impl Default for CompileOptions {
 }
 
 impl CompileOptions {
+    /// Whether compiling a function with [`compile_no_check`] prints or writes out its intermediate
+    /// steps (SSA, Brillig, the monomorphized program, per-pass timings). Output from functions
+    /// compiled at the same time interleaves, and a cached artifact has no steps to show, so
+    /// [`reusable_cached_program`] compiles again when this is set.
+    fn prints_compilation_steps(&self) -> bool {
+        self.show_ssa
+            || !self.show_ssa_pass.is_empty()
+            || self.show_brillig
+            || self.show_brillig_opcode_advisories
+            || self.show_monomorphized
+            || self.emit_ssa
+            || self.benchmark_codegen
+    }
+
     /// Where comptime code prints to under these options.
     pub fn comptime_io(&self) -> ComptimeIo {
         if self.disable_comptime_printing { ComptimeIo::silent() } else { ComptimeIo::stdout() }
@@ -587,6 +604,10 @@ pub fn compile_main_with_comptime_io(
 
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
 ///
+/// The contract's entry points compile in parallel on the current rayon pool, which sets the
+/// thread count and the stack size. Call this inside a pool sized for compilation, as nargo's
+/// `compile_contracts` does; outside one, rayon's global pool runs them.
+///
 /// See [`compile_no_check`] for further information about the use of `package_build_path`.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_contract(
@@ -708,6 +729,63 @@ fn has_errors(errors: &[CustomDiagnostic], deny_warnings: bool) -> bool {
     if deny_warnings { !errors.is_empty() } else { errors.iter().any(|error| error.is_error()) }
 }
 
+/// The options an entry point of a contract is compiled with.
+fn contract_function_options(name: &str, options: &CompileOptions) -> CompileOptions {
+    let mut options = options.clone();
+    if name == "public_dispatch" {
+        options.inliner_aggressiveness = 0;
+    }
+
+    if let Some(ref name_filter) = options.show_contract_fn {
+        let show = name == *name_filter;
+        options.show_ssa &= show;
+        if !show {
+            options.show_ssa_pass.clear();
+        }
+    }
+    options
+}
+
+/// Compiles one entry point of a contract into its ABI function, with the warnings it produced.
+fn compile_contract_function(
+    context: &CheckedContext,
+    function_id: FuncId,
+    options: &CompileOptions,
+    package_build_path: &Path,
+) -> Result<(ContractFunction, Vec<SsaReport>), CompileError> {
+    let name = context.function_name(&function_id).to_owned();
+    let options = contract_function_options(&name, options);
+    let function =
+        compile_no_check(context, &options, package_build_path, false, function_id, None, true)?;
+
+    let modifiers = context.def_interner.function_modifiers(&function_id);
+    let is_unconstrained = context.def_interner.function_meta(&function_id).is_unconstrained();
+
+    let custom_attributes = modifiers
+        .attributes
+        .secondary
+        .iter()
+        .filter_map(|attr| match &attr.kind {
+            SecondaryAttributeKind::Tag(contents) => Some(contents.clone()),
+            SecondaryAttributeKind::Meta(meta_attribute) => {
+                context.def_interner.get_meta_attribute_name(meta_attribute)
+            }
+            _ => None,
+        })
+        .collect();
+
+    let contract_function = ContractFunction {
+        name,
+        hash: function.hash,
+        custom_attributes,
+        abi: function.abi,
+        bytecode: function.program,
+        debug: function.debug,
+        is_unconstrained,
+    };
+    Ok((contract_function, function.warnings))
+}
+
 /// Compile all of the functions associated with a Noir contract.
 fn compile_contract_inner(
     context: &CheckedContext,
@@ -715,77 +793,43 @@ fn compile_contract_inner(
     options: &CompileOptions,
     package_build_path: &Path,
 ) -> Result<CompiledContract, ErrorsAndWarnings> {
+    // We assume that functions have already been type checked.
+    // This is the exact same assumption that compile_no_check makes.
+    // A function that is not an entry point is not compiled, and is not added to the ABI.
+    let entry_points: Vec<FuncId> = contract
+        .functions
+        .iter()
+        .filter(|contract_function| contract_function.is_entry_point)
+        .map(|contract_function| contract_function.function_id)
+        .collect();
+
+    // Each entry point is monomorphized and compiled on its own, reading `context` without
+    // writing to it, so they can be compiled in parallel. They run on the caller's rayon pool,
+    // which decides the thread count and stack size; where threads aren't available, as on
+    // wasm, rayon runs them on the current thread. When an option prints the compilation steps
+    // they are compiled one at a time, so each function's output stays in one piece. The results
+    // are collected in declaration order, so warnings, errors and the artifact come out the same
+    // either way.
+    let compile = |function_id: &FuncId| {
+        compile_contract_function(context, *function_id, options, package_build_path)
+    };
+    let results: Vec<_> = if options.prints_compilation_steps() {
+        entry_points.iter().map(compile).collect()
+    } else {
+        entry_points.par_iter().map(compile).collect()
+    };
+
     let mut functions = Vec::new();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
-    for contract_function in &contract.functions {
-        let function_id = contract_function.function_id;
-        let is_entry_point = contract_function.is_entry_point;
-
-        let name = context.function_name(&function_id).to_owned();
-
-        // We assume that functions have already been type checked.
-        // This is the exact same assumption that compile_no_check makes.
-        // If it is not an entry-point point, we can then just skip the
-        // compilation step. It will also not be added to the ABI.
-        if !is_entry_point {
-            continue;
-        }
-
-        let mut options = options.clone();
-        if name == "public_dispatch" {
-            options.inliner_aggressiveness = 0;
-        }
-
-        if let Some(ref name_filter) = options.show_contract_fn {
-            let show = name == *name_filter;
-            options.show_ssa &= show;
-            if !show {
-                options.show_ssa_pass.clear();
+    for result in results {
+        match result {
+            Ok((function, function_warnings)) => {
+                functions.push(function);
+                warnings.extend(function_warnings);
             }
+            Err(error) => errors.push(error.into()),
         }
-
-        let function = match compile_no_check(
-            context,
-            &options,
-            package_build_path,
-            false,
-            function_id,
-            None,
-            true,
-        ) {
-            Ok(function) => function,
-            Err(new_error) => {
-                errors.push(new_error.into());
-                continue;
-            }
-        };
-        warnings.extend(function.warnings);
-        let modifiers = context.def_interner.function_modifiers(&function_id);
-        let is_unconstrained = context.def_interner.function_meta(&function_id).is_unconstrained();
-
-        let custom_attributes = modifiers
-            .attributes
-            .secondary
-            .iter()
-            .filter_map(|attr| match &attr.kind {
-                SecondaryAttributeKind::Tag(contents) => Some(contents.clone()),
-                SecondaryAttributeKind::Meta(meta_attribute) => {
-                    context.def_interner.get_meta_attribute_name(meta_attribute)
-                }
-                _ => None,
-            })
-            .collect();
-
-        functions.push(ContractFunction {
-            name,
-            hash: function.hash,
-            custom_attributes,
-            abi: function.abi,
-            bytecode: function.program,
-            debug: function.debug,
-            is_unconstrained,
-        });
     }
 
     if errors.is_empty() {
@@ -1019,17 +1063,15 @@ fn reusable_cached_program(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Option<CompiledProgram> {
-    // If user has specified that they want to see intermediate steps printed then we should
-    // force compilation even if the program hasn't changed.
+    // A program that hasn't changed is still compiled again when the user asked to see its
+    // compilation steps or its ACIR, which a cached artifact can't show, or for an option that
+    // changes the compiled program without changing the monomorphized one it was hashed from.
     let force_compile = force_compile
+        || options.prints_compilation_steps()
         || options.print_acir
-        || options.show_brillig
         || options.force_brillig
-        || count_array_copies
-        || options.show_ssa
-        || !options.show_ssa_pass.is_empty()
-        || options.emit_ssa
-        || options.minimal_ssa;
+        || options.minimal_ssa
+        || count_array_copies;
 
     let cached_program = cached_program?;
     if force_compile || cached_program.hash != monomorphized.hash {
