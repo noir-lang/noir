@@ -115,6 +115,16 @@
       }
       .card.flagged-worse { border-color: var(--worse); }
       .card.flagged-better { border-color: var(--better); }
+      .card.selected {
+        outline: 3px solid var(--accent);
+        outline-offset: 1px;
+        animation: selected-flash 1.2s ease-out;
+      }
+      @keyframes selected-flash {
+        from { background: #ddf4ff; }
+        to { background: transparent; }
+      }
+      .card-title a.name { color: var(--fg); }
       .card-title {
         display: flex;
         gap: 6px;
@@ -179,6 +189,7 @@
           threshold: 2,
           filter: '',
           active: OVERVIEW,
+          bench: null,
         };
 
         // ---- Data preparation -------------------------------------------------
@@ -242,7 +253,7 @@
         // differs from the median of the WINDOW points before it by at least:
         //   - the user's threshold,
         //   - NOISE_MULTIPLE times the benchmark's noise (the 75th percentile of its
-        //     commit-to-commit relative changes), and
+        //     commit-to-commit relative changes, excluding the largest), and
         //   - more than RESOLUTION_MULTIPLE times the measurement's rounding step (one unit
         //     in the last decimal place the values are recorded with).
         // A one-off spike moves neither median. Deterministic benchmarks (opcodes, sizes)
@@ -265,7 +276,9 @@
         // relative change and `pct` is signed so that a positive value is a regression.
         function stepsOf(points) {
           const vals = points.map(p => p.value);
-          const rel = changesOf(points).map(c => Math.abs(c.raw));
+          // The largest commit-to-commit change is left out of the noise estimate: in a short
+          // or otherwise flat series it is the step being looked for, not noise.
+          const rel = changesOf(points).map(c => Math.abs(c.raw)).sort((a, b) => a - b).slice(0, -1);
           const noise = quantile(rel, 0.75);
           const minAbs = RESOLUTION_MULTIPLE * resolutionOf(vals);
           const cutoff = Math.max(state.threshold, NOISE_MULTIPLE * noise);
@@ -356,12 +369,34 @@
 
         // ---- Routing ----------------------------------------------------------
 
+        // The hash is `#<suite>` or `#<suite>/<benchmark>`, each part URI-encoded, so a link
+        // can point at a single chart. encodeURIComponent escapes `/`, so the first literal
+        // `/` always separates the two parts.
         function readHash() {
-          const name = decodeURIComponent(location.hash.slice(1));
-          state.active = suites.some(s => s.name === name) ? name : OVERVIEW;
+          const raw = location.hash.slice(1);
+          const slash = raw.indexOf('/');
+          const suiteName = decodeURIComponent(slash < 0 ? raw : raw.slice(0, slash));
+          const benchName = slash < 0 ? null : decodeURIComponent(raw.slice(slash + 1));
+          const suite = suites.find(s => s.name === suiteName);
+          state.active = suite ? suite.name : OVERVIEW;
+          state.bench = suite && benchName !== null && suite.benches.has(benchName) ? benchName : null;
         }
-        function hrefFor(name) {
-          return '#' + encodeURIComponent(name);
+        function hrefFor(suiteName, benchName) {
+          let h = '#' + encodeURIComponent(suiteName);
+          if (benchName !== undefined && benchName !== null) h += '/' + encodeURIComponent(benchName);
+          return h;
+        }
+
+        // Outlines the chart named in the URL and scrolls it into view.
+        function showSelectedChart(smooth) {
+          const main = document.getElementById('main');
+          main.querySelectorAll('.card.selected').forEach(c => c.classList.remove('selected'));
+          if (!state.bench) return false;
+          const card = main.querySelector('.card[data-bench="' + CSS.escape(state.bench) + '"]');
+          if (!card) return false;
+          card.classList.add('selected');
+          card.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'center' });
+          return true;
         }
 
         // ---- Rendering --------------------------------------------------------
@@ -435,7 +470,7 @@
             const topCell = el('td');
             top.forEach((r, i) => {
               if (i) topCell.appendChild(document.createTextNode(', '));
-              topCell.appendChild(el('a', { href: hrefFor(r.suite), title: r.suite }, [r.bench + ' ']));
+              topCell.appendChild(el('a', { href: hrefFor(r.suite, r.bench), title: r.suite }, [r.bench + ' ']));
               topCell.appendChild(el('span', { class: r.pct > 0 ? 'worse' : 'better', text: fmtPct(r.raw) }));
               topCell.appendChild(el('span', { class: 'meta', text: ' (' + r.suite + ')' }));
             });
@@ -466,7 +501,7 @@
             const tbody = el('tbody');
             for (const r of rows) {
               tbody.appendChild(el('tr', {}, [
-                el('td', {}, [el('a', { href: '#', 'data-bench': r.bench, text: r.bench })]),
+                el('td', {}, [el('a', { href: hrefFor(suite.name, r.bench), text: r.bench })]),
                 changeCell(r),
                 el('td', { class: 'num', text: fmtValue(r.before) + ' ' + r.point.unit }),
                 el('td', { class: 'num', text: fmtValue(r.after) + ' ' + r.point.unit }),
@@ -487,20 +522,11 @@
           main.appendChild(grid);
           for (const [benchName, points] of suite.benches) {
             if (!matchesFilter(benchName)) continue;
-            grid.appendChild(renderChart(benchName, points));
+            grid.appendChild(renderChart(suite.name, benchName, points));
           }
-
-          // Clicking a benchmark in the table scrolls to its chart.
-          main.querySelectorAll('a[data-bench]').forEach(a => {
-            a.onclick = ev => {
-              ev.preventDefault();
-              const card = grid.querySelector('[data-bench="' + CSS.escape(a.getAttribute('data-bench')) + '"]');
-              if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            };
-          });
         }
 
-        function renderChart(benchName, points) {
+        function renderChart(suiteName, benchName, points) {
           const changeAt = new Map(changesOf(points).map(c => [c.index, c]));
           const stepAt = new Map(stepsOf(points).map(s => [s.index, s]));
           const colors = points.map((_, i) => {
@@ -513,9 +539,10 @@
           const last = points[points.length - 1];
 
           const canvas = el('canvas');
-          const card = el('div', { class: 'card ' + flagged, 'data-bench': benchName }, [
+          const selected = suiteName === state.active && benchName === state.bench ? ' selected' : '';
+          const card = el('div', { class: 'card ' + flagged + selected, 'data-bench': benchName }, [
             el('div', { class: 'card-title' }, [
-              el('span', { class: 'name', title: benchName, text: benchName }),
+              el('a', { class: 'name', href: hrefFor(suiteName, benchName), title: 'Link to this chart', text: benchName }),
               el('span', { class: 'latest', text: fmtValue(last.value) + ' ' + last.unit }),
             ]),
             el('div', { class: 'chart-box' }, [canvas]),
@@ -616,13 +643,20 @@
         };
 
         window.addEventListener('hashchange', () => {
+          const previous = state.active;
           readHash();
+          if (state.active === previous) {
+            // Same tab: keep the rendered charts and only move the selection.
+            if (!showSelectedChart(true)) window.scrollTo(0, 0);
+            return;
+          }
           render();
-          window.scrollTo(0, 0);
+          if (!showSelectedChart(false)) window.scrollTo(0, 0);
         });
 
         readHash();
         render();
+        showSelectedChart(false);
       })();
     </script>
   </body>
