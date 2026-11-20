@@ -220,8 +220,8 @@ impl<T> std::ops::IndexMut<Id<T>> for DenseMap<T> {
 /// id instead of a map keyed by it.
 ///
 /// Like `DenseMap`, it is indexed by `Id<K>` and never exposes raw indices, so it cannot be
-/// indexed with an id of another type. Entries that were never written read as absent from
-/// [`get`](Self::get).
+/// indexed with an id of another type. [`get`](Self::get) returns `None` only for ids past the
+/// last entry; slots skipped by [`set`](Self::set) hold `V::default()`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(transparent, bound(serialize = "V: Serialize", deserialize = "V: Deserialize<'de>"))]
 pub(crate) struct DenseSideTable<K, V> {
@@ -236,9 +236,9 @@ impl<K, V> DenseSideTable<K, V> {
         self.storage.get(id.index as usize)
     }
 
-    /// Appends the entry for `id`, which must be the next id after the last entry.
+    /// Appends the entry for `id`. Panics unless `id` is the next id after the last entry.
     pub(crate) fn push(&mut self, id: Id<K>, value: V) {
-        debug_assert_eq!(
+        assert_eq!(
             self.storage.len(),
             id.index as usize,
             "DenseSideTable::push must be given the next id in sequence"
@@ -357,7 +357,6 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "next id in sequence")]
-    #[cfg(debug_assertions)]
     fn dense_side_table_push_out_of_sequence_panics() {
         let mut table = DenseSideTable::<(), u32>::default();
         table.push(Id::test_new(1), 5);
