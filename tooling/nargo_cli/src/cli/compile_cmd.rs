@@ -261,20 +261,24 @@ fn compile_programs(
         }
     };
 
-    // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
-    // Default is 2MB. Limit threads to the number of packages we actually need to compile.
-    let num_threads = rayon::current_num_threads().min(binary_packages.len()).max(1);
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(num_threads)
-        .stack_size(4 * 1024 * 1024)
-        .build()
-        .unwrap();
+    let pool = program_compile_pool();
     let program_results = pool.install(|| {
         binary_packages.par_iter().map(compile_package).collect::<Result<Vec<_>, _>>()
     })?;
 
     // Collate any warnings/errors which were encountered during compilation.
     Ok(collect_errors(program_results).map(|(_, warnings)| ((), warnings)))
+}
+
+/// Build the thread pool that binary packages are compiled on.
+///
+/// The pool is not sized by the number of packages: compiler passes such as DIE and the
+/// underconstrained value checks parallelize over the pool they run on, so even a single
+/// package benefits from every available thread.
+fn program_compile_pool() -> rayon::ThreadPool {
+    // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
+    // Default is 2MB.
+    rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap()
 }
 
 /// Compile the given contracts in the workspace.
@@ -324,4 +328,22 @@ fn save_contract(
         println!("Saved contract artifact to: {}", artifact_path.display());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::program_compile_pool;
+
+    /// Compiler passes such as DIE and the underconstrained value checks parallelize over the
+    /// pool a package is compiled on, so a single package must still get every available thread.
+    #[test]
+    fn program_compile_pool_uses_all_threads() {
+        let available = rayon::current_num_threads();
+        let pool = program_compile_pool();
+        assert_eq!(
+            pool.install(rayon::current_num_threads),
+            available,
+            "the program compile pool should not limit the parallelism available to the compiler"
+        );
+    }
 }
