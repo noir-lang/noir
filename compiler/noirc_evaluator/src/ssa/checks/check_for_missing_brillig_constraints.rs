@@ -368,8 +368,8 @@ impl AncestryGraph {
 
 /// The ancestors of a Brillig call's arguments, explored only as far as queries need.
 ///
-/// The answer to every query is the same as against the full set returned by
-/// [`AncestryGraph::ancestors`]: the traversal visits the same values in the same order,
+/// The answer to every query is the same as against the full set of ancestors, as found by an
+/// unbounded [`AncestryGraph::traverse`]: the traversal visits the same values in the same order,
 /// it just stops as soon as a query is answered and resumes from there for the next one.
 /// Most constraints on a call's outputs meet its arguments within a few steps, so the full
 /// set, which in a long chain of arithmetic is most of the function, is rarely needed.
