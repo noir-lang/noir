@@ -74,15 +74,3 @@ test('an opcode change of a couple of units is flagged when it crosses the thres
   assert.deepEqual(indices(steps), [6]);
   assert.equal(steps[0].pct, 20);
 });
-
-test('a step after commits with no value reports how many were missing', () => {
-  const points = series('opcodes', [100, 100, 100, 110, 110]).map((p, i) => ({ ...p, entry: [0, 1, 2, 5, 6][i] }));
-  const steps = stepsOf(points, THRESHOLD);
-  assert.deepEqual(indices(steps), [3]);
-  assert.equal(steps[0].missing, 2);
-});
-
-test('a step between consecutive commits reports none missing', () => {
-  const points = series('opcodes', [100, 100, 110]).map((p, i) => ({ ...p, entry: i }));
-  assert.equal(stepsOf(points, THRESHOLD)[0].missing, 0);
-});

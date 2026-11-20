@@ -264,11 +264,10 @@
         // ---- Data preparation -------------------------------------------------
 
         // suites: [{ name, benches: Map<benchName, Point[]> }]
-        // Point: { commit, date, tool, value, unit, range, extra, entry }, where `entry` is the
-        // position of the commit among all commits recorded for the suite.
+        // Point: { commit, date, tool, value, unit, range, extra }
         const suites = Object.keys(data.entries).map(name => {
           const benches = new Map();
-          data.entries[name].forEach((entry, entryIndex) => {
+          for (const entry of data.entries[name]) {
             for (const bench of entry.benches) {
               let points = benches.get(bench.name);
               if (!points) {
@@ -283,10 +282,9 @@
                 unit: bench.unit,
                 range: bench.range,
                 extra: bench.extra,
-                entry: entryIndex,
               });
             }
-          });
+          }
           return { name, benches };
         });
 
@@ -343,17 +341,19 @@
         function commitLink(commit) {
           return el('a', { href: commit.url, target: '_blank', rel: 'noopener' }, [el('code', { text: commit.id.slice(0, 7) })]);
         }
-        function missingText(n) {
-          return n + (n === 1 ? ' commit' : ' commits') + ' with no result';
+        // A benchmark's previous value can be several commits back: commits whose benchmark run
+        // failed or was skipped are missing from data.js. The change may come from any commit
+        // since the previous recorded one, so link GitHub's compare view of that whole range.
+        function compareUrl(fromCommit, toCommit) {
+          return data.repoUrl + '/compare/' + fromCommit.id + '...' + toCommit.id;
         }
-        // When a benchmark has no value for the commits just before a step, the change may come
-        // from any of them: link the whole range instead of implying this commit caused it.
-        function gapNote(row) {
-          if (!row.missing) return document.createTextNode('');
-          const href = data.repoUrl + '/compare/' + row.prevPoint.commit.id + '...' + row.point.commit.id;
-          return el('span', { class: 'gap', title: 'The change may come from any commit in this range' }, [
-            ' after ', el('a', { href, target: '_blank', rel: 'noopener', text: missingText(row.missing) }),
-          ]);
+        function sinceLink(fromCommit, toCommit) {
+          return el('span', { class: 'gap' }, [' since ', el('a', {
+            href: compareUrl(fromCommit, toCommit),
+            target: '_blank',
+            rel: 'noopener',
+            title: 'Every commit since the previous recorded result; the change may come from any of them',
+          }, [el('code', { text: fromCommit.id.slice(0, 7) })])]);
         }
 
         // ---- Routing ----------------------------------------------------------
@@ -431,6 +431,12 @@
           return el('td', { class: 'num ' + cls, text: fmtPct(row.raw) });
         }
 
+        // Different benchmarks can have their previous result at different commits; the
+        // Overview links the widest range so it covers all of them.
+        function earliestPrev(rows) {
+          return rows.reduce((m, r) => (r.prevPoint.date < m.date ? r.prevPoint : m), rows[0].prevPoint);
+        }
+
         function renderOverview(main) {
           main.appendChild(el('h2', { text: 'Commits with significant changes' }));
           main.appendChild(el('p', {
@@ -476,10 +482,9 @@
               topCell.appendChild(el('a', { href: hrefFor(r.suite, r.bench), title: r.suite }, [r.bench + ' ']));
               topCell.appendChild(el('span', { class: r.pct > 0 ? 'worse' : 'better', text: fmtPct(r.raw) }));
               topCell.appendChild(el('span', { class: 'meta', text: ' (' + r.suite + ')' }));
-              topCell.appendChild(gapNote(r));
             });
             tbody.appendChild(el('tr', {}, [
-              el('td', {}, [commitLink(g.commit)]),
+              el('td', {}, [commitLink(g.commit), sinceLink(earliestPrev(g.rows).commit, g.commit)]),
               el('td', { class: 'msg', title: g.commit.message, text: firstLine(g.commit.message) }),
               el('td', { class: 'num labelled' + (worse.length ? ' worse' : ''), 'data-label': 'Regressions', text: String(worse.length) }),
               el('td', { class: 'num labelled' + (better.length ? ' better' : ''), 'data-label': 'Improvements', text: String(better.length) }),
@@ -510,7 +515,7 @@
                 changeCell(r),
                 el('td', { class: 'num labelled', 'data-label': 'Before', text: fmtValue(r.before) + ' ' + r.point.unit }),
                 el('td', { class: 'num labelled', 'data-label': 'After', text: fmtValue(r.after) + ' ' + r.point.unit }),
-                el('td', {}, [commitLink(r.point.commit), gapNote(r)]),
+                el('td', {}, [commitLink(r.point.commit), sinceLink(r.prevPoint.commit, r.point.commit)]),
                 el('td', { class: 'msg', title: r.point.commit.message, text: firstLine(r.point.commit.message) }),
               ]));
             }
@@ -618,8 +623,6 @@
                     if (s && !(c && s.before === c.before && s.after === c.after)) {
                       lines.push('Step: ' + fmtValue(s.before) + ' → ' + fmtValue(s.after) + ' ' + p.unit + ' (' + fmtPct(s.raw) + ')');
                     }
-                    const missing = (c || s || {}).missing;
-                    if (missing) lines.push('First value after ' + missingText(missing));
                     return lines;
                   },
                   afterLabel: item => points[item.index].extra || '',

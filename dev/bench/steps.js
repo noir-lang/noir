@@ -3,16 +3,12 @@
 // Loaded by index.html as a classic script (exposes the global `BenchSteps`) and by
 // steps.test.js under Node (`node --test dev/bench/steps.test.js`), which pins the behaviour below.
 //
-// A point is { value, unit, tool, entry?, ... } as recorded by github-action-benchmark; points
-// are in commit order. `entry` is the point's position among all the commits recorded for its
-// suite: a benchmark can be missing from some of them, so consecutive points are not always
-// consecutive commits. A step is { index, before, after, raw, pct, missing }:
-//   - index:   position of the commit that introduced the change;
+// A point is { value, unit, tool, ... } as recorded by github-action-benchmark; points are in
+// commit order. A step is { index, before, after, raw, pct }:
+//   - index: position of the commit that introduced the change;
 //   - before, after: the levels on either side of it;
-//   - raw:     signed relative change in percent;
-//   - pct:     the same, signed so that a positive value is always a regression;
-//   - missing: how many commits between this point and the previous one have no value. When
-//              it is not 0, the change may come from any of them, not only from this commit.
+//   - raw: signed relative change in percent;
+//   - pct: the same, signed so that a positive value is always a regression.
 'use strict';
 
 const BenchSteps = (() => {
@@ -78,15 +74,9 @@ const BenchSteps = (() => {
     return points.length > 0 && DETERMINISTIC_UNITS.has(points[0].unit);
   }
 
-  function missingBefore(points, i) {
-    const a = points[i - 1].entry;
-    const b = points[i].entry;
-    return a === undefined || b === undefined ? 0 : Math.max(0, b - a - 1);
-  }
-
   function step(points, index, before, after) {
     const raw = relative(before, after);
-    return { index, before, after, raw, pct: regressionSign(points[index]) * raw, missing: missingBefore(points, index) };
+    return { index, before, after, raw, pct: regressionSign(points[index]) * raw };
   }
 
   // Change of each point against the previous one, in the same shape as a step.
