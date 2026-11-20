@@ -1,280 +1,628 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1, user-scalable=yes" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Noir Benchmarks</title>
     <style>
+      :root {
+        --fg: #24292f;
+        --muted: #57606a;
+        --border: #d0d7de;
+        --bg-subtle: #f6f8fa;
+        --accent: #0969da;
+        --worse: #cf222e;
+        --worse-bg: #ffebe9;
+        --better: #1a7f37;
+        --better-bg: #dafbe1;
+      }
+      * { box-sizing: border-box; }
       html {
-        font-family: BlinkMacSystemFont,-apple-system,"Segoe UI",Roboto,Oxygen,Ubuntu,Cantarell,"Fira Sans","Droid Sans","Helvetica Neue",Helvetica,Arial,sans-serif;
-        -webkit-font-smoothing: antialiased;
-        background-color: #fff;
-        font-size: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        font-size: 14px;
+        color: var(--fg);
       }
-      body {
-        color: #4a4a4a;
-        margin: 8px;
-        font-size: 1em;
-        font-weight: 400;
-      }
+      body { margin: 0; }
+      a { color: var(--accent); text-decoration: none; }
+      a:hover { text-decoration: underline; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+
       header {
-        margin-bottom: 8px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #fff;
+        border-bottom: 1px solid var(--border);
+        padding: 8px 16px 0;
+      }
+      .header-row {
         display: flex;
-        flex-direction: column;
-      }
-      main {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-      }
-      a {
-        color: #3273dc;
-        cursor: pointer;
-        text-decoration: none;
-      }
-      a:hover {
-        color: #000;
-      }
-      button {
-        color: #fff;
-        background-color: #3298dc;
-        border-color: transparent;
-        cursor: pointer;
-        text-align: center;
-      }
-      button:hover {
-        background-color: #2793da;
-        flex: none;
-      }
-      .spacer {
-        flex: auto;
-      }
-      .small {
-        font-size: 0.75rem;
-      }
-      footer {
-        margin-top: 16px;
-        display: flex;
-        align-items: center;
-      }
-      .header-label {
-        margin-right: 4px;
-      }
-      .benchmark-set {
-        margin: 8px 0;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-      }
-      .benchmark-title {
-        font-size: 3rem;
-        font-weight: 600;
-        word-break: break-word;
-        text-align: center;
-      }
-      .benchmark-graphs {
-        display: flex;
-        flex-direction: row;
-        justify-content: space-around;
-        align-items: center;
         flex-wrap: wrap;
-        width: 100%;
+        align-items: baseline;
+        gap: 4px 16px;
       }
-      .benchmark-chart {
-        max-width: 1000px;
+      .header-row h1 { font-size: 18px; margin: 0; }
+      .meta { color: var(--muted); font-size: 12px; }
+      .spacer { flex: auto; }
+      .controls { display: flex; gap: 12px; align-items: center; font-size: 12px; color: var(--muted); }
+      .controls input[type=number] { width: 56px; }
+      .controls input[type=search] { width: 180px; }
+
+      nav#tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2px;
+        margin-top: 8px;
+      }
+      nav#tabs a {
+        padding: 6px 10px;
+        border: 1px solid transparent;
+        border-bottom: none;
+        border-radius: 6px 6px 0 0;
+        color: var(--muted);
+        white-space: nowrap;
+      }
+      nav#tabs a:hover { background: var(--bg-subtle); text-decoration: none; }
+      nav#tabs a.active {
+        color: var(--fg);
+        font-weight: 600;
+        border-color: var(--border);
+        background: #fff;
+        margin-bottom: -1px;
+      }
+      .badge {
+        display: inline-block;
+        min-width: 16px;
+        padding: 0 5px;
+        margin-left: 4px;
+        border-radius: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        line-height: 16px;
+        text-align: center;
+      }
+      .badge.worse { background: var(--worse-bg); color: var(--worse); }
+      .badge.better { background: var(--better-bg); color: var(--better); }
+
+      main { padding: 12px 16px 24px; }
+      h2 { font-size: 15px; margin: 16px 0 8px; }
+      .hint { color: var(--muted); font-size: 12px; margin: 0 0 8px; }
+
+      table.changes { border-collapse: collapse; width: 100%; font-size: 12px; }
+      table.changes th, table.changes td {
+        border-bottom: 1px solid var(--border);
+        padding: 3px 8px;
+        text-align: left;
+        vertical-align: top;
+      }
+      table.changes th { background: var(--bg-subtle); font-weight: 600; }
+      table.changes td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      table.changes td.msg { max-width: 520px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .worse { color: var(--worse); }
+      .better { color: var(--better); }
+      .empty { color: var(--muted); font-style: italic; }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 8px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 6px 8px 4px;
+        min-width: 0;
+      }
+      .card.flagged-worse { border-color: var(--worse); }
+      .card.flagged-better { border-color: var(--better); }
+      .card-title {
+        display: flex;
+        gap: 6px;
+        align-items: baseline;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .card-title .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .card-title .latest { margin-left: auto; color: var(--muted); font-weight: 400; white-space: nowrap; }
+      .chart-box { position: relative; height: 140px; }
+
+      footer {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 12px;
       }
     </style>
-    <title>Benchmarks</title>
   </head>
 
   <body>
-    <header id="header">
-      <div class="header-item">
-        <strong class="header-label">Last Update:</strong>
-        <span id="last-update"></span>
+    <header>
+      <div class="header-row">
+        <h1>Noir Benchmarks</h1>
+        <span class="meta">Last update: <span id="last-update"></span></span>
+        <span class="meta"><a id="repository-link" rel="noopener"></a></span>
+        <span class="spacer"></span>
+        <div class="controls">
+          <label title="Highlight commits after which a benchmark's level moved by at least this much">
+            Highlight changes ≥ <input id="threshold" type="number" min="0.1" max="1000" step="0.5" value="2" />%
+          </label>
+          <input id="filter" type="search" placeholder="Filter benchmarks…" />
+        </div>
       </div>
-      <div class="header-item">
-        <strong class="header-label">Repository:</strong>
-        <a id="repository-link" rel="noopener"></a>
-      </div>
+      <nav id="tabs"></nav>
     </header>
+
     <main id="main"></main>
+
     <footer>
       <button id="dl-button">Download data as JSON</button>
-      <div class="spacer"></div>
-      <div class="small">Powered by <a rel="noopener" href="https://github.com/marketplace/actions/continuous-benchmark">github-action-benchmark</a></div>
+      <span class="spacer"></span>
+      <span>Data recorded by <a rel="noopener" href="https://github.com/marketplace/actions/continuous-benchmark">github-action-benchmark</a></span>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.2/dist/Chart.min.js"></script>
     <script src="data.js"></script>
     <script id="main-script">
       'use strict';
-      (function() {
-        // Colors from https://github.com/github/linguist/blob/master/lib/linguist/languages.yml
-        const toolColors = {
-          cargo: '#dea584',
-          go: '#00add8',
-          benchmarkjs: '#f1e05a',
-          benchmarkluau: '#000080',
-          pytest: '#3572a5',
-          googlecpp: '#f34b7d',
-          catch2: '#f34b7d',
-          julia: '#a270ba',
-          jmh: '#b07219',
-          benchmarkdotnet: '#178600',
-          customBiggerIsBetter: '#38ff38',
-          customSmallerIsBetter: '#ff3838',
-          _: '#333333'
+      (function () {
+        const OVERVIEW = 'Overview';
+        const BIGGER_IS_BETTER = new Set(['customBiggerIsBetter', 'benchmarkjs', 'benchmarkluau']);
+        const COLOR_LINE = '#57606a';
+        const COLOR_WORSE = '#cf222e';
+        const COLOR_BETTER = '#1a7f37';
+
+        const data = window.BENCHMARK_DATA;
+        const state = {
+          threshold: 2,
+          filter: '',
+          active: OVERVIEW,
         };
 
-        function init() {
-          function collectBenchesPerTestCase(entries) {
-            const map = new Map();
-            for (const entry of entries) {
-              const {commit, date, tool, benches} = entry;
-              for (const bench of benches) {
-                const result = { commit, date, tool, bench };
-                const arr = map.get(bench.name);
-                if (arr === undefined) {
-                  map.set(bench.name, [result]);
-                } else {
-                  arr.push(result);
-                }
+        // ---- Data preparation -------------------------------------------------
+
+        // suites: [{ name, benches: Map<benchName, Point[]> }]
+        // Point: { commit, date, tool, value, unit, range, extra }
+        const suites = Object.keys(data.entries).map(name => {
+          const benches = new Map();
+          for (const entry of data.entries[name]) {
+            for (const bench of entry.benches) {
+              let points = benches.get(bench.name);
+              if (!points) {
+                points = [];
+                benches.set(bench.name, points);
               }
+              points.push({
+                commit: entry.commit,
+                date: entry.date,
+                tool: entry.tool,
+                value: bench.value,
+                unit: bench.unit,
+                range: bench.range,
+                extra: bench.extra,
+              });
             }
-            return map;
           }
+          return { name, benches };
+        });
 
-          const data = window.BENCHMARK_DATA;
-
-          // Render header
-          document.getElementById('last-update').textContent = new Date(data.lastUpdate).toString();
-          const repoLink = document.getElementById('repository-link');
-          repoLink.href = data.repoUrl;
-          repoLink.textContent = data.repoUrl;
-
-          // Render footer
-          document.getElementById('dl-button').onclick = () => {
-            const dataUrl = 'data:,' + JSON.stringify(data, null, 2);
-            const a = document.createElement('a');
-            a.href = dataUrl;
-            a.download = 'benchmark_data.json';
-            a.click();
-          };
-
-          // Prepare data points for charts
-          return Object.keys(data.entries).map(name => ({
-            name,
-            dataSet: collectBenchesPerTestCase(data.entries[name]),
-          }));
+        // Relative change of each point against the previous point of the same benchmark.
+        // `pct` is signed so that a positive value is always a regression.
+        function changesOf(points) {
+          const out = [];
+          for (let i = 1; i < points.length; i++) {
+            const prev = points[i - 1].value;
+            const cur = points[i].value;
+            if (!prev) continue;
+            const raw = (cur - prev) / Math.abs(prev) * 100;
+            const pct = BIGGER_IS_BETTER.has(points[i].tool) ? -raw : raw;
+            out.push({ index: i, prev, cur, raw, pct });
+          }
+          return out;
         }
 
-        function renderAllChars(dataSets) {
+        function median(xs) {
+          const s = xs.slice().sort((a, b) => a - b);
+          const m = s.length >> 1;
+          return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+        }
 
-          function renderGraph(parent, name, dataset) {
-            const canvas = document.createElement('canvas');
-            canvas.className = 'benchmark-chart';
-            parent.appendChild(canvas);
+        function quantile(xs, q) {
+          const s = xs.slice().sort((a, b) => a - b);
+          return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 0;
+        }
 
-            const color = toolColors[dataset.length > 0 ? dataset[0].tool : '_'];
-            const data = {
-              labels: dataset.map(d => d.commit.id.slice(0, 7)),
-              datasets: [
-                {
-                  label: name,
-                  data: dataset.map(d => d.bench.value),
-                  borderColor: color,
-                  backgroundColor: color + '60', // Add alpha for #rrggbbaa
-                }
-              ],
+        // Timing benchmarks run on shared CI runners and routinely jump 20-80% between
+        // consecutive commits with no code change (some flip between two levels depending on
+        // the runner, others are rounded to the millisecond so 2ms -> 3ms reads as +50%).
+        // Comparing a commit only with its predecessor therefore flags nearly every commit.
+        // Instead, a commit is flagged when the median of the WINDOW points from it onwards
+        // differs from the median of the WINDOW points before it by at least:
+        //   - the user's threshold,
+        //   - NOISE_MULTIPLE times the benchmark's noise (the 75th percentile of its
+        //     commit-to-commit relative changes), and
+        //   - more than RESOLUTION_MULTIPLE times the measurement's rounding step (one unit
+        //     in the last decimal place the values are recorded with).
+        // A one-off spike moves neither median. Deterministic benchmarks (opcodes, sizes)
+        // have zero noise, so any step at or above the threshold is flagged.
+        const WINDOW = 5;
+        const NOISE_MULTIPLE = 3;
+        const RESOLUTION_MULTIPLE = 2;
+
+        function resolutionOf(vals) {
+          let decimals = 0;
+          for (const v of vals) {
+            const m = /\.(\d+)$/.exec(String(v));
+            if (m) decimals = Math.max(decimals, m[1].length);
+          }
+          return Math.pow(10, -decimals);
+        }
+
+        // Returns [{ index, before, after, pct, raw }] where `index` is the commit that
+        // introduced the step, `before`/`after` are the window medians, `raw` is the signed
+        // relative change and `pct` is signed so that a positive value is a regression.
+        function stepsOf(points) {
+          const vals = points.map(p => p.value);
+          const rel = changesOf(points).map(c => Math.abs(c.raw));
+          const noise = quantile(rel, 0.75);
+          const minAbs = RESOLUTION_MULTIPLE * resolutionOf(vals);
+          const cutoff = Math.max(state.threshold, NOISE_MULTIPLE * noise);
+          // A non-deterministic benchmark needs at least two points after a step to tell it
+          // apart from a spike; a deterministic one (no noise) is trusted from one point.
+          const minAfter = noise === 0 ? 1 : 2;
+          const biggerIsBetter = points.length > 0 && BIGGER_IS_BETTER.has(points[0].tool);
+
+          const cand = [];
+          for (let i = 1; i < vals.length; i++) {
+            const after = vals.slice(i, i + WINDOW);
+            if (after.length < minAfter) continue;
+            const b = median(vals.slice(Math.max(0, i - WINDOW), i));
+            const a = median(after);
+            if (!b || Math.abs(a - b) <= minAbs) continue;
+            const raw = (a - b) / Math.abs(b) * 100;
+            cand.push({ index: i, before: b, after: a, raw, pct: biggerIsBetter ? -raw : raw });
+          }
+
+          // Window medians shift over several neighbouring commits around one real step.
+          // Collapse each run of same-direction candidates above the cutoff into one step,
+          // attributed to the commit inside the run with the largest single-commit move.
+          const steps = [];
+          let run = [];
+          const flush = () => {
+            if (!run.length) return;
+            const sign = Math.sign(run[0].raw);
+            let best = run[0];
+            for (const c of run) {
+              if ((vals[c.index] - vals[c.index - 1]) * sign > (vals[best.index] - vals[best.index - 1]) * sign) best = c;
+            }
+            const peak = run.reduce((m, c) => (Math.abs(c.raw) > Math.abs(m.raw) ? c : m), run[0]);
+            steps.push(Object.assign({}, peak, { index: best.index }));
+            run = [];
+          };
+          for (const c of cand) {
+            const hit = Math.abs(c.raw) >= cutoff;
+            const contiguous = run.length && c.index === run[run.length - 1].index + 1 && Math.sign(c.raw) === Math.sign(run[0].raw);
+            if (!hit || !contiguous) flush();
+            if (hit) run.push(c);
+          }
+          flush();
+          return steps;
+        }
+
+        function significantChanges(suite) {
+          const rows = [];
+          for (const [benchName, points] of suite.benches) {
+            for (const s of stepsOf(points)) {
+              rows.push(Object.assign({ suite: suite.name, bench: benchName, point: points[s.index] }, s));
+            }
+          }
+          return rows;
+        }
+
+        function matchesFilter(benchName) {
+          return !state.filter || benchName.toLowerCase().includes(state.filter);
+        }
+
+        // ---- Formatting -------------------------------------------------------
+
+        function fmtValue(v) {
+          if (Math.abs(v) >= 1000) return Math.round(v).toLocaleString('en-US');
+          return Number(v.toPrecision(4)).toString();
+        }
+        function fmtPct(p) {
+          return (p > 0 ? '+' : '') + p.toFixed(1) + '%';
+        }
+        function firstLine(msg) {
+          return (msg || '').split('\n')[0];
+        }
+        function commitAuthor(commit) {
+          return (commit.author && (commit.author.username || commit.author.name)) || '';
+        }
+        function el(tag, attrs, children) {
+          const e = document.createElement(tag);
+          for (const [k, v] of Object.entries(attrs || {})) {
+            if (k === 'text') e.textContent = v;
+            else if (k === 'class') e.className = v;
+            else e.setAttribute(k, v);
+          }
+          for (const c of children || []) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+          return e;
+        }
+        function commitLink(commit) {
+          return el('a', { href: commit.url, target: '_blank', rel: 'noopener' }, [el('code', { text: commit.id.slice(0, 7) })]);
+        }
+
+        // ---- Routing ----------------------------------------------------------
+
+        function readHash() {
+          const name = decodeURIComponent(location.hash.slice(1));
+          state.active = suites.some(s => s.name === name) ? name : OVERVIEW;
+        }
+        function hrefFor(name) {
+          return '#' + encodeURIComponent(name);
+        }
+
+        // ---- Rendering --------------------------------------------------------
+
+        let charts = [];
+        function destroyCharts() {
+          for (const c of charts) c.destroy();
+          charts = [];
+        }
+
+        function renderTabs() {
+          const nav = document.getElementById('tabs');
+          nav.textContent = '';
+          for (const name of [OVERVIEW].concat(suites.map(s => s.name))) {
+            const a = el('a', { href: hrefFor(name), text: name });
+            if (name === state.active) a.className = 'active';
+            if (name !== OVERVIEW) {
+              const rows = significantChanges(suites.find(s => s.name === name)).filter(r => matchesFilter(r.bench));
+              const worse = rows.filter(r => r.pct > 0).length;
+              const better = rows.length - worse;
+              if (worse) a.appendChild(el('span', { class: 'badge worse', title: worse + ' regressions', text: String(worse) }));
+              if (better) a.appendChild(el('span', { class: 'badge better', title: better + ' improvements', text: String(better) }));
+            }
+            nav.appendChild(a);
+          }
+        }
+
+        function changeCell(row) {
+          const cls = row.pct > 0 ? 'worse' : 'better';
+          return el('td', { class: 'num ' + cls, text: fmtPct(row.raw) });
+        }
+
+        function renderOverview(main) {
+          main.appendChild(el('h2', { text: 'Commits with significant changes' }));
+          main.appendChild(el('p', {
+            class: 'hint',
+            text: 'Master commits after which at least one benchmark settled at a level ' + state.threshold +
+              '% or more away from where it was before, newest first. The comparison is between the medians of the ' +
+              WINDOW + ' commits before and from that commit, and must also exceed ' + NOISE_MULTIPLE +
+              '× the benchmark\'s usual commit-to-commit noise, so one-off spikes and runner-to-runner variance are ignored.',
+          }));
+
+          // Group significant changes by commit across all suites.
+          const byCommit = new Map();
+          for (const suite of suites) {
+            for (const row of significantChanges(suite)) {
+              if (!matchesFilter(row.bench)) continue;
+              const id = row.point.commit.id;
+              let g = byCommit.get(id);
+              if (!g) {
+                g = { commit: row.point.commit, date: row.point.date, rows: [] };
+                byCommit.set(id, g);
+              }
+              g.rows.push(row);
+            }
+          }
+          const groups = Array.from(byCommit.values()).sort((a, b) => b.date - a.date);
+          if (groups.length === 0) {
+            main.appendChild(el('p', { class: 'empty', text: 'No changes at or above the threshold.' }));
+            return;
+          }
+
+          const table = el('table', { class: 'changes' }, [
+            el('thead', {}, [el('tr', {}, ['Commit', 'Message', 'Regressions', 'Improvements', 'Largest changes'].map(t => el('th', { text: t })))]),
+          ]);
+          const tbody = el('tbody');
+          for (const g of groups) {
+            const worse = g.rows.filter(r => r.pct > 0);
+            const better = g.rows.filter(r => r.pct <= 0);
+            const top = g.rows.slice().sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct)).slice(0, 3);
+            const topCell = el('td');
+            top.forEach((r, i) => {
+              if (i) topCell.appendChild(document.createTextNode(', '));
+              topCell.appendChild(el('a', { href: hrefFor(r.suite), title: r.suite }, [r.bench + ' ']));
+              topCell.appendChild(el('span', { class: r.pct > 0 ? 'worse' : 'better', text: fmtPct(r.raw) }));
+              topCell.appendChild(el('span', { class: 'meta', text: ' (' + r.suite + ')' }));
+            });
+            tbody.appendChild(el('tr', {}, [
+              el('td', {}, [commitLink(g.commit)]),
+              el('td', { class: 'msg', title: g.commit.message, text: firstLine(g.commit.message) }),
+              el('td', { class: 'num' + (worse.length ? ' worse' : ''), text: String(worse.length) }),
+              el('td', { class: 'num' + (better.length ? ' better' : ''), text: String(better.length) }),
+              topCell,
+            ]));
+          }
+          table.appendChild(tbody);
+          main.appendChild(table);
+        }
+
+        function renderSuite(main, suite) {
+          const rows = significantChanges(suite)
+            .filter(r => matchesFilter(r.bench))
+            .sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
+
+          main.appendChild(el('h2', { text: suite.name + ': changes ≥ ' + state.threshold + '%' }));
+          if (rows.length === 0) {
+            main.appendChild(el('p', { class: 'empty', text: 'No changes at or above the threshold.' }));
+          } else {
+            const table = el('table', { class: 'changes' }, [
+              el('thead', {}, [el('tr', {}, ['Benchmark', 'Change', 'Before (median)', 'After (median)', 'Commit', 'Message'].map(t => el('th', { text: t })))]),
+            ]);
+            const tbody = el('tbody');
+            for (const r of rows) {
+              tbody.appendChild(el('tr', {}, [
+                el('td', {}, [el('a', { href: '#', 'data-bench': r.bench, text: r.bench })]),
+                changeCell(r),
+                el('td', { class: 'num', text: fmtValue(r.before) + ' ' + r.point.unit }),
+                el('td', { class: 'num', text: fmtValue(r.after) + ' ' + r.point.unit }),
+                el('td', {}, [commitLink(r.point.commit)]),
+                el('td', { class: 'msg', title: r.point.commit.message, text: firstLine(r.point.commit.message) }),
+              ]));
+            }
+            table.appendChild(tbody);
+            main.appendChild(table);
+          }
+
+          main.appendChild(el('h2', { text: 'Charts' }));
+          main.appendChild(el('p', {
+            class: 'hint',
+            text: 'Red points mark regressions and green points improvements (see Overview for how they are detected). Hover for details; click a point to open its commit.',
+          }));
+          const grid = el('div', { class: 'grid' });
+          main.appendChild(grid);
+          for (const [benchName, points] of suite.benches) {
+            if (!matchesFilter(benchName)) continue;
+            grid.appendChild(renderChart(benchName, points));
+          }
+
+          // Clicking a benchmark in the table scrolls to its chart.
+          main.querySelectorAll('a[data-bench]').forEach(a => {
+            a.onclick = ev => {
+              ev.preventDefault();
+              const card = grid.querySelector('[data-bench="' + CSS.escape(a.getAttribute('data-bench')) + '"]');
+              if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
             };
-            const options = {
+          });
+        }
+
+        function renderChart(benchName, points) {
+          const changeAt = new Map(changesOf(points).map(c => [c.index, c]));
+          const stepAt = new Map(stepsOf(points).map(s => [s.index, s]));
+          const colors = points.map((_, i) => {
+            const s = stepAt.get(i);
+            if (!s) return COLOR_LINE;
+            return s.pct > 0 ? COLOR_WORSE : COLOR_BETTER;
+          });
+          const radii = colors.map(c => (c === COLOR_LINE ? 1.5 : 4));
+          const flagged = colors.includes(COLOR_WORSE) ? 'flagged-worse' : colors.includes(COLOR_BETTER) ? 'flagged-better' : '';
+          const last = points[points.length - 1];
+
+          const canvas = el('canvas');
+          const card = el('div', { class: 'card ' + flagged, 'data-bench': benchName }, [
+            el('div', { class: 'card-title' }, [
+              el('span', { class: 'name', title: benchName, text: benchName }),
+              el('span', { class: 'latest', text: fmtValue(last.value) + ' ' + last.unit }),
+            ]),
+            el('div', { class: 'chart-box' }, [canvas]),
+          ]);
+
+          charts.push(new Chart(canvas, {
+            type: 'line',
+            data: {
+              labels: points.map(p => p.commit.id.slice(0, 7)),
+              datasets: [{
+                data: points.map(p => p.value),
+                borderColor: COLOR_LINE,
+                borderWidth: 1.5,
+                backgroundColor: 'rgba(87, 96, 106, 0.08)',
+                pointBackgroundColor: colors,
+                pointBorderColor: colors,
+                pointRadius: radii,
+                pointHoverRadius: 5,
+                lineTension: 0,
+              }],
+            },
+            options: {
+              maintainAspectRatio: false,
+              animation: false,
+              legend: { display: false },
               scales: {
-                xAxes: [
-                  {
-                    scaleLabel: {
-                      display: true,
-                      labelString: 'commit',
-                    },
-                  }
-                ],
-                yAxes: [
-                  {
-                    scaleLabel: {
-                      display: true,
-                      labelString: dataset.length > 0 ? dataset[0].bench.unit : '',
-                    },
-                    ticks: {
-                      beginAtZero: true,
-                    }
-                  }
-                ],
+                xAxes: [{ display: false }],
+                yAxes: [{
+                  ticks: { beginAtZero: true, maxTicksLimit: 4, fontSize: 10, callback: v => fmtValue(v) },
+                }],
               },
               tooltips: {
                 callbacks: {
+                  title: items => points[items[0].index].commit.id.slice(0, 7),
                   afterTitle: items => {
-                    const {index} = items[0];
-                    const data = dataset[index];
-                    return '\n' + data.commit.message + '\n\n' + data.commit.timestamp + ' committed by @' + data.commit.committer.username + '\n';
+                    const p = points[items[0].index];
+                    return firstLine(p.commit.message) + '\n' + p.commit.timestamp + ' by @' + commitAuthor(p.commit);
                   },
                   label: item => {
-                    let label = item.value;
-                    const { range, unit } = dataset[item.index].bench;
-                    label += ' ' + unit;
-                    if (range) {
-                      label += ' (' + range + ')';
-                    }
+                    const p = points[item.index];
+                    let label = fmtValue(p.value) + ' ' + p.unit;
+                    if (p.range) label += ' (' + p.range + ')';
+                    const c = changeAt.get(item.index);
+                    if (c) label += '  ' + fmtPct(c.raw) + ' vs previous';
+                    const s = stepAt.get(item.index);
+                    if (s) label += '\nStep: ' + fmtValue(s.before) + ' → ' + fmtValue(s.after) + ' (' + fmtPct(s.raw) + ')';
                     return label;
                   },
-                  afterLabel: item => {
-                    const { extra } = dataset[item.index].bench;
-                    return extra ? '\n' + extra : '';
-                  }
-                }
+                  afterLabel: item => points[item.index].extra || '',
+                },
               },
-              onClick: (_mouseEvent, activeElems) => {
-                if (activeElems.length === 0) {
-                  return;
-                }
-                // XXX: Undocumented. How can we know the index?
-                const index = activeElems[0]._index;
-                const url = dataset[index].commit.url;
-                window.open(url, '_blank');
+              onClick: (_ev, active) => {
+                if (active.length) window.open(points[active[0]._index].commit.url, '_blank');
               },
-            };
+            },
+          }));
+          return card;
+        }
 
-            new Chart(canvas, {
-              type: 'line',
-              data,
-              options,
-            });
-          }
-
-          function renderBenchSet(name, benchSet, main) {
-            const setElem = document.createElement('div');
-            setElem.className = 'benchmark-set';
-            main.appendChild(setElem);
-
-            const nameElem = document.createElement('h1');
-            nameElem.className = 'benchmark-title';
-            nameElem.textContent = name;
-            setElem.appendChild(nameElem);
-
-            const graphsElem = document.createElement('div');
-            graphsElem.className = 'benchmark-graphs';
-            setElem.appendChild(graphsElem);
-
-            for (const [benchName, benches] of benchSet.entries()) {
-              renderGraph(graphsElem, benchName, benches)
-            }
-          }
-
+        function render() {
+          destroyCharts();
+          renderTabs();
           const main = document.getElementById('main');
-          for (const {name, dataSet} of dataSets) {
-            renderBenchSet(name, dataSet, main);
+          main.textContent = '';
+          if (state.active === OVERVIEW) {
+            renderOverview(main);
+          } else {
+            renderSuite(main, suites.find(s => s.name === state.active));
           }
         }
 
-        renderAllChars(init()); // Start
+        // ---- Wiring -----------------------------------------------------------
+
+        document.getElementById('last-update').textContent = new Date(data.lastUpdate).toLocaleString();
+        const repoLink = document.getElementById('repository-link');
+        repoLink.href = data.repoUrl;
+        repoLink.textContent = data.repoUrl.replace(/^https:\/\/github\.com\//, '');
+
+        document.getElementById('dl-button').onclick = () => {
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const a = el('a', { href: URL.createObjectURL(blob), download: 'benchmark_data.json' });
+          a.click();
+          URL.revokeObjectURL(a.href);
+        };
+
+        const thresholdInput = document.getElementById('threshold');
+        thresholdInput.oninput = () => {
+          const v = Number(thresholdInput.value);
+          if (v > 0) {
+            state.threshold = v;
+            render();
+          }
+        };
+        const filterInput = document.getElementById('filter');
+        filterInput.oninput = () => {
+          state.filter = filterInput.value.trim().toLowerCase();
+          render();
+        };
+
+        window.addEventListener('hashchange', () => {
+          readHash();
+          render();
+          window.scrollTo(0, 0);
+        });
+
+        readHash();
+        render();
       })();
     </script>
   </body>
