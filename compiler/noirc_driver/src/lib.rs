@@ -340,7 +340,7 @@ impl CompileOptions {
     /// steps (SSA, Brillig, the monomorphized program, per-pass timings). Output from functions
     /// compiled at the same time interleaves, so [`compile_contract`] and `nargo export` compile
     /// them one at a time when this is set. An option added here also bypasses the cached
-    /// artifact, through [`CompileOptions::bypasses_cached_artifact`].
+    /// artifact, through `CompileOptions::bypasses_cached_artifact`.
     pub fn prints_compilation_steps(&self) -> bool {
         self.show_ssa
             || !self.show_ssa_pass.is_empty()

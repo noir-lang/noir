@@ -66,12 +66,12 @@ pub(crate) fn run(args: ExportCommand, workspace: Workspace) -> Result<(), CliEr
 
     // Packages, and each package's exported functions within them, compile in parallel on this
     // one pool, unless an option prints the compilation steps, which would then interleave. Its
-    // threads get the larger stack `nargo compile` gives programs, since deep functions overflow
-    // rayon's default, or `RUST_MIN_STACK` when that is larger.
-    const STACK_SIZE: usize = 4 * 1024 * 1024;
-    let requested_stack = std::env::var("RUST_MIN_STACK").ok().and_then(|size| size.parse().ok());
-    let stack_size = requested_stack.map_or(STACK_SIZE, |size: usize| size.max(STACK_SIZE));
-    let pool = rayon::ThreadPoolBuilder::new().stack_size(stack_size).build().unwrap();
+    // threads get the stack `nargo compile` gives its threads, since deep functions overflow
+    // rayon's default.
+    let pool = rayon::ThreadPoolBuilder::new()
+        .stack_size(nargo::compilation_stack_size())
+        .build()
+        .expect("failed to build the export thread pool");
     pool.install(|| {
         if args.compile_options.prints_compilation_steps() {
             library_packages.iter().try_for_each(compile_package)
