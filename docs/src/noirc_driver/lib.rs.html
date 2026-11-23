@@ -338,10 +338,10 @@
 <a href=#338 id=338 data-nosnippet>338</a><span class="kw">impl </span>CompileOptions {
 <a href=#339 id=339 data-nosnippet>339</a>    <span class="doccomment">/// Whether compiling a function with [`compile_no_check`] prints or writes out its intermediate
 <a href=#340 id=340 data-nosnippet>340</a>    /// steps (SSA, Brillig, the monomorphized program, per-pass timings). Output from functions
-<a href=#341 id=341 data-nosnippet>341</a>    /// compiled at the same time interleaves, so [`compile_contract`] compiles them one at a time
-<a href=#342 id=342 data-nosnippet>342</a>    /// when this is set. An option added here also bypasses the cached artifact, through
-<a href=#343 id=343 data-nosnippet>343</a>    /// [`CompileOptions::bypasses_cached_artifact`].
-<a href=#344 id=344 data-nosnippet>344</a>    </span><span class="kw">fn </span>prints_compilation_steps(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#341 id=341 data-nosnippet>341</a>    /// compiled at the same time interleaves, so [`compile_contract`] and `nargo export` compile
+<a href=#342 id=342 data-nosnippet>342</a>    /// them one at a time when this is set. An option added here also bypasses the cached
+<a href=#343 id=343 data-nosnippet>343</a>    /// artifact, through `CompileOptions::bypasses_cached_artifact`.
+<a href=#344 id=344 data-nosnippet>344</a>    </span><span class="kw">pub fn </span>prints_compilation_steps(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
 <a href=#345 id=345 data-nosnippet>345</a>        <span class="self">self</span>.show_ssa
 <a href=#346 id=346 data-nosnippet>346</a>            || !<span class="self">self</span>.show_ssa_pass.is_empty()
 <a href=#347 id=347 data-nosnippet>347</a>            || <span class="self">self</span>.show_brillig
