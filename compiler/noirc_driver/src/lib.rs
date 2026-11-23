@@ -338,8 +338,9 @@ impl Default for CompileOptions {
 impl CompileOptions {
     /// Whether compiling a function with [`compile_no_check`] prints or writes out its intermediate
     /// steps (SSA, Brillig, the monomorphized program, per-pass timings). Output from functions
-    /// compiled at the same time interleaves, and a cached artifact has no steps to show, so
-    /// [`reusable_cached_program`] compiles again when this is set.
+    /// compiled at the same time interleaves, so [`compile_contract`] compiles them one at a time
+    /// when this is set. An option added here also bypasses the cached artifact, through
+    /// [`CompileOptions::bypasses_cached_artifact`].
     fn prints_compilation_steps(&self) -> bool {
         self.show_ssa
             || !self.show_ssa_pass.is_empty()
@@ -348,6 +349,18 @@ impl CompileOptions {
             || self.show_monomorphized
             || self.emit_ssa
             || self.benchmark_codegen
+    }
+
+    /// Whether a program must be compiled again under these options even when it is monomorphized
+    /// to the same program as a cached artifact.
+    fn bypasses_cached_artifact(&self) -> bool {
+        // A cached artifact has no compilation steps or ACIR to print.
+        self.prints_compilation_steps()
+            || self.print_acir
+            // These change the compiled program without changing the monomorphized program
+            // that the cached artifact's hash is taken from.
+            || self.force_brillig
+            || self.minimal_ssa
     }
 
     /// Where comptime code prints to under these options.
@@ -1063,15 +1076,7 @@ fn reusable_cached_program(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Option<CompiledProgram> {
-    // A program that hasn't changed is still compiled again when the user asked to see its
-    // compilation steps or its ACIR, which a cached artifact can't show, or for an option that
-    // changes the compiled program without changing the monomorphized one it was hashed from.
-    let force_compile = force_compile
-        || options.prints_compilation_steps()
-        || options.print_acir
-        || options.force_brillig
-        || options.minimal_ssa
-        || count_array_copies;
+    let force_compile = force_compile || options.bypasses_cached_artifact() || count_array_copies;
 
     let cached_program = cached_program?;
     if force_compile || cached_program.hash != monomorphized.hash {
