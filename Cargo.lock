@@ -104,7 +104,6 @@ version = "1.0.0"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
- "build-data",
  "console_error_panic_hook",
  "const-str",
  "getrandom 0.2.17",
@@ -706,16 +705,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "build-data"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22e6d5ca7a4989b90a9fafea85ce3c8bc9f0e0a76edcdcb330fe0c4fda92251f"
-dependencies = [
- "chrono",
- "safe-regex",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -796,10 +785,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1aa79e62e7697b8e29b513a68abacf485adcd1fe8284a4316c5ae868e6633327"
 dependencies = [
  "iana-time-zone",
- "js-sys",
  "num-traits",
  "serde",
- "wasm-bindgen",
  "windows-link",
 ]
 
@@ -1749,9 +1736,9 @@ checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
 name = "form_urlencoded"
-version = "1.2.2"
+version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb4cb245038516f5f85277875cdaa4f7d2c9a0fa0468de06ed190163b1581fcf"
+checksum = "afa489199eaffb1211795df1c6236ce1ad0d41a6fa45250add73e3b02420f06e"
 dependencies = [
  "percent-encoding",
 ]
@@ -3107,7 +3094,6 @@ dependencies = [
  "async-lsp",
  "base64 0.23.1",
  "bn254_blackbox_solver",
- "build-data",
  "clap",
  "clap-markdown",
  "clap_complete",
@@ -3307,7 +3293,6 @@ dependencies = [
  "arbitrary",
  "arbtest",
  "bn254_blackbox_solver",
- "build-data",
  "color-eyre",
  "imbl",
  "insta",
@@ -3356,7 +3341,6 @@ dependencies = [
  "acvm",
  "assert_cmd",
  "bn254_blackbox_solver",
- "build-data",
  "codespan-reporting",
  "dap",
  "easy-repl",
@@ -3376,7 +3360,6 @@ name = "noir_greybox_fuzzer"
 version = "1.0.0"
 dependencies = [
  "acvm",
- "build-data",
  "fm",
  "itertools 0.15.0",
  "noirc_abi",
@@ -3492,7 +3475,6 @@ dependencies = [
 name = "noir_wasm"
 version = "1.0.0"
 dependencies = [
- "build-data",
  "console_error_panic_hook",
  "fm",
  "getrandom 0.2.17",
@@ -3537,7 +3519,6 @@ name = "noirc_abi_wasm"
 version = "1.0.0"
 dependencies = [
  "acvm",
- "build-data",
  "console_error_panic_hook",
  "getrandom 0.2.17",
  "getrandom 0.3.4",
@@ -3592,7 +3573,6 @@ name = "noirc_driver"
 version = "1.0.0"
 dependencies = [
  "acvm",
- "build-data",
  "clap",
  "fm",
  "insta",
@@ -3628,7 +3608,6 @@ dependencies = [
  "bit-vec",
  "bn254_blackbox_solver",
  "cfg-if",
- "chrono",
  "fm",
  "imbl",
  "indexmap 2.14.2",
@@ -4825,53 +4804,6 @@ name = "ryu"
 version = "1.0.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
-
-[[package]]
-name = "safe-proc-macro2"
-version = "1.0.95"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "492d1a72624b0bd5b7f0193ea5834a1905534a517573a117e949e895f342906c"
-dependencies = [
- "unicode-xid",
-]
-
-[[package]]
-name = "safe-quote"
-version = "1.0.40"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcaa9a650f2f98ba4da0190623210c85945cb78b262709f606c57655eda173e1"
-dependencies = [
- "safe-proc-macro2",
-]
-
-[[package]]
-name = "safe-regex"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5194fafa3cb9da89e0cab6dffa1f3fdded586bd6396d12be11b4cae0c7ee45c2"
-dependencies = [
- "safe-regex-macro",
-]
-
-[[package]]
-name = "safe-regex-compiler"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e822ae1e61251bcfd698317c237cf83f7c57161a5dc24ee609a85697f1ed15b3"
-dependencies = [
- "safe-proc-macro2",
- "safe-quote",
-]
-
-[[package]]
-name = "safe-regex-macro"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2768de7e6ef19f59c5fd3c3ac207ef12b68a49f95e3172d67e4a04cfd992ca06"
-dependencies = [
- "safe-proc-macro2",
- "safe-regex-compiler",
-]
 
 [[package]]
 name = "safe_arch"
@@ -6116,9 +6048,9 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "url"
-version = "2.5.8"
+version = "2.5.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff67a8a4397373c3ef660812acab3268222035010ab8680ec4215f38ba3d0eed"
+checksum = "f00cd2407bb42c0ef17be88d4cf020f5cceffd121665bac9b8b9493a369b3b1a"
 dependencies = [
  "form_urlencoded",
  "idna",
