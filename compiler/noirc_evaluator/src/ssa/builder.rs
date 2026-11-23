@@ -288,15 +288,18 @@ impl<'local> SsaBuilder<'local> {
     }
 }
 
-// Helper to time SSA passes
+/// Helper to time SSA passes.
+///
+/// The clock is only read when `print_timings` is set: `std::time::Instant::now()` panics on
+/// `wasm32-unknown-unknown`, so the compiler must not touch it on the default path.
 pub(super) fn time<T>(name: &str, print_timings: bool, f: impl FnOnce() -> T) -> T {
-    let start_time = std::time::Instant::now();
-    let result = f();
-
-    if print_timings {
-        println_to_stdout!("{name}: {} ms", start_time.elapsed().as_millis());
+    if !print_timings {
+        return f();
     }
 
+    let start_time = std::time::Instant::now();
+    let result = f();
+    println_to_stdout!("{name}: {} ms", start_time.elapsed().as_millis());
     result
 }
 
