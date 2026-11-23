@@ -1,7 +1,6 @@
-use nargo::errors::CompileError;
+use itertools::Itertools;
 use nargo::ops::{check_crate_and_report_errors, report_errors};
 use noir_artifact_cli::fs::artifact::save_program_to_file;
-use noirc_artifacts::program::CompiledProgram;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
@@ -9,7 +8,6 @@ use std::path::Path;
 use std::sync::Arc;
 
 use fm::FileManager;
-use iter_extended::try_vecmap;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
@@ -54,18 +52,31 @@ pub(crate) fn run(args: ExportCommand, workspace: Workspace) -> Result<(), CliEr
     let library_packages: Vec<_> =
         workspace.into_iter().filter(|package| package.is_library()).collect();
 
-    library_packages
-        .par_iter()
-        .map(|package| {
-            compile_exported_functions(
-                &workspace_file_manager,
-                &parsed_files,
-                &workspace,
-                package,
-                &args.compile_options,
-            )
-        })
-        .collect()
+    let compile_package = |package: &&Package| {
+        compile_exported_functions(
+            &workspace_file_manager,
+            &parsed_files,
+            &workspace,
+            package,
+            &args.compile_options,
+        )
+    };
+
+    // Packages, and each package's exported functions within them, compile in parallel on this
+    // one pool, unless an option prints the compilation steps, which would then interleave. Its
+    // threads get the stack `nargo compile` gives its threads, since deep functions overflow
+    // rayon's default.
+    let pool = rayon::ThreadPoolBuilder::new()
+        .stack_size(nargo::compilation_stack_size())
+        .build()
+        .expect("failed to build the export thread pool");
+    pool.install(|| {
+        if args.compile_options.prints_compilation_steps() {
+            library_packages.iter().try_for_each(compile_package)
+        } else {
+            library_packages.par_iter().map(compile_package).collect()
+        }
+    })
 }
 
 fn compile_exported_functions(
@@ -80,35 +91,35 @@ fn compile_exported_functions(
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
 
-    let exported_programs = try_vecmap(
-        exported_functions,
-        |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
-            // TODO: We should to refactor how to deal with compilation errors to avoid this.
-            let program = compile_no_check(
-                &context,
-                compile_options,
-                Path::new(""),
-                false,
-                function_id,
-                None,
-                false,
-            )
-            .map_err(|error| vec![CustomDiagnostic::from(error)]);
+    // Each exported function is compiled on its own, reading `context` without writing to it, so
+    // they are compiled in parallel, unless an option prints the compilation steps, which would
+    // then interleave.
+    let compile = |(function_name, function_id): (String, _)| {
+        compile_no_check(&context, compile_options, Path::new(""), false, function_id, None, false)
+            .map(|program| (function_name, program))
+            .map_err(CustomDiagnostic::from)
+    };
+    let compiled: Vec<_> = if compile_options.prints_compilation_steps() {
+        exported_functions.into_iter().map(compile).collect()
+    } else {
+        exported_functions.into_par_iter().map(compile).collect()
+    };
 
-            let program = report_errors(
-                program.map(|program| (program, Vec::new())),
-                &context.file_manager,
-                &context.parsed_files,
-                compile_options.deny_warnings,
-                compile_options.silence_warnings,
-            )?;
-
-            Ok((function_name, program))
-        },
-    )?;
+    // Every function was compiled, so every failure is reported, in the order
+    // `get_all_exported_functions_in_crate` returned the functions.
+    let (programs, errors): (Vec<_>, Vec<_>) = compiled.into_iter().partition_result();
+    if !errors.is_empty() {
+        report_errors::<()>(
+            Err(errors),
+            &context.file_manager,
+            &context.parsed_files,
+            compile_options.deny_warnings,
+            compile_options.silence_warnings,
+        )?;
+    }
 
     let export_dir = workspace.export_directory_path();
-    for (function_name, program) in exported_programs {
+    for (function_name, program) in programs {
         save_program_to_file(&program.into(), &function_name.parse().unwrap(), &export_dir)?;
     }
     Ok(())
