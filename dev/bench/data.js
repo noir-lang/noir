@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795525689091,
+  "lastUpdate": 1795525697605,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -41559,105 +41559,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "dbec7e8ce61d3984beff036ad6231199b9a97f52",
-          "message": "chore: fix cargo deny failures and tighten its config (#14104)",
-          "timestamp": "2026-10-27T14:16:10Z",
-          "tree_id": "5563ca544638f693eab1893f75c5013a4673e13a",
-          "url": "https://github.com/noir-lang/noir/commit/dbec7e8ce61d3984beff036ad6231199b9a97f52"
-        },
-        "date": 1793111248859,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 863.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 940,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 700.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 400.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 420.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 519.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 322.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 780.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 818.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 525.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 800,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 961,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 310.3,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2080.5,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 156.1,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -46677,6 +46578,120 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/0bc8743b7142c294cbd894ec09af35173bf50179"
         },
         "date": 1795523010836,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fp12-tower",
+            "value": 1391.4,
+            "unit": "KB"
+          },
+          {
+            "name": "fp12-tower-hints",
+            "value": 1598.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 865.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 955.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 704.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 399.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 420.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 518.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 321.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 779.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 817.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 526.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 803.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 963.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 310.4,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2080.3,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 154.5,
+            "unit": "KB"
+          },
+          {
+            "name": "token-contract",
+            "value": 3415.8,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f7ca7c11b210751690e8d675f0219b1b9a1439f0",
+          "message": "chore(deps): bump serde-reflection to 0.7.0 and serde-generate to 0.35.0 together (#14220)",
+          "timestamp": "2026-11-24T10:50:31Z",
+          "tree_id": "3f5fcb22540710f5f03e28305d9b91a99f1eb32f",
+          "url": "https://github.com/noir-lang/noir/commit/f7ca7c11b210751690e8d675f0219b1b9a1439f0"
+        },
+        "date": 1795525675785,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
