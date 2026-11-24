@@ -7,6 +7,7 @@ use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_artifacts::ssa::SsaReport;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::acir::AcirVar;
 use crate::brillig::assert_u32;
@@ -128,32 +129,6 @@ impl Context<'_> {
 
         let output_values = self.convert_vars_to_values(output_vars, dfg, result_ids);
         self.handle_ssa_call_outputs(result_ids, output_values)
-    }
-
-    /// Count, for each array value, how many Brillig calls among `instructions` take it as an
-    /// argument.
-    pub(super) fn count_brillig_array_arg_uses(
-        &mut self,
-        instructions: &[InstructionId],
-        dfg: &DataFlowGraph,
-        ssa: &Ssa,
-    ) {
-        for instruction_id in instructions {
-            let Instruction::Call { func, arguments } = &dfg[*instruction_id] else {
-                continue;
-            };
-            let Value::Function(func_id) = &dfg[*func] else {
-                continue;
-            };
-            if !ssa.functions[func_id].runtime().is_brillig() {
-                continue;
-            }
-            for argument in arguments {
-                if is_plain_array(&dfg.type_of_value(*argument)) {
-                    *self.brillig_array_arg_uses.entry(*argument).or_default() += 1;
-                }
-            }
-        }
     }
 
     /// Convert an argument of a Brillig call into the value passed to `brillig_call`.
@@ -404,6 +379,33 @@ impl Context<'_> {
             }
         }
     }
+}
+
+/// Count, for each array value, how many Brillig calls among `instructions` take it as an
+/// argument.
+pub(super) fn count_brillig_array_arg_uses(
+    instructions: &[InstructionId],
+    dfg: &DataFlowGraph,
+    ssa: &Ssa,
+) -> HashMap<ValueId, usize> {
+    let mut uses = HashMap::default();
+    for instruction_id in instructions {
+        let Instruction::Call { func, arguments } = &dfg[*instruction_id] else {
+            continue;
+        };
+        let Value::Function(func_id) = &dfg[*func] else {
+            continue;
+        };
+        if !ssa.functions[func_id].runtime().is_brillig() {
+            continue;
+        }
+        for argument in arguments {
+            if is_plain_array(&dfg.type_of_value(*argument)) {
+                *uses.entry(*argument).or_default() += 1;
+            }
+        }
+    }
+    uses
 }
 
 /// Whether `typ` is a fixed-size array without vectors inside, which can be passed to a Brillig

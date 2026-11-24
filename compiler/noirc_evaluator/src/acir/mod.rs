@@ -262,7 +262,8 @@ impl<'a> Context<'a> {
         }
 
         self.data_bus = dfg.data_bus.clone();
-        self.count_brillig_array_arg_uses(entry_block.instructions(), dfg, ssa);
+        self.brillig_array_arg_uses =
+            call::count_brillig_array_arg_uses(entry_block.instructions(), dfg, ssa);
         for instruction_id in entry_block.instructions() {
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }
