@@ -9,6 +9,11 @@ updates:
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
+    ignore:
+      # The ref of `dtolnay/rust-toolchain` is the Rust version it installs
+      # (e.g. `@1.89.0`), not an action release, so bumping it changes the
+      # toolchain and must be done deliberately alongside `rust-toolchain.toml`.
+      - dependency-name: "dtolnay/rust-toolchain"
     groups:
       # group updates for core GitHub Actions
       core-actions:
