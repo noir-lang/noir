@@ -202,6 +202,17 @@ projects:
     brillig-execution-timeout: 0.5
     compilation-memory-limit: 700
     execution-memory-limit: 500
+  brillig-large-array-input:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/brillig_large_array_input
+    num_compile_runs: 10
+    num_execute_runs: 20
+    compilation-timeout: 10
+    execution-timeout: 5
+    brillig-compilation-timeout: 10
+    brillig-execution-timeout: 5
+    compilation-memory-limit: 450
+    execution-memory-limit: 400
   token-contract:
     repo: aztec-labs-eng/aztec-node
     ref: *AZ_NODE_COMMIT
