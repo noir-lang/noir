@@ -123,25 +123,23 @@ impl Function {
             // we inherit the visible set from the immediate dominator: O(blocks) tree walk.
             // This completes the Cytron-style SSA construction (the IDF placement above is phase 1;
             // this visibility propagation replaces the per-variable dominance checks in phase 2).
-            let visible_vars = compute_visible_vars(&blocks, &variables, &dom_tree);
+            let mut vars_by_decl_block: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
+            for (var, decl_block) in &variables {
+                vars_by_decl_block.entry(*decl_block).or_default().push(*var);
+            }
+            let visible_vars = compute_visible_vars(&blocks, &vars_by_decl_block, &dom_tree);
+            let params_at = compute_params_at(&param_locations, &variables, &visible_vars);
 
             let mut block_states = BlockStates::default();
             add_block_params_and_find_exit_states(
                 &blocks,
-                &visible_vars,
-                &param_locations,
+                &vars_by_decl_block,
+                &params_at,
                 &mut inserter,
                 &mut block_states,
                 &cfg,
             );
-            add_terminator_arguments(
-                &blocks,
-                &variables,
-                &param_locations,
-                &mut inserter,
-                &block_states,
-                &cfg,
-            );
+            add_terminator_arguments(&blocks, &params_at, &mut inserter, &block_states, &cfg);
             commit(&mut inserter, &variables, &blocks);
 
             if !has_ineligible_variables {
@@ -152,25 +150,15 @@ impl Function {
     }
 }
 
-/// Contains the starting & ending values of each variable in each block
-type BlockStates = BTreeMap<BasicBlockId, BlockState>;
-
-/// Contains the starting & ending values of each variable in one block
-#[derive(Default)]
-struct BlockState {
-    /// Maps each variable visible in this block to its starting value in the block. This is
-    /// normally a block parameter or a value forwarded from a previous block.
-    ///
-    /// In the block where a variable is declared the variable is not yet defined at block entry,
-    /// so it is mapped to its own allocate result as a placeholder. `abstract_interpret_block`
-    /// overwrites this with the real value once it processes the variable's initial `Store`.
-    entry_state: BTreeMap<ValueId, ValueId>,
-
-    /// Maps each variable modified within this block to the value it is set to at the end of
-    /// the block. Note that to save on memory, we do not store variables which were not modified
-    /// within the block. Their values will be the same as the value in `entry_states`.
-    exit_state: BTreeMap<ValueId, ValueId>,
-}
+/// The value of each variable at the end of each block.
+///
+/// Each state is a persistent map built from the block's entry state, which starts as a cheap
+/// clone of a visited predecessor's exit state. It may therefore also hold variables that are
+/// not visible in the block; valid SSA never loads or stores such a variable there, and
+/// terminator arguments are only added for visible variables, so the extra entries are inert.
+/// Sharing structure this way keeps the pass near-linear (a persistent-map update per
+/// declaration, block parameter and store) rather than O(blocks x variables).
+type BlockStates = BTreeMap<BasicBlockId, StateVec>;
 
 /// For each eligible variable, the set of blocks where a block parameter must be inserted.
 /// Computed as the iterated dominance frontier of the variable's definition sites.
@@ -192,6 +180,28 @@ fn compute_param_locations(
         result.insert(*var, iterated_dominance_frontier(sites, dom_frontiers));
     }
     result
+}
+
+/// For each block, the variables that get a block parameter there, in `ValueId` order.
+///
+/// These are the variables that are visible in the block, have the block in their iterated
+/// dominance frontier, and are not declared in it. Building this once keeps the per-block work
+/// proportional to the parameters actually added, rather than to every visible variable.
+fn compute_params_at(
+    param_locations: &ParamLocations,
+    variables: &BTreeMap<ValueId, BasicBlockId>,
+    visible_vars: &HashMap<BasicBlockId, imbl::OrdSet<ValueId>>,
+) -> HashMap<BasicBlockId, Vec<ValueId>> {
+    let mut params_at: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
+    // `param_locations` iterates in `ValueId` order, so each list is sorted.
+    for (var, blocks) in param_locations {
+        for block in blocks {
+            if visible_vars[block].contains(var) && variables[var] != *block {
+                params_at.entry(*block).or_default().push(*var);
+            }
+        }
+    }
+    params_at
 }
 
 /// Compute the iterated dominance frontier of a set of blocks.
@@ -225,25 +235,18 @@ fn iterated_dominance_frontier(
 /// Each block's visible set is its idom's visible set plus any variables declared locally.
 fn compute_visible_vars(
     blocks: &[BasicBlockId],
-    variables: &BTreeMap<ValueId, BasicBlockId>,
+    vars_by_decl_block: &HashMap<BasicBlockId, Vec<ValueId>>,
     dom_tree: &DominatorTree,
-) -> HashMap<BasicBlockId, imbl::OrdMap<ValueId, BasicBlockId>> {
-    // Group variables by their declaration block
-    let mut vars_by_decl_block: HashMap<BasicBlockId, Vec<ValueId>> = HashMap::default();
-    for (var, decl_block) in variables {
-        vars_by_decl_block.entry(*decl_block).or_default().push(*var);
-    }
-
-    let mut visible: HashMap<BasicBlockId, imbl::OrdMap<ValueId, BasicBlockId>> =
-        HashMap::default();
+) -> HashMap<BasicBlockId, imbl::OrdSet<ValueId>> {
+    let mut visible: HashMap<BasicBlockId, imbl::OrdSet<ValueId>> = HashMap::default();
     for &block in blocks {
         let mut vars = match dom_tree.immediate_dominator(block) {
             Some(idom) => visible[&idom].clone(),
-            None => imbl::OrdMap::new(),
+            None => imbl::OrdSet::new(),
         };
         if let Some(declared_here) = vars_by_decl_block.get(&block) {
             for var in declared_here {
-                vars.insert(*var, block);
+                vars.insert(*var);
             }
         }
         visible.insert(block, vars);
@@ -251,118 +254,89 @@ fn compute_visible_vars(
     visible
 }
 
-/// Find the starting & ending states of each variable in each block.
+/// Find the entry & exit states of each variable in each block.
 ///
-/// Block parameters are only added at blocks in the variable's IDF (`param_locations`).
+/// Block parameters are only added at blocks in the variable's IDF (`params_at`).
 /// For all other blocks, the entry value is inherited from the predecessor's exit state.
 fn add_block_params_and_find_exit_states(
     blocks: &[BasicBlockId],
-    visible_vars: &HashMap<BasicBlockId, imbl::OrdMap<ValueId, BasicBlockId>>,
-    param_locations: &ParamLocations,
+    vars_by_decl_block: &HashMap<BasicBlockId, Vec<ValueId>>,
+    params_at: &HashMap<BasicBlockId, Vec<ValueId>>,
     inserter: &mut FunctionInserter,
     block_states: &mut BlockStates,
     cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {
-        let entry_state = compute_entry_state(
-            &visible_vars[&block],
-            param_locations,
+        let mut state = compute_entry_state(
+            vars_by_decl_block.get(&block).map_or(&[][..], Vec::as_slice),
+            params_at.get(&block).map_or(&[][..], Vec::as_slice),
             block,
             &mut inserter.function.dfg,
             block_states,
             cfg,
         );
-        let exit_state = abstract_interpret_block(inserter, block, &entry_state);
-        block_states.insert(block, BlockState { entry_state, exit_state });
+        abstract_interpret_block(inserter, block, &mut state);
+        block_states.insert(block, state);
     }
 }
 
 /// Compute the entry state for a block.
 ///
-/// `visible_vars` contains only the variables whose declaration dominates this block
-/// (precomputed via dominator tree walk in `compute_visible_vars`).
+/// Starts from the exit state of the first visited predecessor (a cheap persistent clone):
+/// in RPO at least one non-back-edge predecessor has been visited, and all visited
+/// predecessors agree on every variable that is visible here and has no block parameter here
+/// (otherwise this block would be in that variable's IDF). Then:
+/// - variables declared in this block map to their own allocate result as a placeholder, which
+///   `abstract_interpret_block` replaces when it processes the initial `Store`;
+/// - variables with a block parameter here (`params`) get a fresh block parameter.
 ///
-/// For each visible variable:
-/// - If this is the declaration block: use the original allocate result
-/// - If this block is in the variable's IDF: add a fresh block parameter
-/// - Otherwise: inherit the value from a visited predecessor's exit state
+/// With no visited predecessor (the entry block) the state starts empty.
 fn compute_entry_state(
-    visible_vars: &imbl::OrdMap<ValueId, BasicBlockId>,
-    param_locations: &ParamLocations,
+    declared_here: &[ValueId],
+    params: &[ValueId],
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
     block_states: &BlockStates,
     cfg: &ControlFlowGraph,
 ) -> StateVec {
-    visible_vars
-        .iter()
-        .filter_map(|(var, decl_block)| {
-            let value = if block == *decl_block {
-                // Declaration block: the variable is not yet defined at block entry, so map it to
-                // its own allocate result as a placeholder. `abstract_interpret_block` replaces it
-                // with the real value when it processes the variable's initial `Store`.
-                *var
-            } else if param_locations[var].contains(&block) {
-                // IDF block: add a block parameter for this variable
-                let typ = dfg
-                    .type_of_value(*var)
-                    .reference_element_type()
-                    .expect("All variables should be references")
-                    .clone();
-                dfg.add_block_parameter(block, typ)
-            } else {
-                // Non-IDF block: inherit from a visited predecessor.
-                // Since we process in RPO, at least one non-back-edge predecessor
-                // has been visited. All visited predecessors must agree on this
-                // variable's value (otherwise this block would be in the IDF).
-                get_value_from_visited_predecessor(*var, block, cfg, block_states)?
-            };
-
-            Some((*var, value))
-        })
-        .collect()
-}
-
-/// Get a variable's exit value from a visited predecessor.
-///
-/// Returns None if no predecessor has been visited yet (can happen for unreachable blocks).
-fn get_value_from_visited_predecessor(
-    var: ValueId,
-    block: BasicBlockId,
-    cfg: &ControlFlowGraph,
-    block_states: &BlockStates,
-) -> Option<ValueId> {
-    for predecessor in cfg.predecessors(block) {
-        if let Some(pred_state) = block_states.get(&predecessor) {
-            return Some(pred_state.get_exit_value(var));
-        }
+    let mut state = cfg
+        .predecessors(block)
+        .find_map(|predecessor| block_states.get(&predecessor))
+        .cloned()
+        .unwrap_or_default();
+    for var in declared_here {
+        state.insert(*var, *var);
     }
-    None
+    for var in params {
+        let typ = dfg
+            .type_of_value(*var)
+            .reference_element_type()
+            .expect("All variables should be references")
+            .clone();
+        let param = dfg.add_block_parameter(block, typ);
+        state.insert(*var, param);
+    }
+    state
 }
 
 /// Link entry & exit states by adding terminator arguments for variables at IDF blocks.
 ///
-/// Only blocks in a variable's IDF have block parameters that need arguments wired.
-/// The decl block is skipped even when it is in its own IDF (loop-header pattern):
-/// `compute_entry_state` does not add a block parameter there, and predecessors of the
-/// decl block don't have the variable in their state.
+/// Only blocks in a variable's IDF have block parameters that need arguments wired, and
+/// `params_at` lists exactly those, in the order the parameters were added. It leaves out a
+/// variable's declaration block even when that block is in its own IDF (loop-header pattern),
+/// because no parameter is added there and its predecessors do not have the variable in scope.
 fn add_terminator_arguments(
     blocks: &[BasicBlockId],
-    variables: &BTreeMap<ValueId, BasicBlockId>,
-    param_locations: &ParamLocations,
+    params_at: &HashMap<BasicBlockId, Vec<ValueId>>,
     inserter: &mut FunctionInserter,
     block_states: &BlockStates,
     cfg: &ControlFlowGraph,
 ) {
     for block in blocks.iter().copied() {
-        let block_state = &block_states[&block];
-
-        for address in block_state.entry_state.keys() {
-            if block == variables[address] || !param_locations[address].contains(&block) {
-                continue;
-            }
+        let Some(params) = params_at.get(&block) else { continue };
+        for address in params {
             for predecessor in cfg.predecessors(block) {
-                let value = block_states[&predecessor].get_exit_value(*address);
+                let value = block_states[&predecessor][address];
                 for_each_terminator_edge_mut(
                     &mut inserter.function.dfg,
                     predecessor,
@@ -375,21 +349,7 @@ fn add_terminator_arguments(
 }
 
 /// Mapping from a variable to its value at a point in time.
-type StateVec = BTreeMap<ValueId, ValueId>;
-
-impl BlockState {
-    /// Gets the "exit value" of a variable, which is its value at the end of the given block.
-    ///
-    /// `variable` should always be a reference.
-    fn get_exit_value(&self, variable: ValueId) -> ValueId {
-        *self
-            .exit_state
-            .get(&variable)
-            // To save memory, `exit_states` only contains the value if it changed within the block.
-            // So we have to check `entry_states` for the value if it went unchanged.
-            .unwrap_or_else(|| &self.entry_state[&variable])
-    }
-}
+type StateVec = imbl::OrdMap<ValueId, ValueId>;
 
 /// Invoke `f` on the terminator arguments of every edge from `block` to `jmp_target`.
 ///
@@ -424,8 +384,8 @@ fn for_each_terminator_edge_mut(
     }
 }
 
-/// Abstractly interpret a block, collecting the value of each reference at the end of a block.
-/// Any references not included in the result are assumed to be unchanged.
+/// Abstractly interpret a block, updating `state` from the block's entry state to the value of
+/// each reference at the end of the block.
 ///
 /// This function is very simple and will produce incorrect results for first-class references
 /// that are aliased, passed to functions, or stored in arrays, etc.
@@ -436,24 +396,21 @@ fn for_each_terminator_edge_mut(
 fn abstract_interpret_block(
     inserter: &mut FunctionInserter,
     block: BasicBlockId,
-    entry_state: &StateVec,
-) -> StateVec {
-    // Any variables not in the exit_state by function end are assumed to be unchanged from the entry_state
-    let mut exit_state = StateVec::new();
+    state: &mut StateVec,
+) {
     let instructions = inserter.function.dfg[block].take_instructions();
 
     for instruction_id in &instructions {
         match &inserter.function.dfg[*instruction_id] {
             Instruction::Store { address, value } => {
-                // Only update the value if the address is already in the entry state, since only
-                // those addresses are eligible for mem2reg optimization. If the address is
-                // in the state, we remove it.
-                if entry_state.contains_key(address) {
-                    exit_state.insert(*address, *value);
+                // Only update the value if the address is already in the state, since only
+                // those addresses are eligible for mem2reg optimization.
+                if let Some(slot) = state.get_mut(address) {
+                    *slot = *value;
                 }
             }
             Instruction::Load { address } => {
-                if let Some(value) = exit_state.get(address).or_else(|| entry_state.get(address)) {
+                if let Some(value) = state.get(address) {
                     let result = inserter.function.dfg.instruction_results(*instruction_id)[0];
                     inserter.map_value(result, *value);
                 }
@@ -463,7 +420,6 @@ fn abstract_interpret_block(
     }
 
     *inserter.function.dfg[block].instructions_mut() = instructions;
-    exit_state
 }
 
 /// Return a map from each eligible variable to the block it was declared in,
@@ -593,10 +549,9 @@ mod tests {
     #[test]
     fn decl_block_in_own_idf_regression() {
         // The allocate is in a loop header (b1), so the decl block is in its own IDF via the
-        // back-edge predecessor. `compute_entry_state` does not add a block parameter at the
-        // decl block (the `block == decl_block` branch wins over the IDF branch), so
-        // `add_terminator_arguments` must skip pushing args from b1's predecessors — they
-        // don't have the variable in their state.
+        // back-edge predecessor. `compute_params_at` leaves the decl block out, so no block
+        // parameter is added there and `add_terminator_arguments` does not push args from
+        // b1's predecessors — they don't have the variable in scope.
         let src = "
         brillig(inline) fn func f0 {
           b0(v0: u1):
@@ -1717,35 +1672,136 @@ brillig(inline) fn main f0 {
         ");
     }
 
-    /// `get_value_from_visited_predecessor` returns `None` when none of a block's
-    /// predecessors have a recorded `BlockState` yet. `compute_entry_state` relies on this
-    /// to drop a variable whose value cannot be inherited (e.g. for a block that is not
-    /// reached through any already-visited predecessor). Exercised directly because the
-    /// reverse-post-order traversal always visits a forward predecessor first for reachable
-    /// blocks, so the branch is otherwise defensive.
+    /// `v2` is declared in `b1`, so it is not visible in the merge block `b3` even though `b3`
+    /// is in its iterated dominance frontier and `b3` starts from `b1`'s exit state (which
+    /// still holds `v2`). Only `v1` may get a block parameter at `b3`.
     #[test]
-    fn get_value_from_visited_predecessor_returns_none_without_visited_predecessor() {
-        use crate::ssa::ir::{cfg::ControlFlowGraph, map::Id};
-
+    fn variable_declared_in_branch_gets_no_parameter_at_merge() {
         let src = "
         brillig(inline) fn func f0 {
-          b0():
-            jmp b1()
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            jmpif v0 then: b1(), else: b2()
           b1():
-            return
+            v2 = allocate -> &mut Field
+            store Field 2 at v2
+            v3 = load v2 -> Field
+            store v3 at v1
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v4 = load v1 -> Field
+            return v4
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let function = ssa.main();
-        let cfg = ControlFlowGraph::with_function(function);
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 2)
+          b2():
+            jmp b3(Field 1)
+          b3(v1: Field):
+            return v1
+        }
+        ");
+    }
 
-        // b1 is reached from b0, but with an empty `block_states` no predecessor is "visited".
-        let b1 = cfg.successors(function.entry_block()).next().expect("b0 has a successor");
-        let block_states = super::BlockStates::default();
-        let dummy_var = Id::test_new(0);
+    /// `v2` is declared in the loop body `b2`. The loop header `b1` is in its iterated
+    /// dominance frontier but `v2` is not visible there, so only the loop-carried `v1` gets a
+    /// block parameter, and the exit block `b3` inherits `v1` from the header.
+    #[test]
+    fn variable_declared_in_loop_body_gets_no_parameter_at_header() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            jmp b1()
+          b1():
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            v2 = allocate -> &mut Field
+            store Field 1 at v2
+            v3 = load v1 -> Field
+            v4 = load v2 -> Field
+            v5 = add v3, v4
+            store v5 at v1
+            jmp b1()
+          b3():
+            v6 = load v1 -> Field
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmp b1(Field 0)
+          b1(v1: Field):
+            jmpif v0 then: b2(), else: b3()
+          b2():
+            v4 = add v1, Field 1
+            jmp b1(v4)
+          b3():
+            return v1
+        }
+        ");
+    }
 
-        assert!(
-            super::get_value_from_visited_predecessor(dummy_var, b1, &cfg, &block_states).is_none()
-        );
+    /// Three variables through one diamond: `v1` is stored in one branch and `v3` in both
+    /// (block parameters at the merge), while `v2` is never stored after its declaration and
+    /// is inherited through the first visited predecessor, which is not the immediate
+    /// dominator. Parameters and arguments must stay in `ValueId` order.
+    #[test]
+    fn merge_mixes_parameters_and_inherited_values() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            store Field 1 at v1
+            v2 = allocate -> &mut Field
+            store Field 2 at v2
+            v3 = allocate -> &mut Field
+            store Field 3 at v3
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            store Field 10 at v3
+            store Field 11 at v1
+            jmp b3()
+          b2():
+            store Field 20 at v3
+            jmp b3()
+          b3():
+            v4 = load v1 -> Field
+            v5 = load v2 -> Field
+            v6 = load v3 -> Field
+            v7 = add v4, v5
+            v8 = add v7, v6
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn func f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 11, Field 10)
+          b2():
+            jmp b3(Field 1, Field 20)
+          b3(v1: Field, v2: Field):
+            v8 = add v1, Field 2
+            v9 = add v8, v2
+            return v9
+        }
+        ");
     }
 }
