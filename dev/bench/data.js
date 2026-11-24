@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795553529676,
+  "lastUpdate": 1795554935967,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -31555,105 +31555,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b3eb60b3dc21f68d9597c5322645fe8a487ce69c",
-          "message": "chore(docs): add a guide for migrating from v1.0.0-rc.0 (#14114)",
-          "timestamp": "2026-10-28T17:59:48Z",
-          "tree_id": "239e15b279e6b887f394d2be7dfbd2314f131d26",
-          "url": "https://github.com/noir-lang/noir/commit/b3eb60b3dc21f68d9597c5322645fe8a487ce69c"
-        },
-        "date": 1793211106723,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 17714,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 89281,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 74596,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 9082,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9148,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 10334,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1278,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1388667,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1389860,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1640,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 239491,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 251761,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1306,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -36583,6 +36484,115 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e11430908848fb38e929d7ad0f97bb76fb9aaf44"
         },
         "date": 1795552261247,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fp12-tower",
+            "value": 99058,
+            "unit": "opcodes"
+          },
+          {
+            "name": "fp12-tower-hints",
+            "value": 90418,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-inner",
+            "value": 17676,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 89698,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 75108,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 9060,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9126,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 10312,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1278,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1388084,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1389277,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1560,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 241254,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 262286,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1306,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5699,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "85c43cd43bedbb87612a0ac9e67a8d5ff2bb05ca",
+          "message": "chore(deps): bump body-parser from 2.2.2 to 2.4.0 in /docs (#14224)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-11-24T18:35:37Z",
+          "tree_id": "5804831200cfad5ace877f148b27b94e8030aaa4",
+          "url": "https://github.com/noir-lang/noir/commit/85c43cd43bedbb87612a0ac9e67a8d5ff2bb05ca"
+        },
+        "date": 1795554930772,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
