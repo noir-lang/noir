@@ -1,6 +1,6 @@
 //! Defines the [Value] type, representing a compile-time value, used by the
 //! comptime interpreter when evaluating code.
-use std::{borrow::Cow, rc::Rc, vec};
+use std::{borrow::Cow, sync::Arc, vec};
 
 use acvm::FieldElement;
 use fm::FileMap;
@@ -47,10 +47,10 @@ pub enum Value {
     Unit,
     Bool(bool),
     Integer(Integer),
-    String(Rc<Vec<u8>>),
-    FormatString(Rc<Vec<FormatStringFragment>>, Type, u32 /* length */),
-    CtString(Rc<Vec<u8>>),
-    Function(FuncId, Type, Rc<TypeBindings>),
+    String(Arc<Vec<u8>>),
+    FormatString(Arc<Vec<FormatStringFragment>>, Type, u32 /* length */),
+    CtString(Arc<Vec<u8>>),
+    Function(FuncId, Type, Arc<TypeBindings>),
 
     /// Closures also store their original scope (function & module)
     /// in case they use functions such as `Quoted::as_type` which require them.
@@ -68,7 +68,7 @@ pub enum Value {
     Pointer(ValueCell, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
     Vector(Vector<Value>, Type),
-    Quoted(Rc<Vec<LocatedToken>>),
+    Quoted(Arc<Vec<LocatedToken>>),
     TypeDefinition(TypeId),
     TraitConstraint(TraitId, TraitGenerics),
     TraitDefinition(TraitId),
@@ -89,7 +89,7 @@ pub enum FormatStringFragment {
     Value { name: String, value: Value },
 }
 
-pub(super) type StructFields = HashMap<Rc<String>, ValueCell>;
+pub(super) type StructFields = HashMap<Arc<String>, ValueCell>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
@@ -148,7 +148,8 @@ impl Value {
         fields: impl IntoIterator<Item = (String, Value)>,
         typ: Type,
     ) -> Self {
-        let fields = fields.into_iter().map(|(name, value)| (Rc::new(name), ValueCell::new(value)));
+        let fields =
+            fields.into_iter().map(|(name, value)| (Arc::new(name), ValueCell::new(value)));
         Value::Struct(fields.collect(), typ)
     }
 
@@ -177,20 +178,21 @@ impl Value {
         let map_cell = |value: ValueCell| ValueCell::new(value.unwrap_or_clone().map_types(f));
         match self {
             Value::FormatString(fragments, typ, length) => {
-                let fragments = vecmap(Rc::unwrap_or_clone(fragments), |fragment| match fragment {
-                    FormatStringFragment::Value { name, value } => {
-                        FormatStringFragment::Value { name, value: value.map_types(f) }
-                    }
-                    fragment @ FormatStringFragment::String(_) => fragment,
-                });
-                Value::FormatString(Rc::new(fragments), f(&typ), length)
+                let fragments =
+                    vecmap(Arc::unwrap_or_clone(fragments), |fragment| match fragment {
+                        FormatStringFragment::Value { name, value } => {
+                            FormatStringFragment::Value { name, value: value.map_types(f) }
+                        }
+                        fragment @ FormatStringFragment::String(_) => fragment,
+                    });
+                Value::FormatString(Arc::new(fragments), f(&typ), length)
             }
             Value::Function(id, typ, bindings) => {
-                let bindings = Rc::unwrap_or_clone(bindings)
+                let bindings = Arc::unwrap_or_clone(bindings)
                     .into_iter()
                     .map(|(id, (var, kind, binding))| (id, (var, kind, f(&binding))))
                     .collect();
-                Value::Function(id, f(&typ), Rc::new(bindings))
+                Value::Function(id, f(&typ), Arc::new(bindings))
             }
             Value::Closure(closure) => {
                 let Closure { lambda, env, typ, function_scope, module_scope, frame } = *closure;
@@ -587,7 +589,7 @@ impl Value {
             Value::Bool(value) => HirExpression::Literal(HirLiteral::Bool(value)),
             Value::Integer(int) => int.into_hir_expression(),
             Value::String(bytes) => {
-                HirExpression::Literal(HirLiteral::Str(Rc::unwrap_or_clone(bytes)))
+                HirExpression::Literal(HirLiteral::Str(Arc::unwrap_or_clone(bytes)))
             }
             Value::FormatString(fragments, _typ, length) => {
                 let mut captures = Vec::new();
@@ -762,7 +764,7 @@ impl Value {
                 vec![Token::InternedUnresolvedTypeData(interner.push_unresolved_type_data(typ))]
             }
             Value::TraitConstraint(trait_id, generics) => {
-                let name = Rc::new(interner.get_trait(trait_id).name.to_string());
+                let name = Arc::new(interner.get_trait(trait_id).name.to_string());
                 let typ = Type::TraitAsType(trait_id, name, generics);
                 vec![Token::QuotedType(interner.push_quoted_type(typ))]
             }
@@ -902,16 +904,16 @@ impl Value {
     }
 }
 
-/// Unwraps an Rc value without cloning the inner value if the reference count is 1. Clones otherwise.
-pub(crate) fn unwrap_rc<T: Clone>(rc: Rc<T>) -> T {
-    Rc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
+/// Unwraps an Arc value without cloning the inner value if the reference count is 1. Clones otherwise.
+pub(crate) fn unwrap_rc<T: Clone>(rc: Arc<T>) -> T {
+    Arc::try_unwrap(rc).unwrap_or_else(|rc| (*rc).clone())
 }
 
 /// Helper to parse the given tokens using the given parse function.
 ///
 /// If they fail to parse, [`InterpreterError::FailedToParseMacro`] is returned.
 fn parse_tokens<'a, T, F>(
-    tokens: &Rc<Vec<LocatedToken>>,
+    tokens: &Arc<Vec<LocatedToken>>,
     elaborator: &mut Elaborator,
     parsing_function: F,
     location: Location,

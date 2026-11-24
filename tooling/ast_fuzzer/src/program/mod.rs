@@ -1,7 +1,7 @@
 //! Module responsible for generating arbitrary [Program] ASTs.
 use std::{
     collections::{BTreeMap, BTreeSet},
-    rc::Rc,
+    sync::Arc,
 }; // Using BTree for deterministic enumeration, for repeatability.
 
 use func::{FunctionContext, FunctionDeclaration, can_call};
@@ -293,8 +293,8 @@ impl Context {
                     callee.params.iter().map(|p| p.3.as_ref().clone()).collect::<Vec<_>>();
                 let typ = Type::Function(
                     param_types,
-                    Rc::new(callee.return_type.clone()),
-                    Rc::new(Type::Unit),
+                    Arc::new(callee.return_type.clone()),
+                    Arc::new(Type::Unit),
                     callee.unconstrained,
                 );
                 if u.ratio(2, 5)? { types::ref_mut(typ) } else { typ }
@@ -310,7 +310,7 @@ impl Context {
                 Visibility::Private
             };
 
-            params.push((id, is_mutable, name, Rc::new(typ), visibility));
+            params.push((id, is_mutable, name, Arc::new(typ), visibility));
         }
 
         let return_visibility = if is_main {
@@ -517,13 +517,13 @@ impl Context {
                 }
                 6 if is_vector_allowed && !self.config.avoid_vectors => {
                     let typ = gen_inner_type(self, u, false)?;
-                    Type::Vector(Rc::new(typ))
+                    Type::Vector(Arc::new(typ))
                 }
                 6 | 7 => {
                     let min_size = 0;
                     let size = u.int_in_range(min_size..=self.config.max_array_size)?;
                     let typ = gen_inner_type(self, u, false)?;
-                    Type::Array(size as u32, Rc::new(typ))
+                    Type::Array(size as u32, Arc::new(typ))
                 }
                 _ => unreachable!("unexpected arbitrary type index"),
             };

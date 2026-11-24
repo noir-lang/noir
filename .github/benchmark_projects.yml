@@ -1,4 +1,8 @@
 define: &AZ_COMMIT 3614971ee06151494e4265bfb1b4b634fbb2f524
+# The head of aztec-node `main`, bumped weekly with `AZ_COMMIT`. It is not the `labs/` submodule
+# commit that aztec-packages pins, which the aztec-node contract compile job in
+# `test-js-packages.yml` builds, so the two jobs can compile different aztec-node code.
+define_aztec_node: &AZ_NODE_COMMIT 9898599e079e54b5db945b734fa8a3065c52496a
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -165,6 +169,17 @@ projects:
     brillig-execution-timeout: 0.6
     compilation-memory-limit: 450
     execution-memory-limit: 400
+  fp12-tower-hints:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/fp12_tower_hints
+    num_compile_runs: 3
+    num_execute_runs: 3
+    compilation-timeout: 40
+    execution-timeout: 0.5
+    brillig-compilation-timeout: 40
+    brillig-execution-timeout: 0.5
+    compilation-memory-limit: 900
+    execution-memory-limit: 450
   sha512-100-bytes:
     repo: noir-lang/noir
     path: test_programs/benchmarks/sha512_100_bytes
@@ -176,3 +191,25 @@ projects:
     brillig-execution-timeout: 5
     compilation-memory-limit: 450
     execution-memory-limit: 400
+  fp12-tower:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/fp12_tower
+    num_compile_runs: 3
+    num_execute_runs: 3
+    compilation-timeout: 25
+    execution-timeout: 0.5
+    brillig-compilation-timeout: 45
+    brillig-execution-timeout: 0.5
+    compilation-memory-limit: 700
+    execution-memory-limit: 500
+  token-contract:
+    repo: aztec-labs-eng/aztec-node
+    ref: *AZ_NODE_COMMIT
+    path: noir-projects/noir-contracts/contracts/app/token_contract
+    cannot_execute: true
+    cannot_execute_brillig: true
+    num_compile_runs: 1
+    num_execute_runs: 1
+    compilation-timeout: 60
+    brillig-compilation-timeout: 40
+    compilation-memory-limit: 1000

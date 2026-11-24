@@ -6,7 +6,7 @@ use nargo_toml::{
     get_package_manifest, resolve_workspace_from_fixed_toml, resolve_workspace_from_toml,
 };
 use noir_artifact_cli::commands::parse_and_normalize_path;
-use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
+use noirc_driver::{CrateName, GIT_COMMIT, GIT_DIRTY, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
     collections::BTreeMap,
     fs::File,
@@ -38,16 +38,14 @@ mod lsp_cmd;
 mod new_cmd;
 mod test_cmd;
 
-const GIT_HASH: &str = env!("GIT_COMMIT");
-const IS_DIRTY: &str = env!("GIT_DIRTY");
 const NARGO_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 static VERSION_STRING: &str = formatcp!(
     "version = {}\nnoirc version = {}\n(git version hash: {}, is dirty: {})",
     NARGO_VERSION,
     NOIR_ARTIFACT_VERSION_STRING,
-    GIT_HASH,
-    IS_DIRTY
+    GIT_COMMIT,
+    GIT_DIRTY
 );
 
 #[derive(Parser, Debug)]

@@ -7,10 +7,11 @@
 //! without any bookkeeping: a request enqueued after a document change is processed after
 //! the re-check that change triggered, so it always sees up-to-date compiler state.
 //!
-//! Compiler state cannot cross threads (`NodeInterner` transitively contains `Rc`), which
-//! rules out type-checking on a helper thread and handing the result back. Instead the
-//! state is created on the thread that processes messages and never leaves it; only
-//! messages (jobs and their `Send` results) cross the thread boundary.
+//! Compiler state cannot cross threads (`LspState` holds the black box solver as a
+//! `Box<dyn BlackBoxFunctionSolver>`, which is not `Send`), which rules out type-checking on a
+//! helper thread and handing the result back. Instead the state is created on the thread that
+//! processes messages and never leaves it; only messages (jobs and their `Send` results) cross
+//! the thread boundary.
 
 use std::future::Future;
 use std::pin::Pin;

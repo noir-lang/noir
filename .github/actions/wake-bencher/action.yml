@@ -1,0 +1,41 @@
+name: Wake the benchmark machine
+description: >
+  Starts the self-hosted benchmark machine (runner label `noir-bench`), which powers itself off
+  after 30 idle minutes. The calling job needs `permissions: id-token: write`: the step exchanges
+  the workflow's OIDC token for the AWS role `noir-ci-bencher-wake`, which can only start this one
+  instance. Only pushes to master use the machine, so only they call this.
+
+  The machine-side setup (the runner, its fork guard, the idle check) lives in
+  AztecProtocol/claudebox: `scripts/bencher-user-data.yaml`, described in `docs/bencher.md`.
+runs:
+  using: composite
+  steps:
+    - name: Get AWS credentials
+      uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+      with:
+        role-to-assume: arn:aws:iam::257014220042:role/noir-ci-bencher-wake
+        aws-region: eu-west-2
+
+    # Starting a running instance does nothing, and its runner reconnects to GitHub on boot.
+    # Once EC2 reports the instance as stopping, it refuses to start it, so keep asking until it
+    # has stopped and the start is accepted. The machine can still power off just before or just
+    # after this call: its idle check powers it off from inside, and EC2 reports `running` for a
+    # few seconds afterwards. Jobs waiting for `noir-bench` then wait for the next run's wake.
+    - name: Start the benchmark machine
+      shell: bash
+      env:
+        BENCHER_INSTANCE_ID: i-0acfd9d4c0d1a40c4
+      run: |
+        for attempt in $(seq 1 30); do
+          if aws ec2 start-instances --instance-ids "$BENCHER_INSTANCE_ID" 2>"$RUNNER_TEMP/wake-err"; then
+            exit 0
+          fi
+          if ! grep -q IncorrectInstanceState "$RUNNER_TEMP/wake-err"; then
+            cat "$RUNNER_TEMP/wake-err" >&2
+            exit 1
+          fi
+          echo "Benchmark machine is powering off; retrying ($attempt/30)"
+          sleep 10
+        done
+        echo "Benchmark machine did not finish powering off" >&2
+        exit 1

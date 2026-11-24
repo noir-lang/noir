@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use nargo::errors::Location;
 use noirc_frontend::{
@@ -153,8 +153,12 @@ fn replace_with_wrapper_call(e: &mut Expression, wrapper_id: FuncId, value_type:
     let Expression::Ident(ident) = call.func.as_mut() else { unreachable!() };
     ident.definition = Definition::Function(wrapper_id);
     ident.name = format!("print_wrapper_{}", wrapper_id.0);
-    ident.typ =
-        Rc::new(Type::Function(vec![value_type], Rc::new(Type::Unit), Rc::new(Type::Unit), true));
+    ident.typ = Arc::new(Type::Function(
+        vec![value_type],
+        Arc::new(Type::Unit),
+        Arc::new(Type::Unit),
+        true,
+    ));
     // Keep only the value argument (index 1); drop newline and type info.
     let value_arg = call.arguments.remove(1);
     call.arguments = vec![value_arg];
@@ -183,14 +187,14 @@ fn make_print_wrapper(
     newline: Expression,
     type_info_args: &[Expression],
 ) -> Function {
-    let value_type_rc = Rc::new(value_type.clone());
+    let value_type_rc = Arc::new(value_type.clone());
 
     let value_ident = Ident {
         location: None,
         definition: Definition::Local(LocalId(0)),
         mutable: false,
         name: "value".to_string(),
-        typ: Rc::clone(&value_type_rc),
+        typ: Arc::clone(&value_type_rc),
         id: IdentId(1),
     };
 
@@ -199,10 +203,10 @@ fn make_print_wrapper(
         definition: Definition::Oracle { name: "print".to_string(), pure: false },
         mutable: false,
         name: "print_oracle".to_string(),
-        typ: Rc::new(Type::Function(
+        typ: Arc::new(Type::Function(
             vec![Type::Bool, value_type.clone()],
-            Rc::new(Type::Unit),
-            Rc::new(Type::Unit),
+            Arc::new(Type::Unit),
+            Arc::new(Type::Unit),
             true,
         )),
         id: IdentId(0),
