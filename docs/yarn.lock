@@ -12738,13 +12738,13 @@ __metadata:
   linkType: hard
 
 "find-my-way@npm:^9.0.0":
-  version: 9.5.0
-  resolution: "find-my-way@npm:9.5.0"
+  version: 9.10.1
+  resolution: "find-my-way@npm:9.10.1"
   dependencies:
     fast-deep-equal: "npm:^3.1.3"
     fast-querystring: "npm:^1.0.0"
     safe-regex2: "npm:^5.0.0"
-  checksum: 10/c22e24888576a7d7a9a681ecae8d3d24f372a372892b31fb94772c2a7e4474a27be11aa6c36e022221763c4d7f6df4d853d6132812d121501f8fe0c6075733e4
+  checksum: 10/9539fee5a6bdf79ece64b6b6de70733d7eec56b845494dc26f82beb3f0873319de40ef46e494424683fb7de6a66614a5d9d0ff0fc889fe310d331ad8bea79a1e
   languageName: node
   linkType: hard
 
