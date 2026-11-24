@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.1.0](https://github.com/noir-lang/noir/compare/v1.0.0...v1.1.0) (2026-11-24)
+
+
+### Features
+
+* **brillig:** Skip jumps to the next emitted block ([#14128](https://github.com/noir-lang/noir/issues/14128)) ([5a90e04](https://github.com/noir-lang/noir/commit/5a90e04ef4fa087eed4af3d744310d80827408b2))
+* **brillig:** Skip shift overflow check for constant in-range shift amounts ([#14127](https://github.com/noir-lang/noir/issues/14127)) ([db4c4cc](https://github.com/noir-lang/noir/commit/db4c4ccad61301761b386abe6e7dad9637baa76e))
+* **driver:** Compile a contract's functions in parallel ([#14179](https://github.com/noir-lang/noir/issues/14179)) ([7689a72](https://github.com/noir-lang/noir/commit/7689a720d7da12622a52b866a23543691a2ae660))
+* **frontend:** Emit primitive operators for generic operands resolved to primitives ([#14143](https://github.com/noir-lang/noir/issues/14143)) ([e5a1160](https://github.com/noir-lang/noir/commit/e5a1160aa6dea59567a95f382a366e72dd0ffa86))
+* **nargo:** Compile exported functions in parallel ([#14184](https://github.com/noir-lang/noir/issues/14184)) ([14c3897](https://github.com/noir-lang/noir/commit/14c3897299367314bf8ca9cd8ecb6e7d78bf6a5c))
+* **perf:** Stop mem2reg copying every visible variable into each block ([#14193](https://github.com/noir-lang/noir/issues/14193)) ([0a76990](https://github.com/noir-lang/noir/commit/0a76990d509e8721548345f1f65d6455b9cde5b6))
+* **perf:** Store instruction results and call stacks in dense vectors ([#14208](https://github.com/noir-lang/noir/issues/14208)) ([3124253](https://github.com/noir-lang/noir/commit/312425357d8d67d9d6f669e2c903e47bb1b6d9b1))
+* **ssa:** Enforce bit-shift overflow with a range check ([#14138](https://github.com/noir-lang/noir/issues/14138)) ([e0ca395](https://github.com/noir-lang/noir/commit/e0ca3950281d8fd47f0468ffbb11d0985d2488e1))
+
+
+### Bug Fixes
+
+* **nargo:** Compile programs and contracts on one uncapped pool ([#14206](https://github.com/noir-lang/noir/issues/14206)) ([2c70963](https://github.com/noir-lang/noir/commit/2c709638428c048c461422f4d1fd38951bffb4ac))
+* **nargo:** Use one stack size for all compilation threads ([#14205](https://github.com/noir-lang/noir/issues/14205)) ([ea5b3f8](https://github.com/noir-lang/noir/commit/ea5b3f8b62585ad368f5dafc0252852df2f7e31e))
+* **ssa:** Compare semi-flattened index against semi-flattened length in array_set merge ([#14183](https://github.com/noir-lang/noir/issues/14183)) ([4e448b6](https://github.com/noir-lang/noir/commit/4e448b628ee1fc3ef2acc11edbce9dfce5c989ea))
+* **ssa:** Explore Brillig argument ancestry lazily in the missing constraints check ([#14202](https://github.com/noir-lang/noir/issues/14202)) ([ea30573](https://github.com/noir-lang/noir/commit/ea305739aeb89bbbcd7bc0e3ffd54bf296456c47))
+* **ssa:** Keep the panic hook when several threads validate SSA at once ([#14201](https://github.com/noir-lang/noir/issues/14201)) ([5f00638](https://github.com/noir-lang/noir/commit/5f006383c217a6311192c7763d8a43a8b31429b9))
+
 ## [1.0.0](https://github.com/noir-lang/noir/compare/v1.0.0-rc.7...v1.0.0) (2026-10-29)
 
 
