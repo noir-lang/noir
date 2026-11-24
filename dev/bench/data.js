@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795535096619,
+  "lastUpdate": 1795535105436,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -41648,105 +41648,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "328684ced055e17f50a66eb2f64fe47dc1eca7d8",
-          "message": "fix(acvm): reduce R.x modulo the curve order in ECDSA verification (#14109)",
-          "timestamp": "2026-10-27T14:46:30Z",
-          "tree_id": "be2b8ea82d04dd3b8535d432751a6376844c3d40",
-          "url": "https://github.com/noir-lang/noir/commit/328684ced055e17f50a66eb2f64fe47dc1eca7d8"
-        },
-        "date": 1793113100617,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 863.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 940,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 700.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 400.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 420.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 519.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 322.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 780.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 818.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 525.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 800,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 961,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 310.3,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2080.5,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 156.1,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "328684ced055e17f50a66eb2f64fe47dc1eca7d8",
           "message": "fix(acvm): reduce R.x modulo the curve order in ECDSA verification (#14109)",
@@ -46887,6 +46788,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 154.5,
+            "unit": "KB"
+          },
+          {
+            "name": "token-contract",
+            "value": 3415.8,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8fb113ded772243069652d5d070fcd9a3ef3b879",
+          "message": "chore(deps): bump the npm-minor-and-patch group across 1 directory with 3 updates (#14214)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-11-24T12:08:23Z",
+          "tree_id": "5785ed0ab31491e1f6d55b9df5dc3a3404c9edf9",
+          "url": "https://github.com/noir-lang/noir/commit/8fb113ded772243069652d5d070fcd9a3ef3b879"
+        },
+        "date": 1795535066227,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "fp12-tower",
+            "value": 1391.4,
+            "unit": "KB"
+          },
+          {
+            "name": "fp12-tower-hints",
+            "value": 1598.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 955.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 420.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 321.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 779.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 526.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 803.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 963.9,
             "unit": "KB"
           },
           {
