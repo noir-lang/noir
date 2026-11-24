@@ -30,7 +30,7 @@
     "@typescript-eslint/eslint-plugin": "^8.73.0",
     "@typescript-eslint/parser": "^8.73.0",
     "chai": "^6.3.0",
-    "cspell": "^10.4.1",
+    "cspell": "^10.5.1",
     "eslint": "^10.15.0",
     "eslint-plugin-prettier": "^5.5.7",
     "globals": "^17.14.0",
