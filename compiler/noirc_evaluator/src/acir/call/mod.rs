@@ -4,7 +4,7 @@ use acvm::acir::brillig::lengths::{
     SemiFlattenedLength,
 };
 use acvm::acir::circuit::opcodes::AcirFunctionId;
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_artifacts::ssa::SsaReport;
 
@@ -18,7 +18,7 @@ use crate::ssa::ir::value::Value;
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
     function::{Function, FunctionId, RuntimeType},
-    instruction::Instruction,
+    instruction::{Instruction, InstructionId},
     types::Type,
     value::ValueId,
 };
@@ -26,7 +26,7 @@ use crate::ssa::ssa_gen::Ssa;
 
 use super::{
     Context,
-    types::{AcirDynamicArray, AcirType, AcirValue},
+    types::{AcirDynamicArray, AcirType, AcirValue, flat_element_types},
 };
 
 mod intrinsics;
@@ -130,6 +130,83 @@ impl Context<'_> {
         self.handle_ssa_call_outputs(result_ids, output_values)
     }
 
+    /// Count, for each array value, how many Brillig calls among `instructions` take it as an
+    /// argument.
+    pub(super) fn count_brillig_array_arg_uses(
+        &mut self,
+        instructions: &[InstructionId],
+        dfg: &DataFlowGraph,
+        ssa: &Ssa,
+    ) {
+        for instruction_id in instructions {
+            let Instruction::Call { func, arguments } = &dfg[*instruction_id] else {
+                continue;
+            };
+            let Value::Function(func_id) = &dfg[*func] else {
+                continue;
+            };
+            if !ssa.functions[func_id].runtime().is_brillig() {
+                continue;
+            }
+            for argument in arguments {
+                if is_plain_array(&dfg.type_of_value(*argument)) {
+                    *self.brillig_array_arg_uses.entry(*argument).or_default() += 1;
+                }
+            }
+        }
+    }
+
+    /// Convert an argument of a Brillig call into the value passed to `brillig_call`.
+    ///
+    /// A plain array is normally passed element by element, so every call lists all of its
+    /// elements in the bytecode. When the same array goes to two or more Brillig calls, that
+    /// repeats the whole array per call, so it is passed by reference to a memory block instead:
+    /// the elements are listed once, in a `MemoryInit`. The same applies, at no extra cost, to an
+    /// array that already has a memory block.
+    ///
+    /// A new block is only created when every element is already a witness. A `MemoryInit` holds
+    /// witnesses, so other elements would need a new witness and constraint each, which costs
+    /// gates.
+    fn brillig_call_input(
+        &mut self,
+        arg: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> Result<AcirValue, RuntimeError> {
+        let value = self.convert_value(arg, dfg);
+        let typ = dfg.type_of_value(arg);
+        if !matches!(value, AcirValue::Array(_))
+            || !is_plain_array(&typ)
+            || !matches!(&dfg[arg], Value::Param { .. } | Value::Instruction { .. })
+        {
+            return Ok(value);
+        }
+
+        let has_block = self
+            .memory_blocks
+            .get(&arg)
+            .is_some_and(|block_id| self.initialized_arrays.contains(block_id));
+        let uses = self.brillig_array_arg_uses.get(&arg).copied().unwrap_or(0);
+        if !has_block && (uses < 2 || !self.is_all_witnesses(&value)) {
+            return Ok(value);
+        }
+
+        let block_id = self.ensure_array_is_initialized(arg, dfg)?;
+        let len = self.flattened_size(arg, dfg);
+        let value_types = flat_element_types(&typ);
+        Ok(AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types }))
+    }
+
+    fn is_all_witnesses(&self, value: &AcirValue) -> bool {
+        match value {
+            AcirValue::Var(var, _) => self
+                .acir_context
+                .var_to_expression(*var)
+                .is_ok_and(|expr| expr.to_witness().is_some()),
+            AcirValue::Array(values) => values.iter().all(|value| self.is_all_witnesses(value)),
+            AcirValue::DynamicArray(_) => false,
+        }
+    }
+
     fn handle_brillig_function_call(
         &mut self,
         func: &Function,
@@ -138,7 +215,7 @@ impl Context<'_> {
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
         // Convert SSA arguments to Brillig parameters
-        let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
+        let inputs = try_vecmap(arguments, |arg| self.brillig_call_input(*arg, dfg))?;
         let arguments = self.gen_brillig_parameters(arguments, dfg);
         let outputs: Vec<AcirType> =
             vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).as_ref().into());
@@ -327,6 +404,12 @@ impl Context<'_> {
             }
         }
     }
+}
+
+/// Whether `typ` is a fixed-size array without vectors inside, which can be passed to a Brillig
+/// call through a memory block.
+fn is_plain_array(typ: &Type) -> bool {
+    matches!(typ, Type::Array(..)) && !typ.contains_vector_element()
 }
 
 #[cfg(test)]

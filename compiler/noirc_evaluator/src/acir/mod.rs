@@ -89,6 +89,10 @@ struct Context<'a> {
     /// Each acir memory block corresponds to a different SSA array.
     memory_blocks: HashMap<Id<Value>, BlockId>,
 
+    /// For each array value of the function being converted, the number of Brillig calls that
+    /// take it as an argument. Read by `brillig_call_input`.
+    brillig_array_arg_uses: HashMap<Id<Value>, usize>,
+
     /// The `BlockId` dedicated to `return_data`
     /// It is not managed by `memory_blocks` to ensure getting always a fresh block for `return_data`, even if
     /// the SSA array has already been initialized to a block.
@@ -145,6 +149,7 @@ impl<'a> Context<'a> {
             acir_context,
             initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
+            brillig_array_arg_uses: HashMap::default(),
             return_data_block_id: None,
             element_type_sizes_blocks: HashMap::default(),
             type_sizes_to_blocks: BTreeMap::default(),
@@ -257,6 +262,7 @@ impl<'a> Context<'a> {
         }
 
         self.data_bus = dfg.data_bus.clone();
+        self.count_brillig_array_arg_uses(entry_block.instructions(), dfg, ssa);
         for instruction_id in entry_block.instructions() {
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }

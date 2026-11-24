@@ -1,6 +1,14 @@
-use acvm::{acir::circuit::brillig::BrilligFunctionId, assert_circuit_snapshot};
+use acvm::{
+    FieldElement,
+    acir::circuit::{
+        Opcode,
+        brillig::{BrilligFunctionId, BrilligInputs},
+    },
+    assert_circuit_snapshot,
+};
+use iter_extended::vecmap;
 
-use crate::acir::tests::ssa_to_acir_program_with_debug_info;
+use crate::acir::tests::{ssa_to_acir_program, ssa_to_acir_program_with_debug_info};
 
 // Test that given multiple calls to the same brillig function we generate only one bytecode
 // and the appropriate Brillig call opcodes are generated
@@ -423,4 +431,91 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     6: @0 = @2
     7: stop @[@11; @10]
     ");
+}
+
+/// The kind of each input of each Brillig call in `main`, in order.
+fn brillig_call_input_kinds(
+    program: &acvm::acir::circuit::Program<FieldElement>,
+) -> Vec<Vec<&'static str>> {
+    program.functions[0]
+        .opcodes
+        .iter()
+        .filter_map(|opcode| match opcode {
+            Opcode::BrilligCall { inputs, .. } => Some(vecmap(inputs, |input| match input {
+                BrilligInputs::Single(_) => "single",
+                BrilligInputs::Array(_) => "array",
+                BrilligInputs::MemoryArray(_) => "memory",
+            })),
+            _ => None,
+        })
+        .collect()
+}
+
+fn count_memory_inits(program: &acvm::acir::circuit::Program<FieldElement>) -> usize {
+    program.functions[0]
+        .opcodes
+        .iter()
+        .filter(|opcode| matches!(opcode, Opcode::MemoryInit { .. }))
+        .count()
+}
+
+#[test]
+fn array_passed_to_several_brillig_calls_uses_one_memory_block() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: Field):
+        v2 = call f1(v0, v1) -> Field
+        v3 = call f1(v0, v1) -> Field
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [Field; 3], v1: Field):
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_eq!(brillig_call_input_kinds(&program), vec![vec!["memory", "single"]; 2]);
+    assert_eq!(count_memory_inits(&program), 1);
+}
+
+#[test]
+fn array_passed_to_one_brillig_call_is_inlined() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: Field):
+        v2 = call f1(v0, v1) -> Field
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [Field; 3], v1: Field):
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_eq!(brillig_call_input_kinds(&program), vec![vec!["array", "single"]]);
+    assert_eq!(count_memory_inits(&program), 0);
+}
+
+#[test]
+fn constant_array_passed_to_several_brillig_calls_is_inlined() {
+    // Putting constants in a memory block would need a witness and a constraint per element.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        v5 = call f1(v4, v0) -> Field
+        v6 = call f1(v4, v0) -> Field
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [Field; 3], v1: Field):
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_eq!(brillig_call_input_kinds(&program), vec![vec!["array", "single"]; 2]);
+    assert_eq!(count_memory_inits(&program), 0);
+    assert!(
+        program.functions[0].opcodes.iter().all(|opcode| !matches!(opcode, Opcode::AssertZero(_)))
+    );
 }
