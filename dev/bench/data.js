@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795557644605,
+  "lastUpdate": 1795558280720,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -24231,48 +24231,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "4986d34b4e66d87841bbc7fed4da875f1b854ab0",
-          "message": "chore(docs): skip v1.0.0-rc.6 in served docs versions (#14118)",
-          "timestamp": "2026-10-29T15:05:21Z",
-          "tree_id": "f06bd742b3cef23eb1083e7887d74b86a6bc7a11",
-          "url": "https://github.com/noir-lang/noir/commit/4986d34b4e66d87841bbc7fed4da875f1b854ab0"
-        },
-        "date": 1793286476489,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169039,
-            "range": "± 808",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138357,
-            "range": "± 4436",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648918,
-            "range": "± 14728",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "d441642e030616422b2199906aef713b24a46970",
           "message": "chore: switch release-please to stable versioning for 1.0.0 (#14116)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-10-29T15:15:27Z",
@@ -26314,6 +26272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1982577,
             "range": "± 1019",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "50bd41e23c44a1ac2c366b76efec6e4c9513626c",
+          "message": "chore: add brillig_large_array_input benchmark (#14233)",
+          "timestamp": "2026-11-24T19:09:14Z",
+          "tree_id": "5b56f9f4bbffe6ef9856522df9627f791406f5d9",
+          "url": "https://github.com/noir-lang/noir/commit/50bd41e23c44a1ac2c366b76efec6e4c9513626c"
+        },
+        "date": 1795558274199,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 142603,
+            "range": "± 479",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 118855,
+            "range": "± 197",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1920503,
+            "range": "± 450",
             "unit": "ns/iter"
           }
         ]
