@@ -8,7 +8,7 @@ Returns the site index (0-based).  Identical call sites share an index.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.resolve_labels" class="method"><a class="src rightside" href="../../src/noirc_evaluator/brillig/brillig_ir/count_array_copies.rs.html#73-103">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.resolve_labels" class="fn">resolve_labels</a>(
     &amp;self,
     call_stacks: &amp;<a class="struct" href="../../noirc_errors/call_stack/struct.CallStackHelper.html" title="struct noirc_errors::call_stack::CallStackHelper">CallStackHelper</a>,
-    files: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="struct" href="../../fm/struct.FileManager.html" title="struct fm::FileManager">FileManager</a>&gt;,
+    files: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;FileManager&gt;,
 )</h4></section></summary><div class="docblock"><p>Resolve all registered <code>CallStackId</code>s to human-readable <code>"filename.nr:line"</code> strings.
 Must be called after Brillig compilation (once the <code>CallStackHelper</code> is fully populated)
 but before <code>get_resolved_labels</code> is used.</p>
