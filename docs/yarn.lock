@@ -12812,12 +12812,12 @@ __metadata:
   linkType: hard
 
 "follow-redirects@npm:^1.0.0, follow-redirects@npm:^1.12.1, follow-redirects@npm:^1.16.0":
-  version: 1.16.1
-  resolution: "follow-redirects@npm:1.16.1"
+  version: 1.16.3
+  resolution: "follow-redirects@npm:1.16.3"
   peerDependenciesMeta:
     debug:
       optional: true
-  checksum: 10/269c9f38e4bb413d7ab224fb5aa733118288a18e84d4d0a22821a850574624a55d45f2c6735fc09fc1cceedb6343a5539daf6d2dd70bce8980c8336d230a2f50
+  checksum: 10/ac3b15f7d18c26be8b38fb314d271b8def49f710388eea76079721792ef1b828fdb6696cacc92962f54bcd2462479fdcf33497502dc20ed0a5a8be1afb092215
   languageName: node
   linkType: hard
 
