@@ -1803,7 +1803,7 @@ __metadata:
     "@esm-bundle/chai": "npm:^4.3.4-fix.0"
     "@web/dev-server-esbuild": "npm:^2.0.1"
     "@web/test-runner": "npm:^1.0.1"
-    "@web/test-runner-playwright": "npm:^1.0.0"
+    "@web/test-runner-playwright": "npm:^1.0.2"
     chai: "npm:^6.3.0"
     eslint: "npm:^10.15.0"
     eslint-plugin-prettier: "npm:^5.5.7"
@@ -1881,7 +1881,7 @@ __metadata:
     "@wasm-tool/wasm-pack-plugin": "npm:^1.7.0"
     "@web/dev-server-esbuild": "npm:^2.0.1"
     "@web/test-runner": "npm:^1.0.1"
-    "@web/test-runner-playwright": "npm:^1.0.0"
+    "@web/test-runner-playwright": "npm:^1.0.2"
     adm-zip: "npm:^0.6.1"
     assert: "npm:^2.1.0"
     browserify-fs: "npm:^1.0.0"
@@ -1919,7 +1919,7 @@ __metadata:
     "@noir-lang/types": "workspace:*"
     "@web/dev-server-esbuild": "npm:^2.0.1"
     "@web/test-runner": "npm:^1.0.1"
-    "@web/test-runner-playwright": "npm:^1.0.0"
+    "@web/test-runner-playwright": "npm:^1.0.2"
     eslint: "npm:^10.15.0"
     mocha: "npm:^12.0.3"
     tsx: "npm:^4.23.15"
@@ -2634,14 +2634,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@playwright/test@npm:^1.64.0":
-  version: 1.64.0
-  resolution: "@playwright/test@npm:1.64.0"
+"@playwright/test@npm:^1.65.1":
+  version: 1.65.1
+  resolution: "@playwright/test@npm:1.65.1"
   dependencies:
-    playwright: "npm:1.64.0"
+    playwright: "npm:1.65.1"
   bin:
     playwright: cli.js
-  checksum: 10/150071109a165e413f390bea574c2d6508788b713dbc0ae58ba3bfed7d5befa621f862b4a818fab502e409365f465bf90641dc1da7a64ccd4910a0124e8cd3bf
+  checksum: 10/07ed24cf24c018e3f190a9d57efca3a131e8ad4ccbb5b1ec02d4bb5687edc6443a35b6bcac1139a03903add8b0cf33968422a6ca36ef50b929392748de8a423b
   languageName: node
   linkType: hard
 
@@ -3747,15 +3747,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@web/browser-logs@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@web/browser-logs@npm:1.0.0"
-  dependencies:
-    errorstacks: "npm:^2.4.1"
-  checksum: 10/55101c97e157d33756cdb7857739b5eb6bdea88f9dbce045ccf1cb479b277e3cd9d0378916f74d977e46ca1f004f78808db2688efe12c308c9bc85cd47e2f949
-  languageName: node
-  linkType: hard
-
 "@web/browser-logs@npm:^1.0.1":
   version: 1.0.1
   resolution: "@web/browser-logs@npm:1.0.1"
@@ -3769,32 +3760,6 @@ __metadata:
   version: 1.0.1
   resolution: "@web/config-loader@npm:1.0.1"
   checksum: 10/4f6c62d3f34675a8125eaf0a2c5318d9145e059f8fcb03936691f67f8b85e4b44de3c23632fcba5792919c594e14fbe53d46bbfec8440fc685c2a85950316108
-  languageName: node
-  linkType: hard
-
-"@web/dev-server-core@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@web/dev-server-core@npm:1.0.0"
-  dependencies:
-    "@types/koa": "npm:^2.11.6"
-    "@types/ws": "npm:^7.4.0"
-    "@web/parse5-utils": "npm:^3.0.0"
-    chokidar: "npm:^4.0.1"
-    clone: "npm:^2.1.2"
-    es-module-lexer: "npm:^1.0.0"
-    get-stream: "npm:^6.0.0"
-    is-stream: "npm:^2.0.0"
-    isbinaryfile: "npm:^5.0.0"
-    koa: "npm:^2.16.1"
-    koa-etag: "npm:^4.0.0"
-    koa-send: "npm:^5.0.1"
-    koa-static: "npm:^5.0.0"
-    lru-cache: "npm:^8.0.4"
-    mime-types: "npm:^2.1.27"
-    parse5: "npm:^6.0.1"
-    picomatch: "npm:^2.3.2"
-    ws: "npm:^7.5.10"
-  checksum: 10/aabd1dc6facaed24b8a8d7af2d8ceb1e882ff6a8d627f9b8f230dde6db98712eb8ecd23f8023a023f2fac4ad15aad10f2f91afac4a6604d5981c6116be7247d7
   languageName: node
   linkType: hard
 
@@ -3822,6 +3787,33 @@ __metadata:
     portfinder: "npm:^1.0.32"
     ws: "npm:^7.5.10"
   checksum: 10/312eb3ef66ece9b510f102e01530a643d332093f232906bc4bf03cfa481a0049ab38c1f619d56239830d387d75d5c0b8792c1361e3a85d4267a3f596670e994d
+  languageName: node
+  linkType: hard
+
+"@web/dev-server-core@npm:^1.0.4":
+  version: 1.0.4
+  resolution: "@web/dev-server-core@npm:1.0.4"
+  dependencies:
+    "@types/koa": "npm:^2.11.6"
+    "@types/ws": "npm:^7.4.0"
+    "@web/parse5-utils": "npm:^3.0.1"
+    chokidar: "npm:^4.0.1"
+    clone: "npm:^2.1.2"
+    es-module-lexer: "npm:^1.0.0"
+    get-stream: "npm:^6.0.0"
+    is-stream: "npm:^2.0.0"
+    isbinaryfile: "npm:^5.0.0"
+    koa: "npm:^2.16.1"
+    koa-etag: "npm:^4.0.0"
+    koa-send: "npm:^5.0.1"
+    koa-static: "npm:^5.0.0"
+    lru-cache: "npm:^8.0.4"
+    mime-types: "npm:^2.1.27"
+    parse5: "npm:^6.0.1"
+    picomatch: "npm:^2.3.2"
+    portfinder: "npm:^1.0.32"
+    ws: "npm:^7.5.10"
+  checksum: 10/741c0ae0ee01202f774b97950cbd6952786112490411baac064c6f3c659d245e210341b72fbbf9e6a25ce5c251974657ceea1962471623990a8421e94f3cab70
   languageName: node
   linkType: hard
 
@@ -3891,16 +3883,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@web/parse5-utils@npm:^3.0.0":
-  version: 3.0.0
-  resolution: "@web/parse5-utils@npm:3.0.0"
-  dependencies:
-    "@types/parse5": "npm:^6.0.1"
-    parse5: "npm:^6.0.1"
-  checksum: 10/22b201896070845d2f8388dea87f5240c86a081f4181b48241e22fbf10aba340e9e220d8a701898eb2b9d6a9cf49ed4a5baded65c612b9d16a4757f929ce792c
-  languageName: node
-  linkType: hard
-
 "@web/parse5-utils@npm:^3.0.1":
   version: 3.0.1
   resolution: "@web/parse5-utils@npm:3.0.1"
@@ -3930,40 +3912,6 @@ __metadata:
     "@web/test-runner-core": "npm:^1.0.1"
     mkdirp: "npm:^1.0.4"
   checksum: 10/b2782fd9926b968bb6b58947fee4f9162ebede68873a92b8870a4dec84249c476d93fc00b23033a90f0482669cf1e5e9bea1ea8d6f1b9c30287941dc1c4e5374
-  languageName: node
-  linkType: hard
-
-"@web/test-runner-core@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@web/test-runner-core@npm:1.0.0"
-  dependencies:
-    "@babel/code-frame": "npm:^7.12.11"
-    "@types/babel__code-frame": "npm:^7.0.2"
-    "@types/co-body": "npm:^6.1.0"
-    "@types/convert-source-map": "npm:^2.0.0"
-    "@types/debounce": "npm:^1.2.0"
-    "@types/istanbul-lib-coverage": "npm:^2.0.3"
-    "@types/istanbul-reports": "npm:^3.0.0"
-    "@web/browser-logs": "npm:^1.0.0"
-    "@web/dev-server-core": "npm:^1.0.0"
-    chokidar: "npm:^4.0.1"
-    cli-cursor: "npm:^3.1.0"
-    co-body: "npm:^6.1.0"
-    convert-source-map: "npm:^2.0.0"
-    debounce: "npm:^1.2.0"
-    dependency-graph: "npm:^0.11.0"
-    globby: "npm:^11.0.1"
-    internal-ip: "npm:^6.2.0"
-    istanbul-lib-coverage: "npm:^3.0.0"
-    istanbul-lib-report: "npm:^3.0.1"
-    istanbul-reports: "npm:^3.0.2"
-    log-update: "npm:^4.0.0"
-    nanocolors: "npm:^0.2.1"
-    nanoid: "npm:^3.1.25"
-    open: "npm:^8.0.2"
-    picomatch: "npm:^2.3.2"
-    source-map: "npm:^0.7.3"
-  checksum: 10/8f37789fb036a7f6069796e282a536fd3d850a2c512d3cd41f6251e3c3691e4058ad2079402e8084465099819c59a779bf8a70ecdb31f5050448243b62096f31
   languageName: node
   linkType: hard
 
@@ -4001,16 +3949,37 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@web/test-runner-coverage-v8@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@web/test-runner-coverage-v8@npm:1.0.0"
+"@web/test-runner-core@npm:^1.0.2":
+  version: 1.0.2
+  resolution: "@web/test-runner-core@npm:1.0.2"
   dependencies:
-    "@web/test-runner-core": "npm:^1.0.0"
+    "@babel/code-frame": "npm:^7.12.11"
+    "@types/babel__code-frame": "npm:^7.0.2"
+    "@types/co-body": "npm:^6.1.0"
+    "@types/convert-source-map": "npm:^2.0.0"
+    "@types/debounce": "npm:^1.2.0"
+    "@types/istanbul-lib-coverage": "npm:^2.0.3"
+    "@types/istanbul-reports": "npm:^3.0.0"
+    "@web/browser-logs": "npm:^1.0.1"
+    "@web/dev-server-core": "npm:^1.0.4"
+    chokidar: "npm:^4.0.1"
+    cli-cursor: "npm:^3.1.0"
+    co-body: "npm:^6.1.0"
+    convert-source-map: "npm:^2.0.0"
+    debounce: "npm:^1.2.0"
+    dependency-graph: "npm:^0.11.0"
+    globby: "npm:^11.0.1"
+    internal-ip: "npm:^6.2.0"
     istanbul-lib-coverage: "npm:^3.0.0"
-    lru-cache: "npm:^8.0.4"
+    istanbul-lib-report: "npm:^3.0.1"
+    istanbul-reports: "npm:^3.0.2"
+    log-update: "npm:^4.0.0"
+    nanocolors: "npm:^0.2.1"
+    nanoid: "npm:^3.1.25"
+    open: "npm:^8.0.2"
     picomatch: "npm:^2.3.2"
-    v8-to-istanbul: "npm:^9.0.1"
-  checksum: 10/dfb0287736f93b90f46393d148b475ee16cf1664a7e51146a28a8ba67b0041d7167fccd514724c75612d995d5ec1af8ae978e39f8c1269ee7bb359269affe2e6
+    source-map: "npm:^0.7.3"
+  checksum: 10/bc3c26822eb882d7fde3a4235e34c36d6ec60f7bd63e3e2c36924ba6f1d6f17c13d59ad46dd43fa48e809da547982ee3266a51830e75d8189c9c85a23b6a4a60
   languageName: node
   linkType: hard
 
@@ -4036,14 +4005,14 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@web/test-runner-playwright@npm:^1.0.0":
-  version: 1.0.0
-  resolution: "@web/test-runner-playwright@npm:1.0.0"
+"@web/test-runner-playwright@npm:^1.0.2":
+  version: 1.0.2
+  resolution: "@web/test-runner-playwright@npm:1.0.2"
   dependencies:
-    "@web/test-runner-core": "npm:^1.0.0"
-    "@web/test-runner-coverage-v8": "npm:^1.0.0"
+    "@web/test-runner-core": "npm:^1.0.2"
+    "@web/test-runner-coverage-v8": "npm:^1.0.1"
     playwright: "npm:^1.53.0"
-  checksum: 10/0e13d5b2de0048e25629e76b8ffae337bbe9dd0cfc3ef7161602325707b007fc4fd5d7b1eb2d2e60b07475b64dfe4ba11d4f34aa4147006698c9fedb0367e105
+  checksum: 10/72ddbcc332b50482b593fe2a6cd8d238845cd799cb1aa0636790e68bb2d0d57c65883dc65faadc0e96a6215aa651ff96a665e6ff21d33bf22efbb30ffcc9038e
   languageName: node
   linkType: hard
 
@@ -4734,7 +4703,7 @@ __metadata:
   dependencies:
     "@aztec-foundation/bb.js": "npm:6.0.0"
     "@noir-lang/noir_js": "workspace:*"
-    "@playwright/test": "npm:^1.64.0"
+    "@playwright/test": "npm:^1.65.1"
     "@types/node": "npm:^22.20.5"
     typescript: "npm:^6.0.3"
     vite: "npm:^8.3.8"
@@ -7599,7 +7568,7 @@ __metadata:
     "@web/dev-server-esbuild": "npm:^2.0.1"
     "@web/dev-server-import-maps": "npm:^0.3.1"
     "@web/test-runner": "npm:^1.0.1"
-    "@web/test-runner-playwright": "npm:^1.0.0"
+    "@web/test-runner-playwright": "npm:^1.0.2"
     buffer-esm: "npm:^1.2.0"
     eslint: "npm:^10.15.0"
     eslint-plugin-prettier: "npm:^5.5.7"
@@ -9709,7 +9678,27 @@ __metadata:
   languageName: node
   linkType: hard
 
-"playwright@npm:1.64.0, playwright@npm:^1.53.0":
+"playwright-core@npm:1.65.1":
+  version: 1.65.1
+  resolution: "playwright-core@npm:1.65.1"
+  bin:
+    playwright-core: cli.js
+  checksum: 10/aa79963cd789367a2ad882cce60e74dd5006129651da8395106b8b1c1a718b95565501943dd35c9d71944698d4afd122f59a0a930635b634841a0b38fe66255d
+  languageName: node
+  linkType: hard
+
+"playwright@npm:1.65.1":
+  version: 1.65.1
+  resolution: "playwright@npm:1.65.1"
+  dependencies:
+    playwright-core: "npm:1.65.1"
+  bin:
+    playwright: cli.js
+  checksum: 10/41ffd721fe18ddc907abbe61479aa0c1ecb16719d7a6840f4f530a61e6c737f757d8ba0935dac10d9e80f308fd3f2eba47e2e9a0a8ceb8fdc0588af08d08fcba
+  languageName: node
+  linkType: hard
+
+"playwright@npm:^1.53.0":
   version: 1.64.0
   resolution: "playwright@npm:1.64.0"
   dependencies:

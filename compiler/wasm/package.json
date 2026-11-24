@@ -55,7 +55,7 @@
     "@wasm-tool/wasm-pack-plugin": "^1.7.0",
     "@web/dev-server-esbuild": "^2.0.1",
     "@web/test-runner": "^1.0.1",
-    "@web/test-runner-playwright": "^1.0.0",
+    "@web/test-runner-playwright": "^1.0.2",
     "adm-zip": "^0.6.1",
     "assert": "^2.1.0",
     "browserify-fs": "^1.0.0",
