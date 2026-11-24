@@ -4,6 +4,42 @@ on:
   push:
     branches:
       - master
+    # Every master push is timed on the single benchmark machine, so skip pushes whose changes
+    # cannot alter any report: they would only add a data point timing the same compiler. The
+    # patterns are ordered: `**` includes everything, each `!` pattern excludes files that cannot
+    # affect a report, and the patterns after the `.github` exclusion bring back what this
+    # workflow reads. A push runs if any changed file is still included.
+    #
+    # What a report can depend on, and so must never be excluded:
+    # - the nargo and noir-inspector binaries: the Rust workspace, `Cargo.lock`,
+    #   `rust-toolchain.toml`, and the files embedded at build time (all of `noir_stdlib/`, and the
+    #   JS and CSS assets of `tooling/nargo_doc/`);
+    # - what is measured: `test_programs/`, `.github/benchmark_projects.yml`,
+    #   `EXTERNAL_NOIR_LIBRARIES.yml`, `.github/critical_libraries_status/`;
+    # - how it is measured: this workflow, `scripts/`, `.github/actions/` and `.github/scripts/`.
+    #
+    # Markdown is excluded everywhere: the Rust crates only embed it as rustdoc. JS and TS are
+    # excluded because no report runs them.
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!**/*.md"
+      - "!**/*.js"
+      - "!**/*.cjs"
+      - "!**/*.mjs"
+      - "!**/*.ts"
+      - "!**/*.tsx"
+      - "!**/package.json"
+      - "!**/yarn.lock"
+      - "!.yarn/**"
+      - "!.github/**"
+      - ".github/workflows/reports.yml"
+      - ".github/benchmark_projects.yml"
+      - ".github/critical_libraries_status/**"
+      - ".github/actions/**"
+      - ".github/scripts/**"
+      - "noir_stdlib/**"
+      - "tooling/nargo_doc/**"
   pull_request:
     # `labeled` so that adding `bench-show` starts a run that times the PR against its base branch.
     # Any other label starts a run that does nothing (see `gate`).
