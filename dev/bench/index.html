@@ -536,20 +536,38 @@
           }
         }
 
-        // Y axis zoomed to the data, but never narrower than MIN_Y_SPAN of the median value: a
-        // 2% step is then visible on a small chart, while sub-percent jitter (memory reports
-        // vary by ~0.01 MB) stays flat instead of being stretched across the whole chart.
+        // Y axis zoomed to the data, but never narrower than a minimum span centred on it, so
+        // that noise does not get stretched across the whole chart.
+        // - Reproducible units (opcodes, sizes, memory): 10% of the median. A 2% step is then
+        //   visible on a small chart, while sub-percent jitter (memory reports vary by ~0.01 MB)
+        //   stays flat.
+        // - Timings: 30% of the median, and at least 0.1 s for timings in seconds. Run-to-run
+        //   noise on the benchmark machine is ~4-9% of the median, which then fills at most a
+        //   third of the chart, and a sub-second benchmark wobbling by a few milliseconds draws
+        //   as a flat line. A doubling is larger than either minimum, so it still stands out.
         const MIN_Y_SPAN = 0.1;
+        const TIME_MIN_Y_SPAN = 0.3;
+        const TIME_MIN_Y_SPAN_ABS = { s: 0.1 };
+        const TIME_UNITS = new Set(['s', 'ns/iter']);
         function yRange(points) {
           const vals = points.map(p => p.value);
+          const unit = points[points.length - 1].unit;
           let lo = Math.min(...vals);
           let hi = Math.max(...vals);
           const sorted = vals.slice().sort((a, b) => a - b);
-          const span = MIN_Y_SPAN * Math.abs(sorted[sorted.length >> 1]);
+          const median = Math.abs(sorted[sorted.length >> 1]);
+          const span = TIME_UNITS.has(unit)
+            ? Math.max(TIME_MIN_Y_SPAN * median, TIME_MIN_Y_SPAN_ABS[unit] || 0)
+            : MIN_Y_SPAN * median;
           if (hi - lo < span) {
             const mid = (hi + lo) / 2;
             lo = mid - span / 2;
             hi = mid + span / 2;
+            // Values are never negative: keep the full span by moving it up instead of cutting it off at 0.
+            if (lo < 0 && Math.min(...vals) >= 0) {
+              hi -= lo;
+              lo = 0;
+            }
           }
           const pad = (hi - lo) * 0.05;
           return { suggestedMin: Math.max(0, lo - pad), suggestedMax: hi + pad };
