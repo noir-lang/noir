@@ -65,7 +65,7 @@ impl ReservedRegisters {
     const NUM_RESERVED_REGISTERS: usize = 3;
 
     /// Number of scratch slots the register-spilling machinery reserves as fixed transient
-    /// registers: [`Self::spill_scratch`] (`@3`/`@4`) plus [`Self::spill_conditional_value`] (`@5`).
+    /// registers: [`Self::spill_scratch`] (`@3`/`@4`) plus [`Self::spill_copy_value`] (`@5`).
     ///
     /// Unlike procedure scratch, these are hardcoded `Direct` addresses that bypass the
     /// [`ScratchSpace`] allocator's bounds check, so a function that spills is only sound when the
@@ -110,11 +110,10 @@ impl ReservedRegisters {
         (MemoryAddress::direct(assert_u32(start)), MemoryAddress::direct(assert_u32(start + 1)))
     }
 
-    /// A third scratch address (`@5`) used by [`crate::brillig::brillig_gen::brillig_block::BrilligBlock::codegen_conditional_spill_store`]
-    /// to hold a value across the load → cmov → store sequence. Disjoint from
-    /// [`Self::spill_scratch`] so the address-materialization scratch registers
-    /// can be reused by the inner load/store without clobbering the value.
-    pub(crate) fn spill_conditional_value() -> MemoryAddress {
+    /// A third scratch address (`@5`) that holds a value while it is copied from one spill slot
+    /// to another. Disjoint from [`Self::spill_scratch`], which the load and the store each use
+    /// to materialize their slot address.
+    pub(crate) fn spill_copy_value() -> MemoryAddress {
         MemoryAddress::direct(assert_u32(ScratchSpace::start() + Self::NUM_SPILL_SCRATCH_SLOTS - 1))
     }
 }
@@ -454,11 +453,11 @@ pub(crate) mod tests {
         use super::registers::ScratchSpace;
 
         let (address_lo, address_hi) = ReservedRegisters::spill_scratch();
-        let conditional_value = ReservedRegisters::spill_conditional_value();
-        let slots = [address_lo, address_hi, conditional_value];
+        let copy_value = ReservedRegisters::spill_copy_value();
+        let slots = [address_lo, address_hi, copy_value];
 
-        // Pairwise distinct: the conditional-store value in `@5` is held across a load/store whose
-        // address computation reuses `@3`/`@4`, so any overlap would clobber it mid-sequence.
+        // Pairwise distinct: the value in `@5` is held across a load/store whose address
+        // computation reuses `@3`/`@4`, so any overlap would clobber it mid-sequence.
         for i in 0..slots.len() {
             for j in (i + 1)..slots.len() {
                 assert_ne!(slots[i], slots[j], "spill scratch slots must be disjoint");

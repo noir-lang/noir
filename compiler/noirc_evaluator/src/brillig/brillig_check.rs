@@ -868,7 +868,9 @@ mod tests {
         src: &str,
     ) -> (BrilligArtifact<FieldElement>, OpcodeAdvisories) {
         let ssa = Ssa::from_str(src).expect("SSA source should parse");
-        let func = ssa.main();
+        let func =
+            crate::brillig::brillig_gen::split_then_edges::split_jmpif_then_edges(ssa.main());
+        let func = func.as_ref();
         let options = BrilligOptions::default();
         let globals = FxHashMap::default();
         let hoisted_global_constants = FxHashMap::default();

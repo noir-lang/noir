@@ -12,6 +12,7 @@ pub mod brillig_ir;
 use acvm::FieldElement;
 use brillig_gen::brillig_block::BrilligBlock;
 use brillig_gen::constant_allocation::ConstantAllocation;
+use brillig_gen::split_then_edges::split_jmpif_then_edges;
 use brillig_gen::{brillig_fn::FunctionContext, brillig_globals::BrilligGlobals};
 use brillig_ir::BrilligContext;
 use brillig_ir::{
@@ -254,12 +255,12 @@ impl Ssa {
             let (globals_allocations, hoisted_constant_allocations) =
                 brillig_globals.get_brillig_globals(brillig_function_id);
 
-            let func = &self.functions[&brillig_function_id];
+            let func = split_jmpif_then_edges(&self.functions[&brillig_function_id]);
             let check_max_stack_depth = max_call_depths[&brillig_function_id]
                 .is_none_or(|max_depth| max_depth >= options.layout.num_stack_frames());
 
             brillig.compile(
-                func,
+                &func,
                 options,
                 globals_allocations,
                 hoisted_constant_allocations,
