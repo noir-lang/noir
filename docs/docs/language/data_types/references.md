@@ -143,6 +143,57 @@ Unlike Rust, Noir does **not** enforce reference exclusivity. An immutable refer
 Noir also does not have lifetimes on references. Instead, referenced memory lasts for
 the entire program.
 
+### References to Struct Fields
+
+Borrowing a field of a struct that is behind a reference borrows the field in place, so the new
+reference observes later writes to that field. The borrow has the mutability that was asked for:
+`&` gives a `&T` even when the struct is behind a `&mut`, and `&mut` is only allowed when the
+struct is behind a `&mut`:
+
+```rust
+struct Foo {
+    x: Field,
+}
+
+fn main() {
+    let foo = &mut Foo { x: 1 };
+
+    let r = &foo.x; // r: &Field
+    foo.x = 2;
+    assert_eq(*r, 2);
+
+    let m = &mut foo.x; // m: &mut Field
+    *m = 3;
+    assert_eq(foo.x, 3);
+}
+```
+
+Taking a `&mut` to a field of a struct behind a `&` is an error:
+
+```rust
+struct Foo {
+    x: Field,
+}
+
+fn main() {
+    let frozen: &Foo = &Foo { x: 1 };
+    let _ = &mut frozen.x;
+}
+```
+
+```
+error: Cannot take a mutable reference to a value behind a `&` reference
+  ┌─ src/main.nr:7:18
+  │
+7 │     let _ = &mut frozen.x;
+  │                  -------- A `&` reference grants read-only access to the value behind it
+  │
+```
+
+If the struct is behind several references, the field is borrowed through the innermost one,
+and that reference alone decides whether `&mut` is allowed. With `outer: &mut &Foo`,
+`&mut outer.x` is an error, while with `outer: &&mut Foo` it is allowed.
+
 ### References to Array Elements
 
 Mutable references to array elements are not supported:

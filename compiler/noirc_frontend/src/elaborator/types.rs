@@ -3195,6 +3195,7 @@ impl Elaborator<'_> {
         lhs_type: Type,
         location: Location,
     ) -> Type {
+        let is_offset = access.is_offset;
         let access_lhs = &mut access.lhs;
 
         let dereference_lhs = |this: &mut Self, lhs_type, element, _is_mutable| {
@@ -3214,10 +3215,13 @@ impl Elaborator<'_> {
             this.interner.push_expr_type(old_lhs, lhs_type);
         };
 
-        // If this access is just a field offset, we want to avoid dereferencing
-        let dereference_lhs = (!access.is_offset).then_some(dereference_lhs);
-
-        match self.check_field_access(&lhs_type, access.rhs.as_str(), location, dereference_lhs) {
+        match self.check_field_access(
+            &lhs_type,
+            access.rhs.as_str(),
+            location,
+            dereference_lhs,
+            is_offset,
+        ) {
             Some((element_type, index)) => {
                 self.interner.set_field_index(expr_id, index);
                 // We must update `access` in case we added any dereferences to it
@@ -3228,14 +3232,19 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Type checks a field access, adding dereference operators as necessary
+    /// Type checks a field access, adding dereference operators as necessary.
+    ///
+    /// With `is_offset` the access borrows the field in place: the innermost reference around
+    /// the struct or tuple is kept, any references around it are dereferenced, and the result is
+    /// a reference to the field with that innermost reference's mutability.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_field_access(
         &mut self,
         lhs_type: &Type,
         field_name: &str,
         location: Location,
-        dereference_lhs: Option<impl FnMut(&mut Self, Type, Type, bool /* mutable */)>,
+        mut dereference_lhs: impl FnMut(&mut Self, Type, Type, bool /* mutable */),
+        is_offset: bool,
     ) -> Option<(Type, usize)> {
         let lhs_type = self.structurally_resolve_type(lhs_type);
 
@@ -3268,21 +3277,27 @@ impl Elaborator<'_> {
                     }
                 }
             }
-            // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`
+            // If the lhs is a reference we automatically transform `lhs.field` into `(*lhs).field`,
+            // except for the innermost reference of an offset access, which is offset into instead
             Type::Reference(element, mutable) => {
-                if let Some(mut dereference_lhs) = dereference_lhs {
-                    dereference_lhs(self, lhs_type.clone(), element.as_ref().clone(), *mutable);
-                    return self.check_field_access(
+                if is_offset && !self.structurally_resolve_type(element).is_ref() {
+                    let (element, index) = self.check_field_access(
                         element,
                         field_name,
                         location,
-                        Some(dereference_lhs),
-                    );
-                } else {
-                    let (element, index) =
-                        self.check_field_access(element, field_name, location, dereference_lhs)?;
+                        dereference_lhs,
+                        is_offset,
+                    )?;
                     return Some((Type::Reference(Box::new(element), *mutable), index));
                 }
+                dereference_lhs(self, lhs_type.clone(), element.as_ref().clone(), *mutable);
+                return self.check_field_access(
+                    element,
+                    field_name,
+                    location,
+                    dereference_lhs,
+                    is_offset,
+                );
             }
             _ => (),
         }
