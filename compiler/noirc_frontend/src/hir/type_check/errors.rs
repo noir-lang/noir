@@ -179,8 +179,8 @@ pub enum TypeCheckError {
         candidates: Vec<(Type, Location)>,
         location: Location,
     },
-    #[error("Use of deprecated function {name}")]
-    CallDeprecated { name: String, note: Option<String>, deny: bool, location: Location },
+    #[error("Use of deprecated item {name}")]
+    UseOfDeprecated { name: String, note: Option<String>, deny: bool, location: Location },
     #[error("{0}")]
     ResolverError(ResolverError),
     #[error("Unused expression result of type {expr_type}")]
@@ -378,7 +378,7 @@ impl TypeCheckError {
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
             | TypeCheckError::MultipleMatchingImpls { location, .. }
             | TypeCheckError::MultipleApplicableMethodsForObject { location, .. }
-            | TypeCheckError::CallDeprecated { location, .. }
+            | TypeCheckError::UseOfDeprecated { location, .. }
             | TypeCheckError::UnusedResultWarning { expr_location: location, .. }
             | TypeCheckError::UnusedResultError { expr_location: location, .. }
             | TypeCheckError::TraitMethodParameterTypeMismatch {
@@ -748,7 +748,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 diagnostic
 
             }
-            TypeCheckError::CallDeprecated { location, note, deny, name } => {
+            TypeCheckError::UseOfDeprecated { location, note, deny, name } => {
                 let default_primary = format!("`{name}` has been deprecated");
 
                 let (primary, secondary) = match note {

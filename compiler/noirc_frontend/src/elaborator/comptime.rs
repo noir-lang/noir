@@ -755,6 +755,7 @@ impl<'context> Elaborator<'context> {
                     );
 
                 generated_items.trait_impls.push(UnresolvedTraitImpl {
+                    is_synthetic: trait_impl.is_synthetic,
                     file_id: location.file,
                     module_id: local_module,
                     r#trait: trait_impl.r#trait,

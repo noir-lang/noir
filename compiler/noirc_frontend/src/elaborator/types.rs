@@ -856,6 +856,7 @@ impl Elaborator<'_> {
         let trait_as_type_info = self.lookup_trait_or_error(path).map(|trait_| trait_.id);
 
         if let Some(id) = trait_as_type_info {
+            self.check_deprecated_trait_use(id, location);
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitAsType);
             let (ordered, named) =
                 self.resolve_type_args_inner(args, id, location, mode, wildcard_allowed);
@@ -1340,6 +1341,7 @@ impl Elaborator<'_> {
             // Error should already be pushed in the None case
             return Type::Error;
         };
+        self.check_deprecated_trait_use(trait_id, location);
 
         if let Some(typ) =
             self.try_resolve_self_as_trait_path(&path, mode, wildcard_allowed, trait_id)
@@ -3839,7 +3841,9 @@ impl Elaborator<'_> {
         location: Location,
     ) -> Type {
         self.run_lint(|elaborator| {
-            lints::deprecated_function(elaborator.interner, call.func).map(Into::into)
+            let trait_declaration = elaborator.item.impl_context.trait_declaration();
+            lints::deprecated_function(elaborator.interner, call.func, trait_declaration)
+                .map(Into::into)
         });
 
         let crossing_runtime_boundary =

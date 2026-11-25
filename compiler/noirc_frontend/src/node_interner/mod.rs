@@ -617,6 +617,7 @@ impl NodeInterner {
             implicit_associated_type_constraints: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
+            attributes: unresolved_trait.trait_def.attributes.clone(),
         };
 
         self.traits.insert(type_id, new_trait);
@@ -1365,6 +1366,7 @@ impl NodeInterner {
             implicit_associated_type_constraints: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
+            attributes: Vec::new(),
         };
         self.traits.insert(trait_id, trait_);
 

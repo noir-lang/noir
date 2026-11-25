@@ -34,6 +34,25 @@ after collection and can target a trait impl method, a trait method or a free fu
 errors if its callee is disabled, or if the trait method its callee implements is (see the
 `comptime_trait_method_disable` and `comptime_trait_impl_method_disable` test programs).
 
+## Deprecated traits
+
+Using a deprecated trait warns when it is named in an `impl` header, a bound, a where clause, a parent
+trait, an associated type bound, a trait alias target, `impl Trait` or a type such as
+`<Bar as Foo>::Assoc`. Naming it in a `use`, `Foo::C` or `let f = Foo::foo;` doesn't warn yet, and neither
+does an operator that dispatches to it. Calling one of its methods
+warns too, with the two attributes merged rather than ranked: the method's note is used, falling back
+to the trait's, and `deny` on either one makes the call an error, so a method can't soften its
+trait's hard error. `<Bar as Foo>::foo(x)` warns once,
+on the method. As in Rust:
+
+- Uses inside the trait's own declaration are silent, so that its default methods can call each
+  other and its methods can bound on it.
+- Uses inside the trait's impls and inside other deprecated items warn.
+
+A written bound can be resolved several times (an impl's where clause is resolved for each method,
+and a trait alias resolves its bound twice), so each source location is reported once. The impl generated for a trait alias
+doesn't count as a use of the alias, which only warns where it is named.
+
 ## `#[allow]`
 
 Deprecation is not a lint that `#[allow]` can name (see [lints.md](./lints.md)), so its warnings

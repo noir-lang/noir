@@ -14,16 +14,20 @@ use crate::{
         function::FuncMeta,
         stmt::HirStatement,
     },
-    node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner},
+    node_interner::{DefinitionKind, ExprId, FuncId, FunctionModifiers, NodeInterner, TraitId},
     recursion::TypeRecursionContext,
     shared::{ForeignCall, Signedness, Visibility},
-    token::{FunctionAttributeKind, SecondaryAttributeKind},
+    token::{FunctionAttributeKind, SecondaryAttributeKind, get_deprecated},
 };
 
 use noirc_errors::Location;
 use num_bigint::BigInt;
 
-pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Option<TypeCheckError> {
+pub(super) fn deprecated_function(
+    interner: &NodeInterner,
+    expr: ExprId,
+    trait_declaration: Option<TraitId>,
+) -> Option<TypeCheckError> {
     let HirExpression::Ident(HirIdent { location, id, impl_kind: _ }, _) =
         interner.expression(&expr)
     else {
@@ -34,9 +38,45 @@ pub(super) fn deprecated_function(interner: &NodeInterner, expr: ExprId) -> Opti
         return None;
     };
 
-    let (deny, note) = interner.function_deprecation(&func_id)?;
+    let method = interner.function_deprecation(&func_id);
+    let the_trait = enclosing_trait_deprecation(interner, func_id, trait_declaration);
+
+    let (deny, note) = merge_deprecations(method, the_trait)?;
     let name = interner.definition_name(id).to_string();
-    Some(TypeCheckError::CallDeprecated { name, deny, note, location })
+    Some(TypeCheckError::UseOfDeprecated { name, deny, note, location })
+}
+
+/// Combines the deprecation of a method with the one of its trait. The method's note takes priority,
+/// but `deny` on either side holds: a method can't soften its trait's hard error into a warning.
+fn merge_deprecations(
+    method: Option<(bool, Option<String>)>,
+    the_trait: Option<(bool, Option<String>)>,
+) -> Option<(bool, Option<String>)> {
+    match (method, the_trait) {
+        (Some((method_deny, method_note)), Some((trait_deny, trait_note))) => {
+            Some((method_deny || trait_deny, method_note.or(trait_note)))
+        }
+        (method, the_trait) => method.or(the_trait),
+    }
+}
+
+/// The deprecation of the trait that `func_id` is a method of, or implements a method of.
+///
+/// A trait's deprecation doesn't apply within `trait_declaration`, the trait being declared, so that
+/// its default methods can call each other.
+fn enclosing_trait_deprecation(
+    interner: &NodeInterner,
+    func_id: FuncId,
+    trait_declaration: Option<TraitId>,
+) -> Option<(bool, Option<String>)> {
+    let trait_id = interner
+        .get_function_trait(&func_id)
+        .map(|(_, trait_id)| trait_id)
+        .or_else(|| interner.try_function_meta(&func_id)?.trait_id)?;
+    if trait_declaration == Some(trait_id) {
+        return None;
+    }
+    get_deprecated(&interner.get_trait(trait_id).attributes)
 }
 
 /// Validate inline-related attributes based on whether the function is constrained or unconstrained.
