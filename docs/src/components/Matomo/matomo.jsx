@@ -28,6 +28,19 @@ export default function useMatomo() {
   const trackerUrl = `${urlBase}matomo.php`;
   const srcUrl = `${urlBase}matomo.js`;
 
+  // Additional Aztec Labs tracker (site 23) that receives the same events as
+  // the Noir tracker, for cross-domain analytics across the Aztec and Noir
+  // web properties.
+  const azteclabsTrackerUrl = "https://azteclabs.matomo.cloud/matomo.php";
+  const azteclabsSiteId = "23";
+  const crossDomainList = [
+    "*.aztec.network",
+    "*.docs.aztec.network",
+    "*.noir-lang.org",
+    "*.play.aztec-labs.com",
+    "*.testnet.aztec.network",
+  ];
+
   window._paq = window._paq || [];
 
   // Debug logging
@@ -48,10 +61,30 @@ export default function useMatomo() {
   }, []);
 
   useEffect(() => {
+    // Gate all tracking and cookies behind explicit opt-in. Nothing is sent
+    // and no cookies — including the cross-domain visitor id — are set until
+    // consent is granted through the banner.
+    pushInstruction("requireConsent");
     pushInstruction("setTrackerUrl", trackerUrl);
     pushInstruction("setSiteId", getSiteId(env));
     if (env !== "prod") {
       pushInstruction("setSecureCookie", false);
+    }
+
+    // Report to the shared Aztec Labs Matomo instance in addition to the Noir
+    // instance. A single matomo.js dispatches every subsequent _paq command —
+    // consent, trackPageView and the settings above — to both trackers, so the
+    // Aztec Labs tracker is gated by the same consent as the Noir tracker.
+    pushInstruction("addTracker", azteclabsTrackerUrl, azteclabsSiteId);
+    pushInstruction("setDomains", crossDomainList);
+    pushInstruction("enableCrossDomainLinking");
+    pushInstruction("enableLinkTracking");
+
+    // Re-apply a stored opt-in so returning visitors who already accepted are
+    // tracked without seeing the banner again. Refusal or no prior choice
+    // leaves tracking blocked by requireConsent.
+    if (localStorage.getItem("matomoConsent") === "true") {
+      pushInstruction("rememberConsentGiven");
     }
 
     const doc = document;
@@ -74,6 +107,9 @@ export default function useMatomo() {
 
   const optIn = () => {
     pushInstruction("rememberConsentGiven");
+    // Record the page the user opted in on; the initial page view was
+    // suppressed by requireConsent before consent existed.
+    pushInstruction("trackPageView");
     localStorage.setItem("matomoConsent", true);
     setShowBanner(false);
   };
