@@ -1,12 +1,10 @@
 use crate::compile::{
-    JsCompileContractResult, JsCompileProgramResult, PathToFileSourceMap,
+    JsCompileContractResult, JsCompileProgramResult, PathToFileSourceMap, compile_options,
     file_manager_with_source_map,
 };
 use crate::errors::{CompileError, JsCompileError};
 use nargo::parse_all;
-use noirc_driver::{
-    CompileOptions, add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency,
-};
+use noirc_driver::{add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency};
 use noirc_frontend::{
     graph::{CrateId, CrateName},
     hir::Context,
@@ -93,7 +91,7 @@ impl CompilerContext {
         self,
         _program_width: usize,
     ) -> Result<JsCompileProgramResult, JsCompileError> {
-        let compile_options = CompileOptions::default();
+        let compile_options = compile_options();
 
         let root_crate_id = *self.context.root_crate_id();
         let file_manager = Arc::clone(&self.context.file_manager);
@@ -124,7 +122,7 @@ impl CompilerContext {
         self,
         _program_width: usize,
     ) -> Result<JsCompileContractResult, JsCompileError> {
-        let compile_options = CompileOptions::default();
+        let compile_options = compile_options();
 
         let root_crate_id = *self.context.root_crate_id();
         let file_manager = Arc::clone(&self.context.file_manager);

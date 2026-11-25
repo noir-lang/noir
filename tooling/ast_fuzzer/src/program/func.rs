@@ -5,7 +5,7 @@ use nargo::errors::Location;
 use std::{
     collections::{BTreeMap, BTreeSet, HashSet},
     fmt::Debug,
-    rc::Rc,
+    sync::Arc,
 };
 use strum::IntoEnumIterator;
 
@@ -572,7 +572,7 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<Option<TrackedExpression>> {
         if let Some(id) = self.choose_producer(u, typ)? {
             let (src_mutable, src_name, src_type) = self.get_variable(&id).clone();
-            let src_type = Rc::new(src_type);
+            let src_type = Arc::new(src_type);
             let ident_id = self.next_ident_id();
             let src_expr = expr::ident(id, ident_id, src_mutable, src_name, src_type.clone());
             let src_dyn = match id {
@@ -1390,7 +1390,7 @@ impl<'a> FunctionContext<'a> {
             self.next_ident_id(),
             mutable,
             name.clone(),
-            Rc::new(typ),
+            Arc::new(typ),
         );
         (v, i)
     }
@@ -1626,10 +1626,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Oracle { name: "print".to_string(), pure: false },
             mutable: false,
             name: "print_oracle".to_string(),
-            typ: Rc::new(Type::Function(
+            typ: Arc::new(Type::Function(
                 param_types,
-                Rc::new(Type::Unit),
-                Rc::new(Type::Unit),
+                Arc::new(Type::Unit),
+                Arc::new(Type::Unit),
                 true,
             )),
             id: self.next_ident_id(),
@@ -1675,7 +1675,7 @@ impl<'a> FunctionContext<'a> {
         // also what `Expression::return_type` uses as the `FmtString` size.
         let count = count as u32;
         let values_type = Type::Tuple(value_types);
-        let fmt_type = Type::FmtString(count, Rc::new(values_type));
+        let fmt_type = Type::FmtString(count, Arc::new(values_type));
         let fmt_literal = Expression::Literal(Literal::FmtStr(
             fragments,
             u64::from(count),
@@ -1691,10 +1691,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Oracle { name: "print".to_string(), pure: false },
             mutable: false,
             name: "print_oracle".to_string(),
-            typ: Rc::new(Type::Function(
+            typ: Arc::new(Type::Function(
                 param_types,
-                Rc::new(Type::Unit),
-                Rc::new(Type::Unit),
+                Arc::new(Type::Unit),
+                Arc::new(Type::Unit),
                 true,
             )),
             id: self.next_ident_id(),
@@ -2101,7 +2101,7 @@ impl<'a> FunctionContext<'a> {
             ident_id,
             true,
             name.clone(),
-            Rc::new(typ.clone()),
+            Arc::new(typ.clone()),
         );
         let ident_expr = Expression::Ident(ident.clone());
 
@@ -2491,10 +2491,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Function(callee_id),
             mutable: false,
             name: callee.name.clone(),
-            typ: Rc::new(Type::Function(
+            typ: Arc::new(Type::Function(
                 param_types,
-                Rc::new(callee.return_type.clone()),
-                Rc::new(Type::Unit),
+                Arc::new(callee.return_type.clone()),
+                Arc::new(Type::Unit),
                 callee.unconstrained,
             )),
             id: self.next_ident_id(),
@@ -2505,7 +2505,7 @@ impl<'a> FunctionContext<'a> {
     fn local_ident(&mut self, id: LocalId) -> Ident {
         let (mutable, name, typ) = self.locals.current().get_variable(&id).clone();
         let ident_id = self.next_ident_id();
-        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, Rc::new(typ))
+        expr::ident_inner(VariableId::Local(id), ident_id, mutable, name, Arc::new(typ))
     }
 
     /// Type of a local variable.
@@ -2522,7 +2522,7 @@ impl<'a> FunctionContext<'a> {
         let idx_name = format!("idx_{}", make_name(idx_local_id.0 as usize, false));
         let idx_variable_id = VariableId::Local(idx_local_id);
         let idx_ident =
-            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), Rc::new(idx_type));
+            expr::ident_inner(idx_variable_id, idx_id, true, idx_name.clone(), Arc::new(idx_type));
         (idx_local_id, idx_name, idx_ident)
     }
 
@@ -2568,7 +2568,7 @@ impl<'a> FunctionContext<'a> {
         let (_, name, typ) = self.globals.get_variable(&id).clone();
         let ident_id = self.next_ident_id();
         let ident =
-            expr::ident(VariableId::Global(id), ident_id, false, name, Rc::new(typ.clone()));
+            expr::ident(VariableId::Global(id), ident_id, false, name, Arc::new(typ.clone()));
         let let_expr = self.let_var(mutable, typ, ident, add_to_scope, false, local_name);
         let Expression::Let(Let { id, name, .. }) = &let_expr else {
             unreachable!("expected Let; got {let_expr:?}");
@@ -2609,10 +2609,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin(Builtin::ArrayLen),
             mutable: false,
             name: "len".to_string(),
-            typ: Rc::new(Type::Function(
+            typ: Arc::new(Type::Function(
                 vec![typ],
-                Rc::new(types::U32),
-                Rc::new(Type::Unit),
+                Arc::new(types::U32),
+                Arc::new(Type::Unit),
                 false,
             )),
             id: self.next_ident_id(),
@@ -2632,10 +2632,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin(Builtin::StrAsBytes),
             mutable: false,
             name: "as_bytes".to_string(),
-            typ: Rc::new(Type::Function(
+            typ: Arc::new(Type::Function(
                 vec![Type::String(len)],
-                Rc::new(bytes_type.clone()),
-                Rc::new(Type::Unit),
+                Arc::new(bytes_type.clone()),
+                Arc::new(Type::Unit),
                 false,
             )),
             id: self.next_ident_id(),
@@ -2660,10 +2660,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin(Builtin::AsVector),
             mutable: false,
             name: "as_vector".to_string(),
-            typ: Rc::new(Type::Function(
+            typ: Arc::new(Type::Function(
                 vec![array_type],
-                Rc::new(vector_type.clone()),
-                Rc::new(Type::Unit),
+                Arc::new(vector_type.clone()),
+                Arc::new(Type::Unit),
                 false,
             )),
             id: self.next_ident_id(),
@@ -2693,10 +2693,10 @@ impl<'a> FunctionContext<'a> {
             definition: Definition::Builtin(builtin),
             mutable: false,
             name: name.to_string(),
-            typ: Rc::new(Type::Function(
+            typ: Arc::new(Type::Function(
                 arg_types,
-                Rc::new(return_type.clone()),
-                Rc::new(Type::Unit),
+                Arc::new(return_type.clone()),
+                Arc::new(Type::Unit),
                 false,
             )),
             id: self.next_ident_id(),

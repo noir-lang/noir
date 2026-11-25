@@ -210,7 +210,22 @@ fn collect_all_files_under_path(
     }
 }
 
-const STACK_SIZE: usize = 8 * 1024 * 1024;
+/// Stack size of the threads nargo parses and compiles Noir on. Elaborating, monomorphizing and
+/// running SSA passes on a large program recurse deeply, and rayon's default of 2 MiB overflows.
+/// 8 MiB matches the default main-thread stack on Linux and macOS; `RUST_MIN_STACK` raises it.
+pub fn compilation_stack_size() -> usize {
+    stack_size_for(std::env::var("RUST_MIN_STACK").ok().as_deref())
+}
+
+const DEFAULT_COMPILATION_STACK_SIZE: usize = 8 * 1024 * 1024;
+
+/// The compilation stack size given the value of `RUST_MIN_STACK`, if set. A requested size can
+/// only raise the default; one that doesn't parse is ignored.
+fn stack_size_for(requested: Option<&str>) -> usize {
+    let requested = requested.and_then(|size| size.parse::<usize>().ok());
+    requested
+        .map_or(DEFAULT_COMPILATION_STACK_SIZE, |size| size.max(DEFAULT_COMPILATION_STACK_SIZE))
+}
 
 #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
 pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
@@ -249,6 +264,8 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
     // Limit threads to the actual number of files we need to process.
     let num_threads = rayon::current_num_threads().min(nr_files.len()).max(1);
 
+    let stack_size = compilation_stack_size();
+
     let (sender, receiver) = mpsc::channel();
     let iter = &Mutex::new(nr_files.into_iter());
 
@@ -258,9 +275,7 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
             // Clone sender so it's dropped once the thread finishes
             let thread_sender = sender.clone();
             thread::Builder::new()
-                // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
-                // (the default is 2MB)
-                .stack_size(STACK_SIZE)
+                .stack_size(stack_size)
                 .spawn_scoped(scope, move || {
                     loop {
                         // Get next file to process from the iterator.
@@ -308,4 +323,32 @@ fn add_unstable_features(context: &mut Context, crate_id: CrateId, package: &Pac
     context
         .required_unstable_features
         .insert(crate_id, package.compiler_required_unstable_features.clone());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{DEFAULT_COMPILATION_STACK_SIZE, stack_size_for};
+
+    #[test]
+    fn stack_size_defaults_to_8_mib_when_unset() {
+        assert_eq!(DEFAULT_COMPILATION_STACK_SIZE, 8 * 1024 * 1024);
+        assert_eq!(stack_size_for(None), DEFAULT_COMPILATION_STACK_SIZE);
+    }
+
+    #[test]
+    fn stack_size_ignores_a_smaller_request() {
+        assert_eq!(stack_size_for(Some("1048576")), DEFAULT_COMPILATION_STACK_SIZE);
+    }
+
+    #[test]
+    fn stack_size_honours_a_larger_request() {
+        let requested = 64 * 1024 * 1024;
+        assert_eq!(stack_size_for(Some(&requested.to_string())), requested);
+    }
+
+    #[test]
+    fn stack_size_ignores_an_unparsable_request() {
+        assert_eq!(stack_size_for(Some("8M")), DEFAULT_COMPILATION_STACK_SIZE);
+        assert_eq!(stack_size_for(Some("")), DEFAULT_COMPILATION_STACK_SIZE);
+    }
 }

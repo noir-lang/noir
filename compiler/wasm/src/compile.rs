@@ -170,7 +170,7 @@ pub fn compile_program(
     let (crate_id, context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
     let file_manager = Arc::clone(&context.file_manager);
 
-    let compile_options = CompileOptions::default();
+    let compile_options = compile_options();
 
     let compiled_program =
         noirc_driver::compile_main(context, crate_id, &compile_options, Path::new(""), false, None)
@@ -205,7 +205,7 @@ pub fn compile_contract(
     let (crate_id, context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
     let file_manager = Arc::clone(&context.file_manager);
 
-    let compile_options = CompileOptions::default();
+    let compile_options = compile_options();
 
     let compiled_contract =
         noirc_driver::compile_contract(context, crate_id, &compile_options, Path::new(""))
@@ -221,6 +221,16 @@ pub fn compile_contract(
     let warnings = compiled_contract.warnings.clone();
 
     Ok(JsCompileContractResult::new(compiled_contract.into(), warnings))
+}
+
+pub(crate) fn compile_options() -> CompileOptions {
+    CompileOptions {
+        // Codegen timings are measured with `std::time::Instant`, which panics on
+        // `wasm32-unknown-unknown`, so they must stay disabled here. Enabling them would require
+        // switching the SSA pass timer to a wasm-aware clock such as `web_time::Instant`.
+        benchmark_codegen: false,
+        ..CompileOptions::default()
+    }
 }
 
 fn prepare_context(

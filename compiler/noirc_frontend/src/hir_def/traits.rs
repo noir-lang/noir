@@ -1,6 +1,6 @@
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::ResolvedGeneric;
 use crate::ast::{DocComment, Ident, ItemVisibility, NoirFunction};
@@ -284,14 +284,14 @@ impl TraitSelfType {
 
     /// `Self` as a named generic, which unifies with nothing but itself.
     pub fn rigid(&self) -> Type {
-        let self_type_name = Rc::new(SELF_TYPE_NAME.to_string());
+        let self_type_name = Arc::new(SELF_TYPE_NAME.to_string());
         self.0.clone().into_named_generic(&self_type_name, None)
     }
 
     /// `Self` as a generic to put in scope while resolving an item declared on the trait.
     pub fn generic(&self, location: Location) -> ResolvedGeneric {
         ResolvedGeneric {
-            name: Rc::new(SELF_TYPE_NAME.to_string()),
+            name: Arc::new(SELF_TYPE_NAME.to_string()),
             type_var: self.0.clone(),
             location,
         }

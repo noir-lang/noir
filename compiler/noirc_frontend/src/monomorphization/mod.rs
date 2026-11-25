@@ -77,7 +77,7 @@ use itertools::Itertools;
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use std::rc::Rc;
+use std::sync::Arc;
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -372,6 +372,25 @@ impl<'interner> Monomorphizer<'interner> {
     /// The type of the expression `id` as seen from the function being monomorphized.
     fn expr_type(&self, id: ExprId) -> Type {
         self.interner.try_id_type(id).map_or(Type::Error, |typ| self.ty(typ))
+    }
+
+    /// Whether the operand of an operator has a primitive type (a `Field`, an integer or a
+    /// `bool`) in the function being monomorphized.
+    ///
+    /// An operator applied to a generic operand is elaborated as a call to the operator's trait
+    /// method, because the generic body is type checked once, before its type arguments are
+    /// known. When the operand resolves to a primitive type, that call is emitted as the
+    /// primitive operator. The standard library implements every operator trait for
+    /// primitives as the primitive operator itself, and those impls cannot be overridden, so
+    /// the result is the same. Emitting the call would cost more: `a < b` becomes
+    /// `a.cmp(b) == Ordering::less()`, and `cmp` evaluates two comparisons.
+    fn is_primitive_operand(
+        &self,
+        operand: ExprId,
+        location: Location,
+    ) -> Result<bool, MonomorphizationError> {
+        let typ = Self::convert_type(&self.expr_type(operand), location)?;
+        Ok(matches!(typ, ast::Type::Field | ast::Type::Integer(..) | ast::Type::Bool))
     }
 
     /// The type of the definition `id` as seen from the function being monomorphized.
@@ -824,7 +843,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn parameters(
         &mut self,
         params: &Parameters,
-    ) -> Result<Vec<(LocalId, bool, String, Rc<ast::Type>, Visibility)>, MonomorphizationError>
+    ) -> Result<Vec<(LocalId, bool, String, Arc<ast::Type>, Visibility)>, MonomorphizationError>
     {
         let mut new_params = Vec::with_capacity(params.len());
         for (parameter, typ, visibility) in &params.0 {
@@ -840,14 +859,14 @@ impl<'interner> Monomorphizer<'interner> {
         param: &HirPattern,
         typ: &HirType,
         visibility: &Visibility,
-        new_params: &mut Vec<(LocalId, bool, String, Rc<ast::Type>, Visibility)>,
+        new_params: &mut Vec<(LocalId, bool, String, Arc<ast::Type>, Visibility)>,
     ) -> Result<(), MonomorphizationError> {
         match param {
             HirPattern::Identifier(ident) => {
                 let new_id = self.next_local_id();
                 let definition = self.interner.definition(ident.id);
                 let name = definition.name.clone();
-                let typ = Rc::new(Self::convert_type(typ, ident.location)?);
+                let typ = Arc::new(Self::convert_type(typ, ident.location)?);
                 new_params.push((new_id, definition.mutable, name, typ, *visibility));
                 self.define_local(ident.id, new_id);
             }
@@ -945,7 +964,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let rhs = self.expr(prefix.rhs)?;
                 let location = self.interner.expr_location(&expr);
 
-                if self.interner.get_selected_impl_for_expression(expr).is_some() {
+                if self.interner.get_selected_impl_for_expression(expr).is_some()
+                    && !self.is_primitive_operand(prefix.rhs, location)?
+                {
                     // If an impl was selected for this prefix operator, replace it
                     // with a method call to the appropriate trait impl method.
                     let (function_type, ret) =
@@ -979,7 +1000,9 @@ impl<'interner> Monomorphizer<'interner> {
                 let rhs = self.expr(infix.rhs)?;
                 let operator = infix.operator.kind;
                 let location = self.interner.expr_location(&expr);
-                if self.interner.get_selected_impl_for_expression(expr).is_some() {
+                if self.interner.get_selected_impl_for_expression(expr).is_some()
+                    && !self.is_primitive_operand(infix.lhs, location)?
+                {
                     // If an impl was selected for this infix operator, replace it
                     // with a method call to the appropriate trait impl method.
                     let (function_type, ret) =
@@ -1345,7 +1368,7 @@ impl<'interner> Monomorphizer<'interner> {
                 mutable,
                 location: None,
                 name,
-                typ: Rc::new(typ),
+                typ: Arc::new(typ),
                 id: self.next_ident_id(),
             })
         });
@@ -1488,7 +1511,7 @@ impl<'interner> Monomorphizer<'interner> {
                 mutable,
                 definition,
                 name,
-                typ: Rc::new(typ),
+                typ: Arc::new(typ),
                 id,
             });
 
@@ -1568,7 +1591,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable,
             definition,
             name,
-            typ: Rc::new(typ),
+            typ: Arc::new(typ),
             id,
         }))
     }
@@ -1745,7 +1768,7 @@ impl<'interner> Monomorphizer<'interner> {
         let is_closure_type = self.is_closure_type(&typ);
         let location = Some(location);
         let id = self.next_ident_id();
-        let ident = ast::Ident { location, mutable, definition, name, typ: Rc::new(typ), id };
+        let ident = ast::Ident { location, mutable, definition, name, typ: Arc::new(typ), id };
         let ident_expression = ast::Expression::Ident(ident);
 
         if is_closure_type {
@@ -1803,7 +1826,7 @@ impl<'interner> Monomorphizer<'interner> {
                 definition: Definition::Global(*seen_global),
                 mutable: false,
                 name,
-                typ: Rc::new(typ),
+                typ: Arc::new(typ),
                 id: self.next_ident_id(),
             };
             ast::Expression::Ident(ident)
@@ -1855,7 +1878,7 @@ impl<'interner> Monomorphizer<'interner> {
                     definition: Definition::Global(new_id),
                     mutable: false,
                     name,
-                    typ: Rc::new(typ),
+                    typ: Arc::new(typ),
                     id: self.next_ident_id(),
                 };
                 ast::Expression::Ident(ident)
@@ -2016,7 +2039,7 @@ impl<'interner> Monomorphizer<'interner> {
                     }
                 };
                 let fields =
-                    Rc::new(Self::convert_type_helper(fields.as_ref(), location, seen_types)?);
+                    Arc::new(Self::convert_type_helper(fields.as_ref(), location, seen_types)?);
                 ast::Type::FmtString(size, fields)
             }
             HirType::Unit => ast::Type::Unit,
@@ -2025,7 +2048,7 @@ impl<'interner> Monomorphizer<'interner> {
                     return Err(MonomorphizationError::NestedVectors { location });
                 }
                 let element =
-                    Rc::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
+                    Arc::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 let length = match length.evaluate_to_u32(location) {
                     Ok(length) => length,
                     Err(err) => {
@@ -2039,7 +2062,7 @@ impl<'interner> Monomorphizer<'interner> {
                     return Err(MonomorphizationError::NestedVectors { location });
                 }
                 let element =
-                    Rc::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
+                    Arc::new(Self::convert_type_helper(element.as_ref(), location, seen_types)?);
                 ast::Type::Vector(element)
             }
             HirType::TraitAsType(..) => {
@@ -2116,13 +2139,13 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Function(args, ret, env, _unconstrained) => {
                 let args =
                     try_vecmap(args, |x| Self::convert_type_helper(x, location, seen_types))?;
-                let ret = Rc::new(Self::convert_type_helper(ret, location, seen_types)?);
-                let env = Rc::new(Self::convert_type_helper(env, location, seen_types)?);
+                let ret = Arc::new(Self::convert_type_helper(ret, location, seen_types)?);
+                let env = Arc::new(Self::convert_type_helper(env, location, seen_types)?);
 
                 let make_function = |is_unconstrained,
                                      args,
-                                     ret: Rc<ast::Type>,
-                                     env: Rc<ast::Type>| {
+                                     ret: Arc<ast::Type>,
+                                     env: Arc<ast::Type>| {
                     use ast::Type::*;
                     match env.as_ref() {
                         Unit => Function(args, ret, env, is_unconstrained),
@@ -2148,7 +2171,7 @@ impl<'interner> Monomorphizer<'interner> {
             // Lower both mutable & immutable references to the same reference type
             HirType::Reference(element, mutable) => {
                 let element = Self::convert_type_helper(element, location, seen_types)?;
-                ast::Type::Reference(Rc::new(element), *mutable)
+                ast::Type::Reference(Arc::new(element), *mutable)
             }
 
             HirType::Forall(_, _) | HirType::Constant(..) | HirType::InfixExpr(..) => {
@@ -2352,7 +2375,7 @@ impl<'interner> Monomorphizer<'interner> {
         trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&expr_id);
-        let typ = Rc::new(Self::convert_type(&function_type, location)?);
+        let typ = Arc::new(Self::convert_type(&function_type, location)?);
 
         let Definition::Function(func_id) = self.lookup_function(
             func_id,
@@ -2511,7 +2534,7 @@ impl<'interner> Monomorphizer<'interner> {
                 definition: Definition::Local(local_id),
                 mutable: false,
                 name: "tmp".to_string(),
-                typ: Rc::new(func_typ),
+                typ: Arc::new(func_typ),
                 id: self.next_ident_id(),
             });
 
@@ -2864,8 +2887,8 @@ impl<'interner> Monomorphizer<'interner> {
 
         let typ = ast::Type::Function(
             parameter_types,
-            Rc::new(ret_type),
-            Rc::new(ast::Type::Unit),
+            Arc::new(ret_type),
+            Arc::new(ast::Type::Unit),
             self.function.in_unconstrained_function,
         );
 
@@ -2875,7 +2898,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: None,
             name,
-            typ: Rc::new(typ),
+            typ: Arc::new(typ),
             id: self.next_ident_id(),
         }))
     }
@@ -2935,7 +2958,7 @@ impl<'interner> Monomorphizer<'interner> {
         } else {
             unreachable!("expected a Function type for a Lambda node")
         };
-        let env_typ = Rc::new(env_typ);
+        let env_typ = Arc::new(env_typ);
 
         let env_let_stmt = ast::Expression::Let(ast::Let {
             id: env_local_id,
@@ -3014,12 +3037,12 @@ impl<'interner> Monomorphizer<'interner> {
         // Build the function type for both variants
         let constrained_fn_typ = ast::Type::Function(
             parameter_types.clone(),
-            Rc::new(ret_type.clone()),
+            Arc::new(ret_type.clone()),
             env_typ.clone(),
             both_unconstrained,
         );
         let unconstrained_fn_typ =
-            ast::Type::Function(parameter_types, Rc::new(ret_type), env_typ.clone(), true);
+            ast::Type::Function(parameter_types, Arc::new(ret_type), env_typ.clone(), true);
 
         // Build closure tuples: (env, fn) for each variant
         let constrained_closure_typ =
@@ -3034,7 +3057,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: Some(location),
             name: lambda_name.to_owned(),
-            typ: Rc::new(constrained_fn_typ),
+            typ: Arc::new(constrained_fn_typ),
             id: self.next_ident_id(),
         });
 
@@ -3043,7 +3066,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             location: Some(location),
             name: lambda_name.to_owned(),
-            typ: Rc::new(unconstrained_fn_typ),
+            typ: Arc::new(unconstrained_fn_typ),
             id: self.next_ident_id(),
         });
 
@@ -3078,7 +3101,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             definition: Definition::Local(block_local_id),
             name: block_ident_name.to_string(),
-            typ: Rc::new(result_typ),
+            typ: Arc::new(result_typ),
             id: self.next_ident_id(),
         });
 

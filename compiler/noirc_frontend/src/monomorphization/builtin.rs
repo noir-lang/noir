@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
@@ -68,7 +68,7 @@ impl Monomorphizer<'_> {
             HandledOpcode::CheckedTransmute => {
                 assert_eq!(parameter_types.len(), 1);
                 let parameter_id = self.next_local_id();
-                let parameter_type = Rc::new(Self::convert_type(&parameter_types[0], location)?);
+                let parameter_type = Arc::new(Self::convert_type(&parameter_types[0], location)?);
                 parameters = vec![(
                     parameter_id,
                     false,
@@ -138,7 +138,7 @@ impl Monomorphizer<'_> {
 
         let bits_as_expr = vecmap(bits, |bit| Expression::Literal(Literal::Bool(bit != 0)));
 
-        let typ = Type::Vector(Rc::new(Type::Bool));
+        let typ = Type::Vector(Arc::new(Type::Bool));
         let arr_literal = ArrayLiteral { typ, contents: bits_as_expr };
         Expression::Literal(Literal::Vector(arr_literal))
     }
@@ -162,7 +162,7 @@ impl Monomorphizer<'_> {
             Expression::Literal(Literal::Integer(byte.into(), int_type.clone(), location))
         });
 
-        let typ = Type::Vector(Rc::new(int_type));
+        let typ = Type::Vector(Arc::new(int_type));
         let arr_literal = ArrayLiteral { typ, contents: bytes_as_expr };
         Expression::Literal(Literal::Vector(arr_literal))
     }
@@ -262,8 +262,8 @@ impl Monomorphizer<'_> {
     fn create_zeroed_function(
         &mut self,
         parameter_types: &[ast::Type],
-        ret_type: Rc<ast::Type>,
-        env_type: Rc<ast::Type>,
+        ret_type: Arc<ast::Type>,
+        env_type: Arc<ast::Type>,
         unconstrained: bool,
         location: Location,
     ) -> ast::Expression {
@@ -284,7 +284,7 @@ impl Monomorphizer<'_> {
                 self.next_local_id(),
                 false,
                 "_".into(),
-                Rc::new(parameter_type.clone()),
+                Arc::new(parameter_type.clone()),
                 Visibility::Private,
             )
         }));
@@ -314,7 +314,7 @@ impl Monomorphizer<'_> {
             mutable: false,
             location: None,
             name: lambda_name.to_owned(),
-            typ: Rc::new(ast::Type::Function(
+            typ: Arc::new(ast::Type::Function(
                 parameter_types.to_owned(),
                 ret_type,
                 env_type,

@@ -2,16 +2,8 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
-const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
 fn main() -> Result<(), String> {
-    // Only use build_data if the environment variable isn't set.
-    if std::env::var(GIT_COMMIT).is_err() {
-        build_data::set_GIT_COMMIT()?;
-        build_data::set_GIT_DIRTY()?;
-        build_data::no_debug_rebuilds()?;
-    }
-
     let out_dir = std::env::var("OUT_DIR").unwrap();
     let destination = Path::new(&out_dir).join("debug.rs");
     let mut test_file = File::create(destination).unwrap();

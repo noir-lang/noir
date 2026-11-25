@@ -40,14 +40,14 @@ jobs:
           git checkout bump-aztec-packages || git checkout -b bump-aztec-packages
           ./scripts/bump-aztec-packages-commit.sh
           git add .
-          git commit -m 'chore: Update pinned commit of aztec-packages'
+          git commit -m 'chore: Update pinned commits of aztec-packages and aztec-node'
           git push --set-upstream origin bump-aztec-packages --force
 
       - name: Create PR
         if: ${{ steps.pr-check.outputs.pr_url == '' }}
         run: |
           PR_BODY="""
-          Automated update of the pinned commit of [aztec-packages](https://github.com/AztecProtocol/aztec-packages) repository against which we run benchmarks.
+          Automated update of the pinned commits of the [aztec-packages](https://github.com/AztecProtocol/aztec-packages) and [aztec-node](https://github.com/aztec-labs-eng/aztec-node) repositories against which we run benchmarks.
           """
           gh pr create --repo noir-lang/noir --title "chore: bump external pinned commits" --body "$PR_BODY" --base master --head bump-aztec-packages
         env:

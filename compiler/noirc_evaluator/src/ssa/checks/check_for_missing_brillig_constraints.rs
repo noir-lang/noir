@@ -292,6 +292,18 @@ impl AncestryGraph {
         self.track(array);
     }
 
+    /// The values a backward traversal moves to from a starting value: only its parents.
+    /// Equivalences are not followed from starting values; see [`Self::traverse`].
+    fn start_edges(&self, value: ValueId) -> impl Iterator<Item = ValueId> + '_ {
+        self.parents.get(&value).into_iter().flatten().copied()
+    }
+
+    /// The values a backward traversal moves to from any other value: its parents and the
+    /// values it is constrained to be equal to.
+    fn edges(&self, value: ValueId) -> impl Iterator<Item = ValueId> + '_ {
+        self.start_edges(value).chain(self.equivalences.get(&value).into_iter().flatten().copied())
+    }
+
     /// Traverse the values reachable (inclusive) from any of the `starts` by following
     /// `parents` and `equivalences` edges backwards, breadth first.
     ///
@@ -316,25 +328,17 @@ impl AncestryGraph {
             if !f(s, 0) {
                 return visited;
             }
-            // From start nodes: follow only parent edges, not equivalences.
-            for &p in self.parents.get(&s).into_iter().flatten() {
+            for p in self.start_edges(s) {
                 if visited.insert(p) {
                     queue.push_back((p, 1));
                 }
             }
         }
-        // From intermediate nodes: follow both parent and equivalence edges.
         while let Some((curr, dist)) = queue.pop_front() {
             if !f(curr, dist) {
                 return visited;
             }
-            for &next in self
-                .parents
-                .get(&curr)
-                .into_iter()
-                .flatten()
-                .chain(self.equivalences.get(&curr).into_iter().flatten())
-            {
+            for next in self.edges(curr) {
                 if visited.insert(next) {
                     queue.push_back((next, dist + 1));
                 }
@@ -345,6 +349,9 @@ impl AncestryGraph {
 
     /// Compute the set of all values reachable (inclusive) from any of the `starts` by following
     /// `parents` and `equivalences` edges backwards.
+    ///
+    /// The check itself uses [`LazyAncestors`]; this is the reference it is tested against.
+    #[cfg(test)]
     fn ancestors(&self, starts: &[ValueId]) -> HashSet<ValueId> {
         self.traverse(starts, |_, _| true)
     }
@@ -360,6 +367,59 @@ impl AncestryGraph {
         let read_arrays =
             values.iter().filter_map(|value| self.read_arrays.get(value).copied()).collect();
         Ball { values, set, read_arrays }
+    }
+}
+
+/// The ancestors of a Brillig call's arguments, explored only as far as queries need.
+///
+/// The answer to every query is the same as against the full set of ancestors, as found by an
+/// unbounded [`AncestryGraph::traverse`]: the traversal visits the same values in the same order,
+/// it just stops as soon as a query is answered and resumes from there for the next one.
+/// Most constraints on a call's outputs meet its arguments within a few steps, so the full
+/// set, which in a long chain of arithmetic is most of the function, is rarely needed.
+#[derive(Debug)]
+struct LazyAncestors {
+    /// Values reached so far, including the arguments themselves.
+    visited: HashSet<ValueId>,
+    /// Values reached but not yet expanded; their parents and equivalences are followed.
+    queue: VecDeque<ValueId>,
+}
+
+impl LazyAncestors {
+    /// Start a traversal from `starts`, set up the same way as [`AncestryGraph::traverse`]:
+    /// from the starting values only `parents` edges are followed.
+    fn new(graph: &AncestryGraph, starts: &[ValueId]) -> Self {
+        let mut visited: HashSet<ValueId> = HashSet::default();
+        let mut queue = VecDeque::new();
+        for &s in starts {
+            visited.insert(s);
+            for p in graph.start_edges(s) {
+                if visited.insert(p) {
+                    queue.push_back(p);
+                }
+            }
+        }
+        Self { visited, queue }
+    }
+
+    /// Whether any value in the ball is an ancestor of the arguments (or an argument).
+    fn intersects(&mut self, graph: &AncestryGraph, ball: &Ball) -> bool {
+        if ball.any(|a| self.visited.contains(a)) {
+            return true;
+        }
+        while let Some(curr) = self.queue.pop_front() {
+            let mut found = false;
+            for next in graph.edges(curr) {
+                if self.visited.insert(next) {
+                    self.queue.push_back(next);
+                    found |= ball.contains(&next);
+                }
+            }
+            if found {
+                return true;
+            }
+        }
+        false
     }
 }
 
@@ -417,12 +477,13 @@ struct TaintedDescendants {
     ///
     /// Once every index of one of these is constrained, every value in it is.
     numeric_array_outputs: HashSet<ValueId>,
-    /// The union of all values reachable from any argument by following parents and
-    /// equivalences backwards. Includes the arguments themselves.
+    /// The values reachable from any argument by following parents and equivalences
+    /// backwards, including the arguments themselves, explored on demand.
     ///
-    /// Pre-computed after the parent graph is built so that `arguments_intersect`
-    /// can check membership in O(1) rather than re-running BFS for every constraint.
-    arg_ancestors: HashSet<ValueId>,
+    /// Started after the parent graph is built for calls which are still unresolved,
+    /// resumed by `arguments_intersect` rather than re-running a BFS for every constraint,
+    /// and dropped once the call is fully constrained. `None` outside that window.
+    arg_ancestors: Option<LazyAncestors>,
 }
 
 impl TaintedDescendants {
@@ -474,7 +535,7 @@ impl TaintedDescendants {
             single_outputs,
             array_outputs,
             numeric_array_outputs,
-            arg_ancestors: HashSet::default(),
+            arg_ancestors: None,
         }
     }
 
@@ -508,6 +569,7 @@ impl TaintedDescendants {
         &mut self,
         constrained_values: &[ValueId],
         balls: &[Ball],
+        graph: &AncestryGraph,
         all_tainted: &ValueSet,
         all_constrained: &mut ConstrainedValues,
     ) -> bool {
@@ -518,7 +580,13 @@ impl TaintedDescendants {
         // unless there are no inputs, or the output is against a constant.
         if !is_against_const
             && !is_const_args
-            && !self.arguments_intersect(constrained_values, balls, all_tainted, all_constrained)
+            && !self.arguments_intersect(
+                constrained_values,
+                balls,
+                graph,
+                all_tainted,
+                all_constrained,
+            )
         {
             return false;
         }
@@ -584,12 +652,13 @@ impl TaintedDescendants {
     }
 
     /// Whether one of the constrained values:
-    /// * shares an ancestor with a call argument (checked via pre-computed `arg_ancestors`), and
+    /// * shares an ancestor with a call argument (checked via `arg_ancestors`), and
     /// * is not tainted, unless it's been already constrained
     fn arguments_intersect(
-        &self,
+        &mut self,
         constrained_values: &[ValueId],
         balls: &[Ball],
+        graph: &AncestryGraph,
         all_tainted: &ValueSet,
         all_constrained: &ConstrainedValues,
     ) -> bool {
@@ -610,9 +679,12 @@ impl TaintedDescendants {
             {
                 continue;
             }
-            // arg_ancestors contains the arguments themselves and all their transitive ancestors.
-            // Check if cv or any ancestor of cv is in arg_ancestors.
-            if ball.any(|a| self.arg_ancestors.contains(a)) {
+            // Check if cv or any ancestor of cv is an ancestor of an argument (or an argument).
+            let arg_ancestors = self
+                .arg_ancestors
+                .as_mut()
+                .expect("only unresolved calls are queried, and their searches are started");
+            if arg_ancestors.intersects(graph, ball) {
                 return true;
             }
         }
@@ -790,10 +862,6 @@ impl TaintedCalls {
         self.by_instruction.get(instruction_id).copied()
     }
 
-    fn iter_mut(&mut self) -> impl Iterator<Item = &mut TaintedDescendants> {
-        self.calls.iter_mut()
-    }
-
     /// Add to the descendants of an element of an array output, if the array is tracked.
     ///
     /// Returns `false` if the element is not tracked.
@@ -836,13 +904,15 @@ impl TaintedCalls {
         index: TaintedIndex,
         constrained_values: &[ValueId],
         balls: &[Ball],
+        graph: &AncestryGraph,
         all_tainted: &ValueSet,
         all_constrained: &mut ConstrainedValues,
     ) -> bool {
         let tainted = &mut self.calls[index];
         let progressed =
-            tainted.try_constrain(constrained_values, balls, all_tainted, all_constrained);
+            tainted.try_constrain(constrained_values, balls, graph, all_tainted, all_constrained);
         if tainted.is_fully_constrained() {
+            tainted.arg_ancestors = None;
             self.unresolved.remove(index);
         }
         progressed
@@ -894,8 +964,8 @@ impl Context {
         }
     }
 
-    /// Build a direct parent graph for tracked values, then compute `arg_ancestors` for each
-    /// tainted Brillig call via BFS.
+    /// Build a direct parent graph for tracked values, then start the `arg_ancestors`
+    /// traversal for each tainted Brillig call.
     ///
     /// This avoids having to have a transitive-closure `ancestors` map, with a compact representation:
     /// `parents[v]` stores only the immediate instruction arguments of `v` (plus the active
@@ -994,12 +1064,12 @@ impl Context {
             }
         }
 
-        // BFS sub-pass: compute arg_ancestors for each tainted Brillig call.
-        // arg_ancestors is the union of all values reachable backwards from any argument,
-        // including the arguments themselves. This is pre-computed once so that
-        // arguments_intersect can check membership in O(1) per constrained value.
-        for tainted in self.tainted.iter_mut() {
-            tainted.arg_ancestors = self.graph.ancestors(&tainted.arguments);
+        // Start the backward traversal from the arguments of each unresolved Brillig call.
+        // `arguments_intersect` extends it only as far as each query needs. Calls resolved
+        // already (all their outputs are unused) are never queried.
+        for index in self.tainted.unresolved.iter() {
+            let call = &mut self.tainted.calls[index];
+            call.arg_ancestors = Some(LazyAncestors::new(&self.graph, &call.arguments));
         }
 
         self
@@ -1276,6 +1346,7 @@ impl Context {
                 index,
                 constrained_values,
                 &balls,
+                &self.graph,
                 all_tainted,
                 all_constrained,
             );
@@ -1421,6 +1492,76 @@ mod tests {
     };
     use noirc_artifacts::ssa::SsaReport;
     use tracing_test::traced_test;
+
+    /// [`LazyAncestors`] must answer every query as the full ancestor set would, both when
+    /// each query starts a fresh traversal and when one traversal is resumed across queries
+    /// in any order, for single values and for balls of every radius. The graph includes an
+    /// equivalence and calls whose arguments are ancestors of each other, in both argument
+    /// orders, which is where the start-node handling matters.
+    #[test]
+    fn lazy_ancestors_match_full_ancestor_sets() {
+        use super::{Ball, Context, LazyAncestors};
+        use rustc_hash::FxHashSet as HashSet;
+
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v3 = add v0, v1
+            v4 = mul v3, v2
+            constrain v1 == v2
+            v5 = add v4, v1
+            v6 = call f1(v5, v4) -> u32
+            v7 = add v6, v0
+            constrain v7 == v3
+            v8 = call f1(v3, v2) -> u32
+            v9 = mul v8, v2
+            constrain v9 == v4
+            v10 = call f1(v4, v5) -> u32
+            v11 = add v10, v1
+            constrain v11 == v5
+            return
+        }
+
+        brillig(inline) fn f f1 {
+          b0(v0: u32, v1: u32):
+            return v0
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let context =
+            Context::new(func, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH, DEFAULT_MAX_ANCESTOR_DISTANCE)
+                .build_tainted(func, &ssa.functions)
+                .build_parent_graph(func);
+        let graph = &context.graph;
+        assert_eq!(context.tainted.calls.len(), 3);
+
+        let mut values: Vec<_> = graph.parents.keys().copied().collect();
+        values.sort();
+        let single = |value| Ball {
+            values: vec![value],
+            set: HashSet::from_iter([value]),
+            read_arrays: Vec::new(),
+        };
+
+        let mut balls: Vec<Ball> = values.iter().map(|value| single(*value)).collect();
+        for distance in 0..3 {
+            balls.extend(values.iter().map(|value| graph.ball(*value, distance)));
+        }
+
+        for call in &context.tainted.calls {
+            let expected = graph.ancestors(&call.arguments);
+            let expect = |ball: &Ball| ball.any(|value| expected.contains(value));
+            for order in [balls.iter().collect::<Vec<_>>(), balls.iter().rev().collect()] {
+                let mut resumed = LazyAncestors::new(graph, &call.arguments);
+                for ball in order {
+                    let mut fresh = LazyAncestors::new(graph, &call.arguments);
+                    assert_eq!(fresh.intersects(graph, ball), expect(ball));
+                    assert_eq!(resumed.intersects(graph, ball), expect(ball));
+                }
+            }
+        }
+    }
 
     fn check_for_missing_brillig_constraints_in_ssa(src: &str) -> Vec<SsaReport> {
         let mut ssa = Ssa::from_str(src).unwrap();

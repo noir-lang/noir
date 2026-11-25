@@ -24,7 +24,6 @@ use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::rc::Rc;
 use std::sync::Arc;
 
 use self::def_map::TestFunction;
@@ -224,7 +223,7 @@ impl Context {
             }
 
             // Check for name collisions of this generic
-            let name = Rc::new(ident.to_string());
+            let name = Arc::new(ident.to_string());
 
             ResolvedGeneric { name, type_var, location }
         })
@@ -392,3 +391,11 @@ fn fully_qualified_function_name(
 
     if parent.is_empty() { name.into() } else { format!("{parent}::{name}") }
 }
+
+// A type-checked context can be read from several threads at once, for example to monomorphize
+// several functions in parallel, so the context has to stay `Send + Sync`.
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<Context>();
+    assert_send_sync::<CheckedContext>();
+};

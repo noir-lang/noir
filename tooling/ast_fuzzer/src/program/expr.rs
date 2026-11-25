@@ -1,4 +1,4 @@
-use std::{collections::HashSet, rc::Rc};
+use std::{collections::HashSet, sync::Arc};
 
 use acir::FieldElement;
 use nargo::errors::Location;
@@ -236,7 +236,7 @@ pub(crate) fn ident(
     id: IdentId,
     mutable: bool,
     name: Name,
-    typ: Rc<Type>,
+    typ: Arc<Type>,
 ) -> Expression {
     Expression::Ident(ident_inner(variable_id, id, mutable, name, typ))
 }
@@ -247,7 +247,7 @@ pub(crate) fn ident_inner(
     id: IdentId,
     mutable: bool,
     name: Name,
-    typ: Rc<Type>,
+    typ: Arc<Type>,
 ) -> Ident {
     Ident {
         location: None,
@@ -370,7 +370,7 @@ pub fn ref_mut(rhs: Expression, tgt_type: Type) -> Expression {
 
 /// Reference over an expression with a target type
 pub fn ref_with_mut(rhs: Expression, tgt_type: Type, mutable: bool) -> Expression {
-    unary(UnaryOp::Reference { mutable }, rhs, Type::Reference(Rc::new(tgt_type), mutable))
+    unary(UnaryOp::Reference { mutable }, rhs, Type::Reference(Arc::new(tgt_type), mutable))
 }
 
 /// Make a unary expression.

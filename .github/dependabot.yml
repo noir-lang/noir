@@ -2,11 +2,18 @@ version: 2
 updates:
   # Maintain dependencies for GitHub Actions
   - package-ecosystem: "github-actions"
-    # Workflow files stored in the default location of `.github/workflows`
-    directory: "/"
+    # `/` covers the workflows in `.github/workflows`; composite actions are listed by directory.
+    directories:
+      - "/"
+      - "/.github/actions/*"
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
+    ignore:
+      # The ref of `dtolnay/rust-toolchain` is the Rust version it installs
+      # (e.g. `@1.89.0`), not an action release, so bumping it changes the
+      # toolchain and must be done deliberately alongside `rust-toolchain.toml`.
+      - dependency-name: "dtolnay/rust-toolchain"
     groups:
       # group updates for core GitHub Actions
       core-actions:
@@ -40,6 +47,13 @@ updates:
         patterns:
           - "p256"
           - "k256"
+      # `acir` passes `serde_reflection` types into `serde_generate`, so both
+      # must resolve to the same `serde-reflection` version that
+      # `serde-generate` depends on; bumping either alone fails to compile.
+      serde-codegen:
+        patterns:
+          - "serde-reflection"
+          - "serde-generate"
       # Group assignment is first-match in definition order, so this catch-all
       # only collects updates not claimed by a group above and must stay last.
       # Note: 0.x bumps such as 0.4 -> 0.5 count as "minor" here even though

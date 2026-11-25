@@ -1399,8 +1399,8 @@ impl<'f> Context<'f> {
                     // Any index we tried for safe merging would be unsafe.
                     return None;
                 }
-                if let Some(index) = self.inserter.function.dfg.get_numeric_constant(index)
-                    && index.to_u128() >= u128::from(length.0)
+                if self.inserter.function.dfg.get_numeric_constant(index).is_some()
+                    && !self.inserter.function.dfg.is_safe_index(index, array)
                 {
                     // This index is known to be OOB; if we insert the "safe index" fallback machinery,
                     // it will result in worse opcode count than the base case.
@@ -3363,6 +3363,105 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: [Field; 4]):
+            enable_side_effects v0
+            v4 = array_set v1, index u32 4, value Field 42
+            v5 = not v0
+            enable_side_effects u1 1
+            v7 = if v0 then v4 else (if v5) v1
+            return v7
+        }
+        ");
+    }
+
+    #[test]
+    fn conditional_array_set_composite_merge_index_past_element_count() {
+        // `array_set` indices are semi-flattened, so for `[(Field, u32); 2]` index 3 is the
+        // `u32` of the last element: in bounds, even though it is not less than the element
+        // count. The chain is merged slot by slot rather than merging the whole array.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [(Field, u32); 2]):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index u32 2, value Field 42
+            v3 = array_set v2, index u32 3, value u32 7
+            jmp b3(v3)
+          b2():
+            jmp b3(v1)
+          b3(v4: [(Field, u32); 2]):
+            return v4
+        }
+        ";
+        use crate::ssa::interpreter::value::Value;
+        use acvm::FieldElement;
+
+        for cond in [false, true] {
+            let ssa = Ssa::from_str(src).unwrap();
+            let array = Value::array(
+                vec![
+                    Value::field(FieldElement::from(1u128)),
+                    Value::u32(2),
+                    Value::field(FieldElement::from(3u128)),
+                    Value::u32(4),
+                ],
+                vec![Type::field(), Type::unsigned(32)],
+            );
+            let args = vec![Value::bool(cond), array];
+            let (_, result) = assert_pass_does_not_affect_execution(ssa, args, Ssa::flatten_cfg);
+            assert!(result.is_ok());
+        }
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [(Field, u32); 2]):
+            enable_side_effects v0
+            v2 = not v0
+            enable_side_effects u1 1
+            v5 = array_get v1, index u32 2 -> Field
+            v6 = cast v0 as Field
+            v7 = cast v2 as Field
+            v9 = mul v6, Field 42
+            v10 = mul v7, v5
+            v11 = add v9, v10
+            v12 = array_set v1, index u32 2, value v11
+            v14 = array_get v12, index u32 3 -> u32
+            v15 = cast v0 as u32
+            v16 = cast v2 as u32
+            v18 = unchecked_mul v15, u32 7
+            v19 = unchecked_mul v16, v14
+            v20 = unchecked_add v18, v19
+            v21 = array_set v12, index u32 3, value v20
+            return v21
+        }
+        ");
+    }
+
+    #[test]
+    fn conditional_array_set_composite_merge_oob_index() {
+        // `[(Field, [u8; 3]); 2]` has 2 elements, 4 semi-flattened slots and 8 fully flattened
+        // values. Index 4 is past the last slot, so the chain is not merged slot by slot.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [(Field, [u8; 3]); 2]):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v2 = array_set v1, index u32 4, value Field 42
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: [(Field, [u8; 3]); 2]):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [(Field, [u8; 3]); 2]):
             enable_side_effects v0
             v4 = array_set v1, index u32 4, value Field 42
             v5 = not v0
