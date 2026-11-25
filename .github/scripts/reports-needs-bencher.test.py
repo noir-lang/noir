@@ -27,6 +27,7 @@ BASE_FILES = {
     ".github/scripts/used.sh": "echo used\n",
     ".github/scripts/unused.sh": "echo unused\n",
     ".github/benchmark_projects.yml": "projects: {}\n",
+    ".github/critical_libraries_status/noir-lang/lib.failures.jsonl": "",
     "compiler/lib/src/lib.rs": 'const BLNS: &str = include_str!("./blns.json");\n',
     "compiler/lib/src/blns.json": "[]\n",
     "compiler/lib/README.md": "# lib\n",
@@ -34,7 +35,9 @@ BASE_FILES = {
     "tooling/doc/src/html.rs": 'const JS: &str = include_str!("search.js");\n',
     "tooling/doc/src/search.js": "// search\n",
     "stdlib/src/lib.nr": "fn main() {}\n",
-    "compiler/driver/src/stdlib.rs": '#[derive(RustEmbed)]\n#[folder = "../../../stdlib/src"]\nstruct S;\n',
+    # rust-embed resolves `folder` from the crate root, the directory holding `Cargo.toml`.
+    "compiler/driver/Cargo.toml": "[package]\n",
+    "compiler/driver/src/file_manager/stdlib.rs": '#[derive(RustEmbed)]\n#[folder = "../../stdlib/src"]\nstruct S;\n',
     "docs/index.md": "# docs\n",
     "docs/package.json": "{}\n",
     "tooling/noir_js/src/index.ts": "export {};\n",
@@ -105,6 +108,7 @@ class NeedsBencher(unittest.TestCase):
         for path in [
             ".github/workflows/reports.yml",
             ".github/benchmark_projects.yml",
+            ".github/critical_libraries_status/noir-lang/lib.failures.jsonl",
             ".github/actions/download-binary/action.yml",
             ".github/scripts/used.sh",
         ]:
@@ -129,6 +133,11 @@ class NeedsBencher(unittest.TestCase):
 
     def test_a_non_literal_include_keeps_every_push(self):
         self.write({"compiler/lib/src/env.rs": 'const E: &str = include_str!(concat!(env!("OUT_DIR"), "/x"));\n'})
+        self.base = self.commit()
+        self.assertEqual(self.push({"docs/index.md": "# changed\n"}), "true")
+
+    def test_an_embedded_folder_outside_the_repository_keeps_every_push(self):
+        self.write({"compiler/driver/src/other.rs": '#[folder = "../../../../elsewhere"]\nstruct O;\n'})
         self.base = self.commit()
         self.assertEqual(self.push({"docs/index.md": "# changed\n"}), "true")
 

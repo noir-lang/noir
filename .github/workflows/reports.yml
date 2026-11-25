@@ -32,24 +32,30 @@ jobs:
       time_base: ${{ steps.decide.outputs.time_base }}
       bench: ${{ steps.bench.outputs.bench }}
     steps:
+      # Without a checkout the script fails and the push uses the machine.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Test the benchmark-machine decision
-        if: github.event_name == 'pull_request'
-        run: python3 .github/scripts/reports-needs-bencher.test.py
+        if: github.event_name == 'push'
+        continue-on-error: true
 
       # Every master push is timed on the single benchmark machine, one job at a time. A push whose
       # changes can't affect what those jobs measure (docs, JS packages, other workflows) skips
-      # them, along with the critical library test suites that run there: their inputs are the
-      # same as for the previous push. The GitHub-hosted report jobs still run on every push, so
-      # master keeps uploading the reports PRs compare against.
+      # them, along with the timed critical library test suites that run there. Noir's side of
+      # those suites' inputs is unchanged; a library that follows its default branch is picked up
+      # by the next push that uses the machine, and the merge queue tests every library in
+      # `test-js-packages.yml`. The GitHub-hosted report jobs still run on every push, so master
+      # keeps uploading the reports PRs compare against.
+      #
+      # A script that exits without an answer, or with anything but `false`, uses the machine.
       - name: Decide whether to use the benchmark machine
         id: bench
         run: |
           bench=true
           if [ "$EVENT" = push ]; then
             git fetch --no-tags --depth=1 origin "$BEFORE" || true
-            bench=$(python3 .github/scripts/reports-needs-bencher.py "$BEFORE" "$GITHUB_SHA")
+            answer=$(python3 .github/scripts/reports-needs-bencher.py "$BEFORE" "$GITHUB_SHA" || true)
+            if [ "$answer" = false ]; then
+              bench=false
+            fi
           fi
           echo "bench=$bench" | tee -a "$GITHUB_OUTPUT"
         env:
@@ -80,6 +86,20 @@ jobs:
           LABEL: ${{ github.event.label.name }}
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
           HAS_BENCH_SHOW: ${{ contains(github.event.pull_request.labels.*.name, 'bench-show') }}
+
+  # Kept out of `gate` so that a failure here doesn't skip every report on the PR.
+  test-bench-decision:
+    name: Test the benchmark-machine decision
+    if: github.event_name == 'pull_request' && github.event.action != 'labeled'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run the tests
+        run: python3 .github/scripts/reports-needs-bencher.test.py
 
   rust_benchmarks:
     name: Rust Benchmarks
@@ -1688,6 +1708,7 @@ jobs:
     if: ${{ always() }}
     needs:
       - gate
+      - test-bench-decision
       - upload_test_suite_report
       - wake-bencher
       - rust_benchmarks

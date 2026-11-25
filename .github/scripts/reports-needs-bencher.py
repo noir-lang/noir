@@ -16,6 +16,8 @@ that keep a file:
 - it is compiled into nargo: the target of an `include_str!` or `include_bytes!`, or a file under
   a `rust-embed` `#[folder = "..."]`, in any Rust source of <after-sha>.
 
+The workflow step falls back to `true` when this script exits without printing an answer.
+
 Both are read from <after-sha> each time, so a new embedded asset or a new script the workflow
 starts using is kept without updating this file.
 """
@@ -23,7 +25,7 @@ starts using is kept without updating this file.
 import re
 import subprocess
 import sys
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 
 # Files that change nothing the benchmark machine measures: documentation, the JS/TS packages and
 # their tooling (no report runs JS), editor and repository settings, and other workflows.
@@ -56,8 +58,8 @@ NO_EFFECT = [
     ".github/**",
 ]
 
-# Files under `.github` that matter without being named by the workflow's steps: the project and
-# library lists the matrix jobs read.
+# `.github` files the workflow reads that `workflow_reads` doesn't find, since it only follows
+# `.github/scripts/<name>` and `./.github/actions/<name>`: the project and library lists.
 ALWAYS_KEEP = [
     ".github/workflows/reports.yml",
     ".github/benchmark_projects.yml",
@@ -133,24 +135,45 @@ def embedded_files():
                 text = f.read()
         except OSError:
             continue
+        # `include_str!` and `include_bytes!` resolve from the source file, `rust-embed`'s
+        # `#[folder]` from the crate root.
         directory = PurePosixPath(source).parent
         for argument in INCLUDE.findall(text):
             literal = re.fullmatch(r"\"([^\"]+)\"", argument)
-            if not literal:
+            path = normalize(directory / literal.group(1)) if literal else None
+            if path is None:
                 unresolved.append(f"{source}: include of {argument}")
-                continue
-            kept.add(normalize(directory / literal.group(1)))
+            else:
+                kept.add(path)
         for folder in FOLDER.findall(text):
-            kept.add(normalize(directory / folder) + "/**")
+            root = crate_root(directory)
+            path = None if root is None or "$" in folder else normalize(root / folder)
+            if path is None:
+                unresolved.append(f"{source}: folder {folder}")
+            else:
+                kept.add(path + "/**")
     return kept, unresolved
 
 
+def crate_root(directory):
+    """The nearest directory at or above `directory` holding a `Cargo.toml`."""
+    for candidate in [directory, *directory.parents]:
+        if (Path(candidate) / "Cargo.toml").is_file():
+            return candidate
+    return None
+
+
 def normalize(path):
+    """`path` relative to the repository root, or `None` when it is absolute or leaves the root."""
+    path = PurePosixPath(path)
+    if path.is_absolute():
+        return None
     parts = []
-    for part in PurePosixPath(path).parts:
+    for part in path.parts:
         if part == "..":
-            if parts:
-                parts.pop()
+            if not parts:
+                return None
+            parts.pop()
         elif part != ".":
             parts.append(part)
     return "/".join(parts)
