@@ -149,19 +149,17 @@ impl Context<'_> {
     ) -> Result<AcirValue, RuntimeError> {
         let value = self.convert_value(arg, dfg);
         let typ = dfg.type_of_value(arg);
-        if !matches!(value, AcirValue::Array(_))
-            || !is_plain_array(&typ)
-            || !matches!(&dfg[arg], Value::Param { .. } | Value::Instruction { .. })
-        {
+        if !matches!(value, AcirValue::Array(_)) || !is_plain_array(&typ) {
             return Ok(value);
         }
 
-        let has_block = self
+        let reuse_block = self
             .memory_blocks
             .get(&arg)
             .is_some_and(|block_id| self.initialized_arrays.contains(block_id));
         let uses = self.brillig_array_arg_uses.get(&arg).copied().unwrap_or(0);
-        if !has_block && (uses < 2 || !self.is_all_witnesses(&value)) {
+        let share_block = uses >= 2 && self.is_all_witnesses(&value);
+        if !reuse_block && !share_block {
             return Ok(value);
         }
 
@@ -392,15 +390,26 @@ impl Context<'_> {
 }
 
 /// Count, for each array value, how many Brillig calls among `instructions` take it as an
-/// argument.
+/// argument. Calls under a constant-zero side-effects condition are not counted: ACIR gen drops
+/// them, so they never read their inputs.
 pub(super) fn count_brillig_array_arg_uses(
     instructions: &[InstructionId],
     dfg: &DataFlowGraph,
     ssa: &Ssa,
 ) -> HashMap<ValueId, usize> {
     let mut uses = HashMap::default();
+    let mut side_effects_disabled = false;
     for instruction_id in instructions {
-        let Instruction::Call { func, arguments } = &dfg[*instruction_id] else {
+        let instruction = &dfg[*instruction_id];
+        if let Instruction::EnableSideEffectsIf { condition } = instruction {
+            side_effects_disabled =
+                dfg.get_numeric_constant(*condition).is_some_and(|c| c.is_zero());
+            continue;
+        }
+        if side_effects_disabled {
+            continue;
+        }
+        let Instruction::Call { func, arguments } = instruction else {
             continue;
         };
         let Value::Function(func_id) = &dfg[*func] else {

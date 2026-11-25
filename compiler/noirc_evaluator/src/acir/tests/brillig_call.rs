@@ -1,12 +1,4 @@
-use acvm::{
-    FieldElement,
-    acir::circuit::{
-        Opcode,
-        brillig::{BrilligFunctionId, BrilligInputs},
-    },
-    assert_circuit_snapshot,
-};
-use iter_extended::vecmap;
+use acvm::{acir::circuit::brillig::BrilligFunctionId, assert_circuit_snapshot};
 
 use crate::acir::tests::{ssa_to_acir_program, ssa_to_acir_program_with_debug_info};
 
@@ -433,34 +425,9 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     ");
 }
 
-/// The kind of each input of each Brillig call in `main`, in order.
-fn brillig_call_input_kinds(
-    program: &acvm::acir::circuit::Program<FieldElement>,
-) -> Vec<Vec<&'static str>> {
-    program.functions[0]
-        .opcodes
-        .iter()
-        .filter_map(|opcode| match opcode {
-            Opcode::BrilligCall { inputs, .. } => Some(vecmap(inputs, |input| match input {
-                BrilligInputs::Single(_) => "single",
-                BrilligInputs::Array(_) => "array",
-                BrilligInputs::MemoryArray(_) => "memory",
-            })),
-            _ => None,
-        })
-        .collect()
-}
-
-fn count_memory_inits(program: &acvm::acir::circuit::Program<FieldElement>) -> usize {
-    program.functions[0]
-        .opcodes
-        .iter()
-        .filter(|opcode| matches!(opcode, Opcode::MemoryInit { .. }))
-        .count()
-}
-
 #[test]
 fn array_passed_to_several_brillig_calls_uses_one_memory_block() {
+    // Both calls name the same block, which holds the array's own witnesses.
     let src = "
     acir(inline) fn main f0 {
       b0(v0: [Field; 3], v1: Field):
@@ -474,8 +441,54 @@ fn array_passed_to_several_brillig_calls_uses_one_memory_block() {
     }
     ";
     let program = ssa_to_acir_program(src);
-    assert_eq!(brillig_call_input_kinds(&program), vec![vec!["memory", "single"]; 2]);
-    assert_eq!(count_memory_inits(&program), 1);
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0, w1, w2, w3]
+    public parameters: []
+    return values: []
+    INIT b0 = [w0, w1, w2]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [b0, w3], outputs: [w4]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [b0, w3], outputs: [w5]
+
+    unconstrained func 0: foo
+     0: @2 = const u32 1
+     1: @1 = const u32 32840
+     2: @0 = const u32 72
+     3: sp[4] = const u32 4
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = const u32 67
+     7: sp[5] = const u32 3
+     8: sp[4] = @1
+     9: sp[6] = const u32 4
+    10: @1 = u32 add @1, sp[6]
+    11: sp[4] = indirect const u32 1
+    12: sp[6] = u32 add sp[4], @2
+    13: @3 = sp[2]
+    14: @4 = sp[6]
+    15: @5 = sp[5]
+    16: call 24
+    17: sp[2] = sp[4]
+    18: sp[3] = @70
+    19: call 35
+    20: @71 = sp[2]
+    21: sp[3] = const u32 71
+    22: sp[4] = const u32 1
+    23: stop @[sp[3]; sp[4]]
+    24: @7 = u32 add @3, @5
+    25: @8 = @3
+    26: @9 = @4
+    27: jump to 32
+    28: @6 = load @8
+    29: store @6 at @9
+    30: @8 = u32 add @8, @2
+    31: @9 = u32 add @9, @2
+    32: @10 = u32 lt @8, @7
+    33: jump if @10 to 28
+    34: return
+    35: sp[2] = sp[3]
+    36: return
+    ");
 }
 
 #[test]
@@ -492,8 +505,52 @@ fn array_passed_to_one_brillig_call_is_inlined() {
     }
     ";
     let program = ssa_to_acir_program(src);
-    assert_eq!(brillig_call_input_kinds(&program), vec![vec!["array", "single"]]);
-    assert_eq!(count_memory_inits(&program), 0);
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0, w1, w2, w3]
+    public parameters: []
+    return values: []
+    BRILLIG CALL func: 0, predicate: 1, inputs: [[w0, w1, w2], w3], outputs: [w4]
+
+    unconstrained func 0: foo
+     0: @2 = const u32 1
+     1: @1 = const u32 32840
+     2: @0 = const u32 72
+     3: sp[4] = const u32 4
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = const u32 67
+     7: sp[5] = const u32 3
+     8: sp[4] = @1
+     9: sp[6] = const u32 4
+    10: @1 = u32 add @1, sp[6]
+    11: sp[4] = indirect const u32 1
+    12: sp[6] = u32 add sp[4], @2
+    13: @3 = sp[2]
+    14: @4 = sp[6]
+    15: @5 = sp[5]
+    16: call 24
+    17: sp[2] = sp[4]
+    18: sp[3] = @70
+    19: call 35
+    20: @71 = sp[2]
+    21: sp[3] = const u32 71
+    22: sp[4] = const u32 1
+    23: stop @[sp[3]; sp[4]]
+    24: @7 = u32 add @3, @5
+    25: @8 = @3
+    26: @9 = @4
+    27: jump to 32
+    28: @6 = load @8
+    29: store @6 at @9
+    30: @8 = u32 add @8, @2
+    31: @9 = u32 add @9, @2
+    32: @10 = u32 lt @8, @7
+    33: jump if @10 to 28
+    34: return
+    35: sp[2] = sp[3]
+    36: return
+    ");
 }
 
 #[test]
@@ -513,11 +570,53 @@ fn constant_array_passed_to_several_brillig_calls_is_inlined() {
     }
     ";
     let program = ssa_to_acir_program(src);
-    assert_eq!(brillig_call_input_kinds(&program), vec![vec!["array", "single"]; 2]);
-    assert_eq!(count_memory_inits(&program), 0);
-    assert!(
-        program.functions[0].opcodes.iter().all(|opcode| !matches!(opcode, Opcode::AssertZero(_)))
-    );
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: []
+    BRILLIG CALL func: 0, predicate: 1, inputs: [[1, 2, 3], w0], outputs: [w1]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [[1, 2, 3], w0], outputs: [w2]
+
+    unconstrained func 0: foo
+     0: @2 = const u32 1
+     1: @1 = const u32 32840
+     2: @0 = const u32 72
+     3: sp[4] = const u32 4
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = const u32 67
+     7: sp[5] = const u32 3
+     8: sp[4] = @1
+     9: sp[6] = const u32 4
+    10: @1 = u32 add @1, sp[6]
+    11: sp[4] = indirect const u32 1
+    12: sp[6] = u32 add sp[4], @2
+    13: @3 = sp[2]
+    14: @4 = sp[6]
+    15: @5 = sp[5]
+    16: call 24
+    17: sp[2] = sp[4]
+    18: sp[3] = @70
+    19: call 35
+    20: @71 = sp[2]
+    21: sp[3] = const u32 71
+    22: sp[4] = const u32 1
+    23: stop @[sp[3]; sp[4]]
+    24: @7 = u32 add @3, @5
+    25: @8 = @3
+    26: @9 = @4
+    27: jump to 32
+    28: @6 = load @8
+    29: store @6 at @9
+    30: @8 = u32 add @8, @2
+    31: @9 = u32 add @9, @2
+    32: @10 = u32 lt @8, @7
+    33: jump if @10 to 28
+    34: return
+    35: sp[2] = sp[3]
+    36: return
+    ");
 }
 
 #[test]
@@ -539,6 +638,272 @@ fn array_passed_to_brillig_calls_under_zero_predicate_gets_no_memory_block() {
     }
     ";
     let program = ssa_to_acir_program(src);
-    assert!(brillig_call_input_kinds(&program).is_empty());
-    assert_eq!(count_memory_inits(&program), 0);
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0, w1, w2, w3]
+    public parameters: []
+    return values: []
+
+    unconstrained func 0: foo
+     0: @2 = const u32 1
+     1: @1 = const u32 32840
+     2: @0 = const u32 72
+     3: sp[4] = const u32 4
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = const u32 67
+     7: sp[5] = const u32 3
+     8: sp[4] = @1
+     9: sp[6] = const u32 4
+    10: @1 = u32 add @1, sp[6]
+    11: sp[4] = indirect const u32 1
+    12: sp[6] = u32 add sp[4], @2
+    13: @3 = sp[2]
+    14: @4 = sp[6]
+    15: @5 = sp[5]
+    16: call 24
+    17: sp[2] = sp[4]
+    18: sp[3] = @70
+    19: call 35
+    20: @71 = sp[2]
+    21: sp[3] = const u32 71
+    22: sp[4] = const u32 1
+    23: stop @[sp[3]; sp[4]]
+    24: @7 = u32 add @3, @5
+    25: @8 = @3
+    26: @9 = @4
+    27: jump to 32
+    28: @6 = load @8
+    29: store @6 at @9
+    30: @8 = u32 add @8, @2
+    31: @9 = u32 add @9, @2
+    32: @10 = u32 lt @8, @7
+    33: jump if @10 to 28
+    34: return
+    35: sp[2] = sp[3]
+    36: return
+    ");
+}
+
+#[test]
+fn array_passed_to_one_live_and_one_dead_brillig_call_is_inlined() {
+    // The call under a constant-zero predicate is dropped, so only one call reads the array.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: Field):
+        enable_side_effects u1 0
+        v2 = call f1(v0, v1) -> Field
+        enable_side_effects u1 1
+        v3 = call f1(v0, v1) -> Field
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [Field; 3], v1: Field):
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0, w1, w2, w3]
+    public parameters: []
+    return values: []
+    BRILLIG CALL func: 0, predicate: 1, inputs: [[w0, w1, w2], w3], outputs: [w4]
+
+    unconstrained func 0: foo
+     0: @2 = const u32 1
+     1: @1 = const u32 32840
+     2: @0 = const u32 72
+     3: sp[4] = const u32 4
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = const u32 67
+     7: sp[5] = const u32 3
+     8: sp[4] = @1
+     9: sp[6] = const u32 4
+    10: @1 = u32 add @1, sp[6]
+    11: sp[4] = indirect const u32 1
+    12: sp[6] = u32 add sp[4], @2
+    13: @3 = sp[2]
+    14: @4 = sp[6]
+    15: @5 = sp[5]
+    16: call 24
+    17: sp[2] = sp[4]
+    18: sp[3] = @70
+    19: call 35
+    20: @71 = sp[2]
+    21: sp[3] = const u32 71
+    22: sp[4] = const u32 1
+    23: stop @[sp[3]; sp[4]]
+    24: @7 = u32 add @3, @5
+    25: @8 = @3
+    26: @9 = @4
+    27: jump to 32
+    28: @6 = load @8
+    29: store @6 at @9
+    30: @8 = u32 add @8, @2
+    31: @9 = u32 add @9, @2
+    32: @10 = u32 lt @8, @7
+    33: jump if @10 to 28
+    34: return
+    35: sp[2] = sp[3]
+    36: return
+    ");
+}
+
+#[test]
+fn array_with_memory_block_passed_to_one_brillig_call_reuses_the_block() {
+    // The dynamic read already gives the array a memory block, so the call refers to it.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32):
+        v2 = array_get v0, index v1 -> Field
+        v3 = call f1(v0, v2) -> Field
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [Field; 3], v1: Field):
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0, w1, w2, w3]
+    public parameters: []
+    return values: []
+    INIT b0 = [w0, w1, w2]
+    READ w4 = b0[w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [b0, w4], outputs: [w5]
+
+    unconstrained func 0: foo
+     0: @2 = const u32 1
+     1: @1 = const u32 32840
+     2: @0 = const u32 72
+     3: sp[4] = const u32 4
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = const u32 67
+     7: sp[5] = const u32 3
+     8: sp[4] = @1
+     9: sp[6] = const u32 4
+    10: @1 = u32 add @1, sp[6]
+    11: sp[4] = indirect const u32 1
+    12: sp[6] = u32 add sp[4], @2
+    13: @3 = sp[2]
+    14: @4 = sp[6]
+    15: @5 = sp[5]
+    16: call 24
+    17: sp[2] = sp[4]
+    18: sp[3] = @70
+    19: call 35
+    20: @71 = sp[2]
+    21: sp[3] = const u32 71
+    22: sp[4] = const u32 1
+    23: stop @[sp[3]; sp[4]]
+    24: @7 = u32 add @3, @5
+    25: @8 = @3
+    26: @9 = @4
+    27: jump to 32
+    28: @6 = load @8
+    29: store @6 at @9
+    30: @8 = u32 add @8, @2
+    31: @9 = u32 add @9, @2
+    32: @10 = u32 lt @8, @7
+    33: jump if @10 to 28
+    34: return
+    35: sp[2] = sp[3]
+    36: return
+    ");
+}
+
+#[test]
+fn nested_array_passed_to_several_brillig_calls_uses_one_memory_block() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [[Field; 2]; 2], v1: Field):
+        v2 = call f1(v0, v1) -> Field
+        v3 = call f1(v0, v1) -> Field
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [[Field; 2]; 2], v1: Field):
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program, @"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: []
+    INIT b0 = [w0, w1, w2, w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [b0, w4], outputs: [w5]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [b0, w4], outputs: [w6]
+
+    unconstrained func 0: foo
+     0: @2 = const u32 1
+     1: @1 = const u32 32841
+     2: @0 = const u32 73
+     3: sp[4] = const u32 5
+     4: sp[5] = const u32 0
+     5: @67 = calldata copy [sp[5]; sp[4]]
+     6: sp[2] = const u32 67
+     7: sp[5] = const u32 2
+     8: sp[4] = @1
+     9: sp[6] = const u32 3
+    10: @1 = u32 add @1, sp[6]
+    11: sp[4] = indirect const u32 1
+    12: sp[6] = u32 add sp[4], @2
+    13: sp[8] = sp[2]
+    14: sp[9] = sp[6]
+    15: sp[11] = const u32 2
+    16: sp[10] = @1
+    17: sp[12] = const u32 3
+    18: @1 = u32 add @1, sp[12]
+    19: sp[10] = indirect const u32 1
+    20: sp[12] = u32 add sp[10], @2
+    21: @3 = sp[8]
+    22: @4 = sp[12]
+    23: @5 = sp[11]
+    24: call 50
+    25: store sp[10] at sp[9]
+    26: sp[11] = const u32 2
+    27: sp[8] = u32 add sp[8], sp[11]
+    28: sp[9] = u32 add sp[9], @2
+    29: sp[11] = const u32 2
+    30: sp[10] = @1
+    31: sp[12] = const u32 3
+    32: @1 = u32 add @1, sp[12]
+    33: sp[10] = indirect const u32 1
+    34: sp[12] = u32 add sp[10], @2
+    35: @3 = sp[8]
+    36: @4 = sp[12]
+    37: @5 = sp[11]
+    38: call 50
+    39: store sp[10] at sp[9]
+    40: sp[11] = const u32 2
+    41: sp[8] = u32 add sp[8], sp[11]
+    42: sp[9] = u32 add sp[9], @2
+    43: sp[2] = sp[4]
+    44: sp[3] = @71
+    45: call 61
+    46: @72 = sp[2]
+    47: sp[3] = const u32 72
+    48: sp[4] = const u32 1
+    49: stop @[sp[3]; sp[4]]
+    50: @7 = u32 add @3, @5
+    51: @8 = @3
+    52: @9 = @4
+    53: jump to 58
+    54: @6 = load @8
+    55: store @6 at @9
+    56: @8 = u32 add @8, @2
+    57: @9 = u32 add @9, @2
+    58: @10 = u32 lt @8, @7
+    59: jump if @10 to 54
+    60: return
+    61: sp[2] = sp[3]
+    62: return
+    ");
 }
