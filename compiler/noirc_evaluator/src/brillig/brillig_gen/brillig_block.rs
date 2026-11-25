@@ -27,6 +27,25 @@ use super::brillig_fn::FunctionContext;
 use super::brillig_globals::HoistedConstantsToBrilligGlobals;
 use super::constant_allocation::InstructionLocation;
 
+/// Whether `next_instruction` is a cast of the result of the `truncate` instruction to an integer
+/// of the bit size being truncated to, which a single Brillig cast can do for both of them.
+fn is_fusable_truncate_cast(
+    truncate_id: InstructionId,
+    value: ValueId,
+    bit_size: u32,
+    next_instruction: InstructionId,
+    dfg: &DataFlowGraph,
+) -> bool {
+    let Instruction::Cast(cast_operand, cast_type) = dfg[next_instruction] else {
+        return false;
+    };
+    let [truncate_result] = dfg.instruction_result(truncate_id);
+    cast_operand == truncate_result
+        && cast_type != NumericType::NativeField
+        && cast_type.bit_size::<FieldElement>() == bit_size
+        && bit_size <= dfg.type_of_value(value).bit_size()
+}
+
 /// Context structure for compiling a [function block][crate::ssa::ir::basic_block::BasicBlock] into Brillig bytecode.
 pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     /// Per-function context shared across all of a function's blocks
@@ -49,6 +68,8 @@ pub(crate) struct BrilligBlock<'block, Registers: RegisterAllocator> {
     /// For example, liveness analysis for globals is unnecessary (and adds complexity),
     /// and instead globals live throughout the entirety of the program.
     pub(crate) building_globals: bool,
+    /// A `cast` whose opcodes were already emitted together with the `truncate` right before it.
+    pub(crate) fused_cast: Option<InstructionId>,
 }
 
 impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
@@ -98,6 +119,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             globals,
             hoisted_global_constants,
             building_globals: false,
+            fused_cast: None,
         };
 
         brillig_block.convert_block(dfg, call_stacks);
@@ -155,7 +177,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.convert_ssa_value(id, globals);
                 }
                 Value::Instruction { instruction, .. } => {
-                    self.convert_ssa_instruction(*instruction, globals, call_stacks);
+                    self.convert_ssa_instruction(*instruction, None, globals, call_stacks);
                 }
                 _ => {
                     panic!(
@@ -526,8 +548,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let block = &dfg[self.block_id];
 
         // Convert all of the instructions into the block.
-        for instruction_id in block.instructions() {
-            self.convert_ssa_instruction(*instruction_id, dfg, call_stacks);
+        let instructions = block.instructions();
+        for (index, instruction_id) in instructions.iter().enumerate() {
+            let next_instruction = instructions.get(index + 1).copied();
+            self.convert_ssa_instruction(*instruction_id, next_instruction, dfg, call_stacks);
         }
 
         // Process the block's terminator instruction.
@@ -816,6 +840,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     fn convert_ssa_instruction(
         &mut self,
         instruction_id: InstructionId,
+        next_instruction: Option<InstructionId>,
         dfg: &DataFlowGraph,
         call_stacks: &mut CallStackHelper,
     ) {
@@ -852,10 +877,26 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 self.codegen_call(instruction_id, *func, arguments, dfg);
             }
             Instruction::Truncate { value, bit_size, .. } => {
-                self.codegen_truncate(instruction_id, *value, *bit_size, dfg);
+                let fusable_cast = next_instruction.filter(|next_instruction| {
+                    is_fusable_truncate_cast(
+                        instruction_id,
+                        *value,
+                        *bit_size,
+                        *next_instruction,
+                        dfg,
+                    )
+                });
+                if let Some(cast_id) = fusable_cast {
+                    self.codegen_truncate_and_cast(instruction_id, cast_id, *value, dfg);
+                    self.fused_cast = Some(cast_id);
+                } else {
+                    self.codegen_truncate(instruction_id, *value, *bit_size, dfg);
+                }
             }
             Instruction::Cast(value, _) => {
-                self.codegen_cast(instruction_id, *value, dfg);
+                if self.fused_cast.take() != Some(instruction_id) {
+                    self.codegen_cast(instruction_id, *value, dfg);
+                }
             }
             Instruction::ArrayGet { array, index } => {
                 self.codegen_array_get(instruction_id, *array, *index, dfg);
@@ -1116,6 +1157,44 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let destination_register = self.define_single_addr_variable(result_id, dfg);
         let source_register = self.convert_ssa_single_addr_value(value, dfg);
         self.brillig_context.codegen_truncate(destination_register, source_register, bit_size);
+    }
+
+    /// Generates the opcodes of a `truncate` and of the same-width `cast` following it in one go.
+    ///
+    /// A Brillig cast already truncates, so the `cast` result comes straight from the `truncate`
+    /// operand. The `truncate` result only gets a register, set by casting back up from the `cast`
+    /// result, when something other than the `cast` uses it.
+    ///
+    /// This requires the two instructions to be adjacent: writing the `cast` result at the
+    /// position of the `truncate` must not clobber a coalesced block parameter that is still
+    /// being read by an instruction in between.
+    fn codegen_truncate_and_cast(
+        &mut self,
+        truncate_id: InstructionId,
+        cast_id: InstructionId,
+        value: ValueId,
+        dfg: &DataFlowGraph,
+    ) {
+        let [truncate_result] = dfg.instruction_result(truncate_id);
+        let [cast_result] = dfg.instruction_result(cast_id);
+
+        let cast_destination = self.define_single_addr_variable(cast_result, dfg);
+        let source = self.convert_ssa_single_addr_value(value, dfg);
+        self.convert_cast(cast_destination, source);
+
+        // The `truncate` result was defined right before the `cast`, so if this is its last use
+        // then the `cast` is its only use. It never gets a register, so there is nothing to free.
+        let cast_is_only_use = self
+            .last_uses
+            .get_mut(&cast_id)
+            .is_some_and(|last_uses| last_uses.remove(&truncate_result));
+        if cast_is_only_use {
+            return;
+        }
+
+        let truncate_destination = self.define_single_addr_variable(truncate_result, dfg);
+        let cast_result = self.convert_ssa_single_addr_value(cast_result, dfg);
+        self.convert_cast(truncate_destination, cast_result);
     }
 
     /// Define the result variable, convert the value, then generate Brillig opcodes to truncate the variable.
