@@ -626,3 +626,82 @@ fn tuple_array_passed_to_several_brillig_calls_uses_one_memory_block() {
     BRILLIG CALL func: 0, predicate: 1, inputs: [b0, w4], outputs: [w6]
     ");
 }
+
+#[test]
+fn array_passed_twice_to_one_brillig_call_uses_one_memory_block() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3]):
+        v1 = call f1(v0, v0) -> Field
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [Field; 3], v1: [Field; 3]):
+        return Field 0
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program.functions[0], @"
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    INIT b0 = [w0, w1, w2]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [b0, b0], outputs: [w3]
+    ");
+}
+
+#[test]
+fn array_of_witnesses_and_constants_passed_to_several_brillig_calls_is_inlined() {
+    // A constant element would need a new witness and a constraint to go in a memory block.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: Field):
+        v3 = make_array [v0, Field 1, v1] : [Field; 3]
+        v4 = call f1(v3, v0) -> Field
+        v5 = call f1(v3, v0) -> Field
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [Field; 3], v1: Field):
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program.functions[0], @"
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: []
+    BRILLIG CALL func: 0, predicate: 1, inputs: [[w0, 1, w1], w0], outputs: [w2]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [[w0, 1, w1], w0], outputs: [w3]
+    ");
+}
+
+#[test]
+fn constant_array_with_memory_block_passed_to_one_brillig_call_reuses_the_block() {
+    // The dynamic read already paid for putting the constants in a memory block.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32):
+        v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        v5 = array_get v4, index v0 -> Field
+        v6 = call f1(v4, v5) -> Field
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [Field; 3], v1: Field):
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program.functions[0], @"
+    private parameters: [w0]
+    public parameters: []
+    return values: []
+    ASSERT w1 = 1
+    ASSERT w2 = 2
+    ASSERT w3 = 3
+    INIT b0 = [w1, w2, w3]
+    READ w4 = b0[w0]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [b0, w4], outputs: [w5]
+    ");
+}

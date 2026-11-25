@@ -89,8 +89,9 @@ struct Context<'a> {
     /// Each acir memory block corresponds to a different SSA array.
     memory_blocks: HashMap<Id<Value>, BlockId>,
 
-    /// For each array value of the function being converted, the number of Brillig calls that
-    /// take it as an argument. Read by `brillig_call_input`.
+    /// For each array value of the function being converted, how many times live Brillig calls
+    /// pass it as an argument (a call that passes it twice counts twice). Calls under a
+    /// constant-zero side-effects condition are not counted. Read by `brillig_call_input`.
     brillig_array_arg_uses: HashMap<Id<Value>, usize>,
 
     /// The `BlockId` dedicated to `return_data`

@@ -187,7 +187,9 @@ impl Context<'_> {
     ) -> Result<(), RuntimeError> {
         let predicate = self.predicate();
         // A call whose predicate is a constant zero is never emitted, so its inputs must not
-        // create memory blocks that nothing would use.
+        // create memory blocks that nothing would use. `count_brillig_array_arg_uses` already
+        // skips calls under an SSA constant-zero condition; this also covers a predicate that
+        // only folds to zero during ACIR gen.
         let call_is_emitted = !self.acir_context.var_to_expression(predicate)?.is_zero();
 
         // Convert SSA arguments to Brillig parameters
@@ -385,9 +387,9 @@ impl Context<'_> {
     }
 }
 
-/// Count, for each array value, how many Brillig calls among `instructions` take it as an
-/// argument. Calls under a constant-zero side-effects condition are not counted: ACIR gen drops
-/// them, so they never read their inputs.
+/// Count, for each array value, how many times the Brillig calls among `instructions` pass it as
+/// an argument (a call that passes it twice counts twice). Calls under a constant-zero
+/// side-effects condition are not counted: ACIR gen drops them, so they never read their inputs.
 pub(super) fn count_brillig_array_arg_uses(
     instructions: &[InstructionId],
     dfg: &DataFlowGraph,
