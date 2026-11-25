@@ -27,7 +27,7 @@ use crate::ssa::ssa_gen::Ssa;
 
 use super::{
     Context,
-    types::{AcirDynamicArray, AcirType, AcirValue, flat_element_types},
+    types::{AcirDynamicArray, AcirType, AcirValue},
 };
 
 mod intrinsics;
@@ -164,9 +164,7 @@ impl Context<'_> {
         }
 
         let block_id = self.ensure_array_is_initialized(arg, dfg)?;
-        let len = self.flattened_size(arg, dfg);
-        let value_types = flat_element_types(&typ);
-        Ok(AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types }))
+        self.dynamic_array_value(arg, block_id, dfg)
     }
 
     fn is_all_witnesses(&self, value: &AcirValue) -> bool {
@@ -193,13 +191,11 @@ impl Context<'_> {
         let call_is_emitted = !self.acir_context.var_to_expression(predicate)?.is_zero();
 
         // Convert SSA arguments to Brillig parameters
-        let inputs = try_vecmap(arguments, |arg| {
-            if call_is_emitted {
-                self.brillig_call_input(*arg, dfg)
-            } else {
-                Ok(self.convert_value(*arg, dfg))
-            }
-        })?;
+        let inputs = if call_is_emitted {
+            try_vecmap(arguments, |arg| self.brillig_call_input(*arg, dfg))?
+        } else {
+            vecmap(arguments, |arg| self.convert_value(*arg, dfg))
+        };
         let arguments = self.gen_brillig_parameters(arguments, dfg);
         let outputs: Vec<AcirType> =
             vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).as_ref().into());

@@ -989,7 +989,7 @@ impl Context<'_> {
         self.array_set_value(&store_value, block_id, &mut var_index)?;
         self.acir_context.attach_payload_to_first_memory_op(write_start, payload);
 
-        let result_value = self.make_array_set_result_value(array, block_id, dfg)?;
+        let result_value = self.dynamic_array_value(array, block_id, dfg)?;
 
         self.define_result(dfg, instruction, result_value);
         Ok(())
@@ -1061,15 +1061,16 @@ impl Context<'_> {
         Ok(())
     }
 
-    /// Construct the [`AcirValue::DynamicArray`] that represents the result of an [`Instruction::ArraySet`].
+    /// Construct the [`AcirValue::DynamicArray`] for the SSA array `array` stored in the
+    /// already initialized memory block `block_id`.
     ///
-    /// In SSA, an array set always yields a new array value (even if the operation
-    /// mutates in place). At the ACIR level, this corresponds to a [`AcirValue::DynamicArray`] whose
-    /// memory block has already been resolved by [`Self::resolve_array_set_block`].
+    /// Used for the result of an [`Instruction::ArraySet`], whose block has been resolved by
+    /// [`Self::resolve_array_set_block`], and for an array passed to Brillig calls through a
+    /// memory block.
     ///
     /// # Purpose
     /// - Populates the `value_types` vector. See [`AcirDynamicArray::value_types`] for more information.
-    pub(super) fn make_array_set_result_value(
+    pub(super) fn dynamic_array_value(
         &mut self,
         array: ValueId,
         block_id: BlockId,
