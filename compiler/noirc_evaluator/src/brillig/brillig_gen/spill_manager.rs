@@ -341,6 +341,15 @@ impl SpillManager {
         offset
     }
 
+    /// Return a slot from [`Self::allocate_spill_offset`] that holds no value's record.
+    pub(crate) fn free_spill_offset(&mut self, offset: usize) {
+        debug_assert!(
+            !self.records.values().any(|record| record.offset == offset),
+            "spill slot {offset} is still recorded for a value"
+        );
+        self.free_spill_slots.push(offset);
+    }
+
     /// The maximum number of spill slots used across all blocks.
     pub(crate) fn max_spill_offset(&self) -> usize {
         self.max_spill_offset

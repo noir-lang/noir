@@ -9,6 +9,7 @@ mod coalescing;
 pub(crate) mod constant_allocation;
 mod live_intervals;
 pub(crate) mod spill_manager;
+pub(crate) mod split_then_edges;
 #[cfg(test)]
 mod tests;
 mod variable_liveness;
