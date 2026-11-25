@@ -136,3 +136,4 @@ All commands should be run from the `docs` directory:
 | `yarn version::stables` | Update stable versions list |
 | `yarn cut_version <VERSION>` | Cut a new versioned docs snapshot |
 | `yarn clean` | Clean build artifacts |
+
