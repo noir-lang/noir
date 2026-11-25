@@ -24,11 +24,15 @@ jobs:
   gate:
     name: Decide what to run
     runs-on: ubuntu-22.04
-    timeout-minutes: 5
-    permissions: {}
+    timeout-minutes: 8
+    permissions:
+      contents: read
+      # Reads earlier master runs to find the last push that used the benchmark machine.
+      actions: read
     outputs:
       run: ${{ steps.decide.outputs.run }}
       time_base: ${{ steps.decide.outputs.time_base }}
+      bench: ${{ steps.bench.outputs.bench }}
     steps:
       - name: Decide
         id: decide
@@ -54,6 +58,50 @@ jobs:
           LABEL: ${{ github.event.label.name }}
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
           HAS_BENCH_SHOW: ${{ contains(github.event.pull_request.labels.*.name, 'bench-show') }}
+
+      # The rest of this job only decides `bench`, and can't hold up or fail `run`: each step has
+      # its own time limit and may fail. An unset `bench` uses the machine.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: github.event_name == 'push'
+        timeout-minutes: 2
+        continue-on-error: true
+
+      # A master push skips the benchmark machine's jobs when nothing changed since the last push
+      # that measured can affect them; see `reports-needs-bencher.py`. The GitHub-hosted reports
+      # run on every push. Anything but an exact `false` uses the machine.
+      - name: Decide whether to use the benchmark machine
+        id: bench
+        timeout-minutes: 3
+        continue-on-error: true
+        run: |
+          bench=true
+          if [ "$EVENT" = push ]; then
+            answer=$(python3 .github/scripts/reports-needs-bencher.py --since-last-measured "$GITHUB_SHA" || true)
+            if [ "$answer" = false ]; then
+              bench=false
+            fi
+          fi
+          echo "bench=$bench" | tee -a "$GITHUB_OUTPUT"
+        env:
+          EVENT: ${{ github.event_name }}
+          GITHUB_TOKEN: ${{ github.token }}
+
+  # Kept out of `gate` so that a failure here doesn't skip every report on the PR.
+  test-bench-decision:
+    name: Test the benchmark-machine decision
+    # Every PR run that `gate` lets through, `bench-show` included: adding that label cancels the
+    # push's run, so its own run has to test the script too.
+    needs: [gate]
+    if: github.event_name == 'pull_request' && needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run the tests
+        run: python3 .github/scripts/reports-needs-bencher.test.py
 
   rust_benchmarks:
     name: Rust Benchmarks
@@ -220,8 +268,8 @@ jobs:
     # Started once the binaries exist, so the timed jobs are dispatched seconds after the wake,
     # before the machine can reach its idle cutoff. Its idle check counts a running Actions job as
     # busy, so it stays up once the first one starts.
-    if: github.event_name == 'push'
-    needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
+    if: github.event_name == 'push' && needs.gate.outputs.bench != 'false'
+    needs: [gate, build-nargo, build-noir-inspector, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 10
     permissions:
@@ -819,11 +867,11 @@ jobs:
 
   upload_compilation_reports:
     name: Upload compilation reports
-    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
+    needs: [gate, external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && needs.gate.outputs.bench != 'false' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -880,11 +928,11 @@ jobs:
 
   upload_elaboration_reports:
     name: Upload elaboration reports
-    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
+    needs: [gate, external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && needs.gate.outputs.bench != 'false' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -941,11 +989,11 @@ jobs:
 
   upload_execution_reports:
     name: Upload execution reports
-    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
+    needs: [gate, external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && needs.gate.outputs.bench != 'false' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -1002,11 +1050,11 @@ jobs:
 
   upload_artifact_reports:
     name: Upload artifact reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [gate, external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && needs.gate.outputs.bench != 'false' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -1052,11 +1100,11 @@ jobs:
 
   upload_opcode_reports:
     name: Upload opcode reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [gate, external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && needs.gate.outputs.bench != 'false' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -1102,11 +1150,11 @@ jobs:
 
   upload_brillig_compilation_reports:
     name: Upload Brillig compilation reports
-    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
+    needs: [gate, external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && needs.gate.outputs.bench != 'false' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -1163,11 +1211,11 @@ jobs:
 
   upload_brillig_execution_reports:
     name: Upload Brillig execution reports
-    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
+    needs: [gate, external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && needs.gate.outputs.bench != 'false' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -1224,11 +1272,11 @@ jobs:
 
   upload_brillig_artifact_reports:
     name: Upload Brillig artifact reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [gate, external_repo_reports, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && needs.gate.outputs.bench != 'false' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
       pull-requests: write
@@ -1555,10 +1603,10 @@ jobs:
 
   upload_test_suite_report:
     name: Upload test suite report
-    needs: [external_repo_test_suites, build-nargo-baseline, timed-library-list]
+    needs: [gate, external_repo_test_suites, build-nargo-baseline, timed-library-list]
     # We want this job to run even if one variation of the matrix in `external_repo_test_suites`
     # fails, but only if the libraries were loaded.
-    if: ${{ always() && needs.timed-library-list.result == 'success' }}
+    if: ${{ always() && needs.gate.outputs.bench != 'false' && needs.timed-library-list.result == 'success' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:
@@ -1662,6 +1710,7 @@ jobs:
     if: ${{ always() }}
     needs:
       - gate
+      - test-bench-decision
       - upload_test_suite_report
       - wake-bencher
       - rust_benchmarks
