@@ -92,30 +92,35 @@ def choose_base(runs, jobs_of):
     """The commit a skip would stand on, or `None` when this push has to be measured.
 
     `runs` are the earlier Reports runs of master pushes, newest first, as returned by the GitHub
-    API. `jobs_of(run)` returns a run's jobs. A run that decided to skip the benchmark machine is
-    passed over, since it stands on an earlier run itself. The first run that did use the machine
-    decides:
+    API. `jobs_of(run)` returns a run's jobs. Any failed job means this push measures. A run that
+    decided to skip the benchmark machine is passed over, since it stands on an earlier run
+    itself. The first run that did use the machine decides:
 
     - finished and green: its commit is the base;
     - finished otherwise: something it measured may be missing, so this push measures;
-    - still going: its commit is the base, unless one of its jobs has already failed. A failure
-      after this point is not seen by pushes that skip; the next push that measures covers it.
+    - still going: its commit is the base. A failure after this point is not seen by pushes that
+      skip; the next push that measures covers it.
 
-    A run without a wake job either predates the benchmark machine or hasn't reached it yet; both
-    count as one that used it.
+    A run still going whose wake job hasn't concluded, or isn't listed yet, may still skip or
+    measure. It is the base only once the walk behind it reaches a run that measured without
+    failing: whichever it turns out to do, a diff from it covers this push. A finished run without
+    a wake job predates the benchmark machine and counts as one that used it.
     """
+    pending = None
     for run in runs[:MAX_RUNS_BACK]:
         jobs = jobs_of(run)
         if any(j.get("conclusion") in ("failure", "cancelled", "timed_out") for j in jobs):
             return None
         wake = next((j for j in jobs if j.get("name") == WAKE_JOB), None)
+        finished = run.get("status") == "completed"
+        if finished and run.get("conclusion") != "success":
+            return None
         if wake is not None and wake.get("conclusion") == "skipped":
-            if run.get("status") == "completed" and run.get("conclusion") != "success":
-                return None
             continue
-        if run.get("status") == "completed":
-            return run["head_sha"] if run.get("conclusion") == "success" else None
-        return run["head_sha"]
+        if not finished and (wake is None or wake.get("conclusion") is None):
+            pending = pending or run["head_sha"]
+            continue
+        return pending or run["head_sha"]
     return None
 
 
@@ -134,7 +139,7 @@ def earlier_master_runs():
     current = int(os.environ["GITHUB_RUN_ID"])
     listing = github(
         f"/repos/{repository}/actions/workflows/reports.yml/runs"
-        f"?event=push&branch=master&per_page={MAX_RUNS_BACK + 5}"
+        "?event=push&branch=master&per_page=100"
     )
     runs = listing["workflow_runs"]
     ids = [r["id"] for r in runs]
@@ -166,9 +171,6 @@ def main(args):
             subprocess.run(["git", "fetch", "--no-tags", "--depth=1", "origin", base], capture_output=True, timeout=60)
     else:
         base, after = args
-    if not base or set(base) == {"0"}:
-        print("No previous commit to compare with", file=sys.stderr)
-        return True
     affecting = affecting_files(base, after)
     return affecting is None or bool(affecting)
 

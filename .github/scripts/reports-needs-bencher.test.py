@@ -137,14 +137,24 @@ def load_script():
     return module
 
 
+script = load_script()
+
+# `jobs(wake=...)`: no wake job at all, or one with this conclusion (`None` = not decided yet).
+NO_WAKE = object()
+
+
 def workflow_run(sha, status="completed", conclusion="success"):
     return {"id": sha, "head_sha": sha, "status": status, "conclusion": conclusion}
 
 
-def jobs(wake=None, failed=False):
+def running(sha):
+    return workflow_run(sha, status="in_progress", conclusion=None)
+
+
+def jobs(wake=NO_WAKE, failed=False):
     listed = [{"name": "Build nargo", "conclusion": "success"}]
-    if wake is not None:
-        listed.append({"name": "Wake the benchmark machine", "conclusion": wake})
+    if wake is not NO_WAKE:
+        listed.append({"name": script.WAKE_JOB, "conclusion": wake})
     if failed:
         listed.append({"name": "Rust Benchmarks", "conclusion": "failure"})
     return listed
@@ -154,10 +164,13 @@ class ChooseBase(unittest.TestCase):
     """Which earlier push a skip stands on."""
 
     def choose(self, runs_with_jobs):
-        script = load_script()
         runs = [r for r, _ in runs_with_jobs]
         by_id = {r["id"]: j for r, j in runs_with_jobs}
         return script.choose_base(runs, lambda r: by_id[r["id"]])
+
+    def test_the_wake_job_name_matches_the_workflow(self):
+        workflow = (SCRIPT.parents[1] / "workflows/reports.yml").read_text()
+        self.assertIn(f"  wake-bencher:\n    name: {script.WAKE_JOB}\n", workflow)
 
     def test_the_last_measured_green_push(self):
         self.assertEqual(self.choose([(workflow_run("a"), jobs(wake="success"))]), "a")
@@ -166,19 +179,36 @@ class ChooseBase(unittest.TestCase):
         runs = [(workflow_run("b"), jobs(wake="skipped")), (workflow_run("a"), jobs(wake="success"))]
         self.assertEqual(self.choose(runs), "a")
 
+    def test_a_running_push_that_skipped_is_passed_over(self):
+        runs = [(running("b"), jobs(wake="skipped")), (workflow_run("a"), jobs(wake="success"))]
+        self.assertEqual(self.choose(runs), "a")
+
     def test_a_measured_push_that_failed_measures_this_one(self):
-        runs = [(workflow_run("b"), jobs(wake="skipped")), (workflow_run("a", conclusion="failure"), jobs(wake="success", failed=True))]
+        failed = workflow_run("a", conclusion="failure")
+        runs = [(workflow_run("b"), jobs(wake="skipped")), (failed, jobs(wake="success", failed=True))]
         self.assertIsNone(self.choose(runs))
 
     def test_a_measured_push_that_was_cancelled_measures_this_one(self):
         self.assertIsNone(self.choose([(workflow_run("a", conclusion="cancelled"), jobs(wake="success"))]))
 
     def test_a_measured_push_still_running(self):
-        self.assertEqual(self.choose([(workflow_run("a", status="in_progress", conclusion=None), jobs(wake="success"))]), "a")
+        self.assertEqual(self.choose([(running("a"), jobs(wake="success"))]), "a")
 
     def test_a_measured_push_still_running_with_a_failed_job(self):
-        running = workflow_run("a", status="in_progress", conclusion=None)
-        self.assertIsNone(self.choose([(running, jobs(wake="success", failed=True))]))
+        self.assertIsNone(self.choose([(running("a"), jobs(wake="success", failed=True))]))
+
+    def test_a_running_push_that_has_not_decided_stands_on_what_is_behind_it(self):
+        for wake in [None, NO_WAKE]:
+            with self.subTest(wake=wake):
+                runs = [(running("b"), jobs(wake=wake)), (workflow_run("a"), jobs(wake="success"))]
+                self.assertEqual(self.choose(runs), "b")
+
+    def test_a_failure_behind_a_running_push_that_has_not_decided_measures_this_one(self):
+        failed = workflow_run("a", conclusion="failure")
+        for wake in [None, NO_WAKE]:
+            with self.subTest(wake=wake):
+                runs = [(running("b"), jobs(wake=wake)), (failed, jobs(wake="success", failed=True))]
+                self.assertIsNone(self.choose(runs))
 
     def test_a_push_whose_wake_was_skipped_by_a_failure(self):
         self.assertIsNone(self.choose([(workflow_run("a", conclusion="failure"), jobs(wake="skipped"))]))
@@ -188,6 +218,7 @@ class ChooseBase(unittest.TestCase):
 
     def test_no_measured_push_in_reach(self):
         self.assertIsNone(self.choose([]))
+        self.assertIsNone(self.choose([(running("b"), jobs(wake=None))]))
         self.assertIsNone(self.choose([(workflow_run(str(i)), jobs(wake="skipped")) for i in range(40)]))
 
 
