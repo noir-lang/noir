@@ -1,7 +1,10 @@
 //! The part of an item's context that only a function body can have: the loop, `unsafe` block
 //! and lambda scopes an expression sits in.
 
+use rustc_hash::FxHashMap as HashMap;
+
 use crate::elaborator::{LambdaContext, Loop};
+use crate::node_interner::{DefinitionId, ExprId};
 
 /// Determines whether we are in an unsafe block and, if so, whether
 /// any unconstrained calls were found in it (because if not we'll warn
@@ -63,6 +66,12 @@ pub(crate) struct BodyContext {
     /// array[i_0] = 10;
     /// ```
     lvalue_index_counter: usize,
+
+    /// Expressions produced by inlining the current value of a comptime local variable into
+    /// runtime code, mapped to that variable. Such an expression is a fresh value rather than
+    /// the variable itself, so taking a mutable reference to it must be rejected as a runtime
+    /// mutation of the comptime variable instead of silently referencing a temporary.
+    inlined_comptime_locals: HashMap<ExprId, DefinitionId>,
 }
 
 impl BodyContext {
@@ -169,5 +178,19 @@ impl BodyContext {
         let lvalue_index_counter = self.lvalue_index_counter;
         self.lvalue_index_counter += 1;
         lvalue_index_counter
+    }
+
+    /// Records that `expr_id` is the inlined value of the comptime local `definition_id`.
+    pub(crate) fn record_inlined_comptime_local(
+        &mut self,
+        expr_id: ExprId,
+        definition_id: DefinitionId,
+    ) {
+        self.inlined_comptime_locals.insert(expr_id, definition_id);
+    }
+
+    /// The comptime local whose inlined value `expr_id` is, if any.
+    pub(crate) fn inlined_comptime_local(&self, expr_id: ExprId) -> Option<DefinitionId> {
+        self.inlined_comptime_locals.get(&expr_id).copied()
     }
 }
