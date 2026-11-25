@@ -27,6 +27,8 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      # Reads earlier master runs to find the last push that used the benchmark machine.
+      actions: read
     outputs:
       run: ${{ steps.decide.outputs.run }}
       time_base: ${{ steps.decide.outputs.time_base }}
@@ -38,8 +40,9 @@ jobs:
         continue-on-error: true
 
       # Every master push is timed on the single benchmark machine, one job at a time. A push whose
-      # changes can't affect what those jobs measure (docs, JS packages, other workflows) skips
-      # them, along with the timed critical library test suites that run there. Noir's side of
+      # changes since the last push that used the machine (and didn't fail) can't affect what those
+      # jobs measure (docs, JS packages, other workflows) skips them, along with the timed critical
+      # library test suites that run there. Noir's side of
       # those suites' inputs is unchanged; a library that follows its default branch is picked up
       # by the next push that uses the machine, and the merge queue tests every library in
       # `test-js-packages.yml`. The GitHub-hosted report jobs still run on every push, so master
@@ -51,8 +54,7 @@ jobs:
         run: |
           bench=true
           if [ "$EVENT" = push ]; then
-            git fetch --no-tags --depth=1 origin "$BEFORE" || true
-            answer=$(python3 .github/scripts/reports-needs-bencher.py "$BEFORE" "$GITHUB_SHA" || true)
+            answer=$(python3 .github/scripts/reports-needs-bencher.py --since-last-measured "$GITHUB_SHA" || true)
             if [ "$answer" = false ]; then
               bench=false
             fi
@@ -60,7 +62,7 @@ jobs:
           echo "bench=$bench" | tee -a "$GITHUB_OUTPUT"
         env:
           EVENT: ${{ github.event_name }}
-          BEFORE: ${{ github.event.before }}
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Decide
         id: decide
