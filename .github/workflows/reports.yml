@@ -62,7 +62,6 @@ jobs:
       # The rest of this job only decides `bench`, and can't hold up or fail `run`: each step has
       # its own time limit and may fail. An unset `bench` uses the machine.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        id: checkout
         if: github.event_name == 'push'
         timeout-minutes: 2
         continue-on-error: true
@@ -70,11 +69,8 @@ jobs:
       # A master push skips the benchmark machine's jobs when nothing changed since the last push
       # that measured can affect them; see `reports-needs-bencher.py`. The GitHub-hosted reports
       # run on every push. Anything but an exact `false` uses the machine.
-      # A checkout cut off partway leaves files without an index, which the script would read as
-      # an empty tree.
       - name: Decide whether to use the benchmark machine
         id: bench
-        if: github.event_name != 'push' || steps.checkout.outcome == 'success'
         timeout-minutes: 3
         continue-on-error: true
         run: |
