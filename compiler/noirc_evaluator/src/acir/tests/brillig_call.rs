@@ -705,3 +705,35 @@ fn constant_array_with_memory_block_passed_to_one_brillig_call_reuses_the_block(
     BRILLIG CALL func: 0, predicate: 1, inputs: [b0, w4], outputs: [w5]
     ");
 }
+
+#[test]
+fn array_passed_to_brillig_calls_under_predicate_folded_to_zero_gets_no_memory_block() {
+    // `v2` is the output of a dropped Brillig call, so ACIR gen folds it to zero. SSA does not see
+    // it as a constant, so both later calls are counted, but ACIR gen drops them too.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: Field):
+        enable_side_effects u1 0
+        v2 = call f2() -> u1
+        enable_side_effects v2
+        v3 = call f1(v0, v1) -> Field
+        v4 = call f1(v0, v1) -> Field
+        enable_side_effects u1 1
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [Field; 3], v1: Field):
+        return v1
+    }
+    brillig(inline) fn bar f2 {
+      b0():
+        return u1 1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert_circuit_snapshot!(program.functions[0], @"
+    private parameters: [w0, w1, w2, w3]
+    public parameters: []
+    return values: []
+    ");
+}
