@@ -189,12 +189,22 @@ impl Context<'_> {
         result_ids: &[ValueId],
         dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
+        let predicate = self.predicate();
+        // A call whose predicate is a constant zero is never emitted, so its inputs must not
+        // create memory blocks that nothing would use.
+        let call_is_emitted = !self.acir_context.var_to_expression(predicate)?.is_zero();
+
         // Convert SSA arguments to Brillig parameters
-        let inputs = try_vecmap(arguments, |arg| self.brillig_call_input(*arg, dfg))?;
+        let inputs = try_vecmap(arguments, |arg| {
+            if call_is_emitted {
+                self.brillig_call_input(*arg, dfg)
+            } else {
+                Ok(self.convert_value(*arg, dfg))
+            }
+        })?;
         let arguments = self.gen_brillig_parameters(arguments, dfg);
         let outputs: Vec<AcirType> =
             vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).as_ref().into());
-        let predicate = self.predicate();
 
         // Reuse or generate Brillig code
         let output_values = if let Some(generated_pointer) =

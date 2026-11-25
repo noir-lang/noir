@@ -519,3 +519,26 @@ fn constant_array_passed_to_several_brillig_calls_is_inlined() {
         program.functions[0].opcodes.iter().all(|opcode| !matches!(opcode, Opcode::AssertZero(_)))
     );
 }
+
+#[test]
+fn array_passed_to_brillig_calls_under_zero_predicate_gets_no_memory_block() {
+    // Brillig calls under a constant-zero predicate are never emitted, so a memory block created
+    // for their inputs would have no use.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: Field):
+        enable_side_effects u1 0
+        v2 = call f1(v0, v1) -> Field
+        v3 = call f1(v0, v1) -> Field
+        enable_side_effects u1 1
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: [Field; 3], v1: Field):
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    assert!(brillig_call_input_kinds(&program).is_empty());
+    assert_eq!(count_memory_inits(&program), 0);
+}
