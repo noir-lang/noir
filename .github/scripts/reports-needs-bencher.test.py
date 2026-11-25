@@ -77,8 +77,10 @@ class NeedsBencher(unittest.TestCase):
         run(self.repo, "git", "commit", "-q", "--allow-empty", "-m", "commit")
         return run(self.repo, "git", "rev-parse", "HEAD")
 
-    def push(self, files, before=None):
+    def push(self, files, before=None, delete=()):
         self.write(files)
+        for path in delete:
+            (self.repo / path).unlink()
         after = self.commit()
         result = subprocess.run(
             [sys.executable, str(SCRIPT), before or self.base, after],
@@ -205,19 +207,18 @@ class NeedsBencher(unittest.TestCase):
         self.assertEqual(self.push({"docs/index.md": "# changed\n"}), "false")
 
     def test_deleting_a_file_the_workflow_reads_runs(self):
-        self.write({})
-        (self.repo / ".github/actions/download-binary/action.yml").unlink()
+        self.assertEqual(self.push({}, delete=[".github/actions/download-binary/action.yml"]), "true")
+
+    def test_deleting_a_docs_page_skips(self):
+        self.assertEqual(self.push({}, delete=["docs/index.md"]), "false")
+
+    def test_a_checkout_without_an_index_uses_the_machine(self):
+        self.write({"docs/index.md": "# changed\n"})
         after = self.commit()
+        (self.repo / ".git/index").unlink()
         result = subprocess.run([sys.executable, str(SCRIPT), self.base, after], cwd=self.repo,
                                 capture_output=True, text=True, check=True)
         self.assertEqual(result.stdout.strip(), "true")
-
-    def test_deleting_a_docs_page_skips(self):
-        (self.repo / "docs/index.md").unlink()
-        after = self.commit()
-        result = subprocess.run([sys.executable, str(SCRIPT), self.base, after], cwd=self.repo,
-                                capture_output=True, text=True, check=True)
-        self.assertEqual(result.stdout.strip(), "false")
 
     def test_an_include_dir_from_an_environment_variable_keeps_every_push(self):
         self.write({"compiler/lib/src/dir.rs": 'static D: Dir = include_dir!("$CARGO_MANIFEST_DIR/templates");\n'})

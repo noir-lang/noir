@@ -25,7 +25,8 @@ that keep a file:
   `build.rs` reads, as long as the path is written out in the source.
 
 All of these are read from <after-sha> each time, so a new embedded asset or a new file the
-workflow starts reading is kept without updating this file.
+workflow starts reading is kept without updating this file. A deleted file can't be checked
+against them, so deleting anything but documentation (`SAFE_TO_DELETE`) uses the machine.
 """
 
 import json
@@ -67,8 +68,9 @@ NO_EFFECT = [
     ".github/**",
 ]
 
-# Deleting one of these can't affect the measurements either.
-DOCS = ["docs/**", "design/**", "**/*.md"]
+# Files whose deletion can't affect the measurements. Deleting any other file uses the machine,
+# since the keep rules can't tell whether something still names it.
+SAFE_TO_DELETE = ["docs/**", "design/**", "**/*.md"]
 
 WORKFLOW = ".github/workflows/reports.yml"
 # This script and its tests name files as examples; they are kept, but not read for references.
@@ -260,12 +262,17 @@ def matches_any(path, patterns):
 def affecting_files(base, after):
     """Changed files that can affect the measurements, or `None` when that can't be decided."""
     try:
-        changed = git("diff", "--name-only", "--no-renames", base, after).splitlines()
-        deleted = set(git("diff", "--name-only", "--no-renames", "--diff-filter=D", base, after).splitlines())
+        rows = git("diff", "--name-status", "--no-renames", base, after).splitlines()
     except subprocess.CalledProcessError as error:
         print(f"Can't diff {base}..{after}: {error.stderr.strip()}", file=sys.stderr)
         return None
+    rows = [row.split("\t", 1) for row in rows]
+    changed = [path for _, path in rows]
+    deleted = {path for status, path in rows if status == "D"}
     tree = Tree()
+    if not tree.files or git("rev-parse", "HEAD").strip() != git("rev-parse", after).strip():
+        print(f"The checkout is not a complete checkout of {after}", file=sys.stderr)
+        return None
     embedded, unresolved = rust_reads(tree)
     if unresolved:
         print("Rust embeds that can't be resolved, so every push is kept:", file=sys.stderr)
@@ -273,11 +280,11 @@ def affecting_files(base, after):
             print(f"  {entry}", file=sys.stderr)
         return None
     keep = sorted(workflow_reads(tree) | embedded)
-    # The keep rules are read from <after-sha>, where a deleted file is no longer named, so a
-    # deletion counts unless it is documentation.
+    # A deleted file may still be named, but the name no longer resolves to a tracked file in
+    # <after-sha>, so the keep rules can't see it.
     affecting = [
         f for f in changed
-        if not no_effect(f) or matches_any(f, keep) or (f in deleted and not matches_any(f, DOCS))
+        if not no_effect(f) or matches_any(f, keep) or (f in deleted and not matches_any(f, SAFE_TO_DELETE))
     ]
     print(f"{base[:12]}..{after[:12]}: {len(changed)} changed files, {len(affecting)} can affect the benchmarks", file=sys.stderr)
     for path in affecting[:20]:
