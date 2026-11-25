@@ -344,8 +344,8 @@ pub(crate) fn try_optimize_array_get_from_previous_instructions(
                 }
                 _ => (),
             }
-        } else if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array_id]
-            && target_index_u32 < length.0
+        } else if let Value::Param { typ: typ @ Type::Array(_, length), .. } = &dfg[array_id]
+            && target_index_u32 < (*length * typ.element_size()).0
         {
             // There's no optimization if we end up getting from the original array
             if array_id == original_array_id {
@@ -644,6 +644,47 @@ mod tests {
           b0(v0: [Field; 2]):
             v1 = array_set v0, index u32 0, value Field 1
             v2 = array_get v1, index u32 2 -> Field
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::array_get_optimization);
+    }
+
+    #[test]
+    fn optimizes_array_get_from_array_set_to_array_get_from_composite_param() {
+        // `array_get` indices are semi-flattened: in `[(Field, u32); 2]`, indices 2 and 3 are the
+        // fields of the last element. They are in bounds even though they are not less than the
+        // element count.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [(Field, u32); 2]):
+            v1 = array_set v0, index u32 0, value Field 5
+            v2 = array_get v1, index u32 2 -> Field
+            v3 = array_get v1, index u32 3 -> u32
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.array_get_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [(Field, u32); 2]):
+            v3 = array_set v0, index u32 0, value Field 5
+            v5 = array_get v0, index u32 2 -> Field
+            v7 = array_get v0, index u32 3 -> u32
+            return v5, v7
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_resolve_array_get_beyond_composite_param_length() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [(Field, u32); 2]):
+            v1 = array_set v0, index u32 0, value Field 1
+            v2 = array_get v1, index u32 4 -> Field
             return v2
         }
         ";

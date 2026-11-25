@@ -67,10 +67,10 @@ impl ArrayView {
             return ArrayView::from_make_array(elements.clone());
         }
 
-        if let Value::Param { typ: Type::Array(_, length), .. } = &dfg[array] {
+        if let Value::Param { typ: typ @ Type::Array(_, length), .. } = &dfg[array] {
             return ArrayView {
                 elements: OrdMap::new(),
-                base: ArrayBase::ReadFrom { array, length: length.0 },
+                base: ArrayBase::ReadFrom { array, length: (*length * typ.element_size()).0 },
             };
         }
 
