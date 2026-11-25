@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: foo is disabled
+   ┌─ src/main.nr:22:5
+   │
+22 │     Bar {}.foo();
+   │     ---------- `foo` has been deprecated
+   │
+
+error: foo is disabled
+   ┌─ src/main.nr:23:5
+   │
+23 │     Bar::foo(Bar {});
+   │     -------- `foo` has been deprecated
+   │
+
+Aborting due to 2 previous errors
