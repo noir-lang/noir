@@ -90,7 +90,9 @@ jobs:
   # Kept out of `gate` so that a failure here doesn't skip every report on the PR.
   test-bench-decision:
     name: Test the benchmark-machine decision
-    if: github.event_name == 'pull_request' && github.event.action != 'labeled'
+    # The same PR events the concurrency group treats as real runs: adding `bench-show` cancels the
+    # push's run, so its run has to test the script too.
+    if: github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'bench-show')
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:

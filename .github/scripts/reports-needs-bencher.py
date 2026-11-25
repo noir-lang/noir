@@ -6,7 +6,8 @@ Usage: reports-needs-bencher.py <before-sha> <after-sha>
 Prints `true` when some file changed between the two commits can affect what those jobs measure,
 and `false` when every changed file is one that cannot. Run from a checkout of <after-sha> that
 can also read <before-sha>. Any doubt answers `true`: a commit it can't diff, an embedded file it
-can't resolve, or an error of its own.
+can't resolve, or an error of its own. The workflow step also answers `true` when this script
+exits without printing an answer.
 
 A changed file can't affect the measurements when it matches `NO_EFFECT` and none of the rules
 that keep a file:
@@ -15,8 +16,6 @@ that keep a file:
   workflow or those actions name);
 - it is compiled into nargo: the target of an `include_str!` or `include_bytes!`, or a file under
   a `rust-embed` `#[folder = "..."]`, in any Rust source of <after-sha>.
-
-The workflow step falls back to `true` when this script exits without printing an answer.
 
 Both are read from <after-sha> each time, so a new embedded asset or a new script the workflow
 starts using is kept without updating this file.
