@@ -100,6 +100,18 @@ pub(crate) struct SpillManager {
     max_spill_offset: usize,
 }
 
+/// Outcome of [`SpillManager::ensure_permanent_spill`].
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Promotion {
+    /// The value had no spill record; the caller must allocate a slot and record the spill.
+    NoRecord,
+    /// The record is now permanent and the value's register state is unchanged.
+    KeepsRegister,
+    /// The record is now permanent and the value, a reloaded transient, must give up its
+    /// register: it has left the LRU and the caller must free the register.
+    FreesRegister,
+}
+
 /// A heap slot reserved for a spilled value.
 ///
 /// # Value lifecycle
@@ -158,9 +170,9 @@ pub(crate) struct SpillRecord {
 /// never hands back a spilled one. It is guarded at both ends: `SpillManager::touch` (the only
 /// way a value enters) asserts the value is in a register, and every method that moves a value
 /// out of a register — the slot-recording methods (`record_spill`, `record_permanent_spill`,
-/// `ensure_permanent_spill`) and `remove_spill` — drops it from the LRU. `lru_victim` re-checks
-/// this as a backstop, so a future spill path that forgets to remove trips immediately rather
-/// than silently dishing out a spilled value.
+/// `ensure_permanent_spill` when the promotion frees the register) and `remove_spill` — drops it
+/// from the LRU. `lru_victim` re-checks this as a backstop, so a future spill path that forgets
+/// to remove trips immediately rather than silently dishing out a spilled value.
 #[derive(Default)]
 struct Lru {
     /// Logical clock, incremented once per `touch`. Strictly increasing, so no two entries
@@ -267,11 +279,7 @@ impl SpillManager {
     }
 
     /// Whether a value was transiently spilled and has since been reloaded into a register.
-    pub(crate) fn is_transient_reloaded(
-        &self,
-        value_id: &ValueId,
-        registers: &impl RegisterState,
-    ) -> bool {
+    fn is_transient_reloaded(&self, value_id: &ValueId, registers: &impl RegisterState) -> bool {
         self.has_transient_slot(value_id) && registers.is_in_register(value_id)
     }
 
@@ -473,24 +481,29 @@ impl SpillManager {
         self.records.get(value_id).map(|r| r.offset)
     }
 
-    /// Promote an existing spill record to a permanent slot, dropping it from the LRU.
+    /// Promote an existing spill record to a permanent slot.
     ///
-    /// The permanent slot becomes the value's authoritative copy across block boundaries. This
-    /// updates slot bookkeeping only; whether the value still occupies a register is the caller's
-    /// concern — see `BrilligBlock::spill_value`.
-    ///
-    /// # Returns
-    /// * `true` — a record already existed, so the value already owns a permanent slot; the
-    ///   caller can return early without allocating a slot or emitting a store.
-    /// * `false` — no record existed: this is the value's first spill, so the caller must
-    ///   allocate a slot and record the spill itself.
-    pub(crate) fn ensure_permanent_spill(&mut self, value_id: &ValueId) -> bool {
+    /// The permanent slot becomes the value's authoritative copy across block boundaries. A
+    /// transient value that has been reloaded gives up its register on promotion, so it leaves
+    /// the LRU and the caller must free the register. Any other promoted value keeps its
+    /// register state: one in a register stays an eviction candidate (its register is only
+    /// reclaimable through the LRU), and one not in a register is not in the LRU.
+    pub(crate) fn ensure_permanent_spill(
+        &mut self,
+        value_id: &ValueId,
+        registers: &impl RegisterState,
+    ) -> Promotion {
+        let frees_register = self.is_transient_reloaded(value_id, registers);
         let Some(record) = self.records.get_mut(value_id) else {
-            return false;
+            return Promotion::NoRecord;
         };
         record.permanent = true;
-        self.remove_from_lru(value_id);
-        true
+        if frees_register {
+            self.remove_from_lru(value_id);
+            Promotion::FreesRegister
+        } else {
+            Promotion::KeepsRegister
+        }
     }
 }
 
@@ -505,7 +518,7 @@ mod tests {
 
     use rustc_hash::FxHashSet;
 
-    use super::{Lru, RegisterState, SpillManager};
+    use super::{Lru, Promotion, RegisterState, SpillManager};
     use crate::ssa::ir::value::ValueId;
 
     fn test_var(n: u32) -> BrilligVariable {
@@ -814,7 +827,7 @@ mod tests {
         assert!(!sm.has_permanent_slot(&v0));
 
         // Promote to permanent via ensure_permanent_spill
-        assert!(sm.ensure_permanent_spill(&v0));
+        assert_eq!(sm.ensure_permanent_spill(&v0, &regs), Promotion::KeepsRegister);
         assert!(sm.is_spilled(&v0, &regs));
         assert!(sm.has_permanent_slot(&v0));
         assert_eq!(sm.get_permanent_spill_offset(&v0), Some(0));
@@ -828,15 +841,15 @@ mod tests {
     }
 
     #[test]
-    fn ensure_permanent_spill_returns_true_when_a_record_exists() {
+    fn ensure_permanent_spill_promotes_an_existing_record() {
         let mut sm = SpillManager::new();
         let regs = MockRegisters::default();
         let v0 = Id::test_new(0);
 
-        // A transient spill record exists; ensure_permanent_spill promotes it and returns true.
+        // A transient spill record exists; ensure_permanent_spill promotes it.
         let off = sm.allocate_spill_offset();
         sm.record_spill(v0, off, test_var(0), &regs);
-        assert!(sm.ensure_permanent_spill(&v0), "expect true because the record exists");
+        assert_eq!(sm.ensure_permanent_spill(&v0, &regs), Promotion::KeepsRegister);
         assert!(sm.has_permanent_slot(&v0));
     }
 
@@ -912,30 +925,29 @@ mod tests {
         let v1 = Id::test_new(1);
         let v3 = Id::test_new(3);
 
-        // Case 1: No record -> returns false
-        assert!(!sm.ensure_permanent_spill(&v3));
+        // Case 1: No record
+        assert_eq!(sm.ensure_permanent_spill(&v3, &regs), Promotion::NoRecord);
 
-        // Case 2: Already permanent -> returns true, stays permanent
+        // Case 2: Already permanent -> stays permanent
         let off0 = sm.allocate_spill_offset();
         sm.record_permanent_spill(v0, off0, test_var(0));
         assert!(sm.has_permanent_slot(&v0));
-        assert!(sm.ensure_permanent_spill(&v0));
+        assert_eq!(sm.ensure_permanent_spill(&v0, &regs), Promotion::KeepsRegister);
         assert!(sm.has_permanent_slot(&v0));
 
-        // Case 3: Transient -> returns true, promoted to permanent
+        // Case 3: Transient -> promoted to permanent
         let off1 = sm.allocate_spill_offset();
         sm.record_spill(v1, off1, test_var(1), &regs);
         assert!(!sm.has_permanent_slot(&v1));
-        assert!(sm.ensure_permanent_spill(&v1));
+        assert_eq!(sm.ensure_permanent_spill(&v1, &regs), Promotion::KeepsRegister);
         assert!(sm.has_permanent_slot(&v1));
     }
 
-    /// Promoting a reloaded permanent value back to spilled must drop it from the LRU, otherwise
-    /// a spilled value lingers as an eviction candidate. In real codegen this happens for a
-    /// JmpIf condition re-spilled by `spill_non_param_live_ins` then reloaded, with
-    /// `ensure_register_capacity` querying `lru_victim` in between.
+    /// Promoting a value that still holds a register keeps it an eviction candidate: its
+    /// register is only reclaimable through the LRU, so dropping it there would leave that
+    /// register held for the rest of the block and starve `ensure_register_capacity`.
     #[test]
-    fn ensure_permanent_spill_drops_reloaded_value_from_lru() {
+    fn ensure_permanent_spill_keeps_register_resident_value_in_lru() {
         let mut sm = SpillManager::new();
         let mut regs = MockRegisters::default();
         let v0 = Id::test_new(0);
@@ -948,8 +960,27 @@ mod tests {
         assert!(!sm.is_transient_reloaded(&v0, &regs)); // it is permanent, not transient
         assert_eq!(sm.lru_victim(&regs), Some(v0));
 
-        // ensure_permanent_spill drops it from the LRU, so it is no longer a victim.
-        assert!(sm.ensure_permanent_spill(&v0));
+        assert_eq!(sm.ensure_permanent_spill(&v0, &regs), Promotion::KeepsRegister);
+        assert_eq!(sm.lru_victim(&regs), Some(v0));
+    }
+
+    /// A reloaded transient value gives up its register on promotion, so it leaves the LRU:
+    /// once the caller frees the register, the value is spilled and must not be a victim.
+    #[test]
+    fn ensure_permanent_spill_drops_reloaded_transient_value_from_lru() {
+        let mut sm = SpillManager::new();
+        let mut regs = MockRegisters::default();
+        let v0 = Id::test_new(0);
+
+        // Transient slot, reloaded (in a register) and tracked in the LRU.
+        regs.allocate(v0);
+        let off = sm.allocate_spill_offset();
+        sm.record_spill(v0, off, test_var(0), &regs);
+        sm.touch(v0, &regs);
+        assert!(sm.is_transient_reloaded(&v0, &regs));
+
+        assert_eq!(sm.ensure_permanent_spill(&v0, &regs), Promotion::FreesRegister);
+        assert!(sm.has_permanent_slot(&v0));
         assert_eq!(sm.lru_victim(&regs), None);
     }
 }

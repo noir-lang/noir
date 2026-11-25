@@ -219,3 +219,28 @@ fn branch_over_empty_blocks_executes() {
         assert_eq!(result, vec![FieldElement::from(42u32)], "condition = {condition}");
     }
 }
+
+/// The `JmpIf` condition `v2` is a parameter of its own then-destination `b1`, and
+/// the then-edge passes it a new value. The conditional move into `v2`'s register
+/// must not change the predicate used by the remaining then-moves and the `JumpIf`.
+#[test]
+fn brillig_jmpif_then_move_does_not_overwrite_condition() {
+    let src = "
+    brillig(inline) fn main f0 {
+      b0(v0: u1, v1: u32):
+        jmp b1(v0, v1)
+      b1(v2: u1, v3: u32):
+        v4 = unchecked_add v3, u32 10
+        v5 = unchecked_add v3, u32 1
+        v6 = not v2
+        jmpif v2 then: b1(v6, v5), else: b2(v4)
+      b2(v7: u32):
+        return v7
+    }
+    ";
+
+    // b1(true, 0) takes the then-edge to b1(false, 1), which returns 1 + 10.
+    let result =
+        execute_brillig_from_ssa(src, vec![FieldElement::from(true), FieldElement::from(0u32)]);
+    assert_eq!(result, vec![FieldElement::from(11u32)]);
+}
