@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1795611295103,
+  "lastUpdate": 1795615841040,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -24326,48 +24326,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f0afe4804f4df9834db03d54de1c1b596d4b7b00",
-          "message": "chore: trigger release-please to open 1.0.0 release PR (#14119)\n\nRelease-As: 1.0.0",
-          "timestamp": "2026-10-29T15:24:08Z",
-          "tree_id": "4e5e508d327c20a8080912105fcc5d1be05ab13f",
-          "url": "https://github.com/noir-lang/noir/commit/f0afe4804f4df9834db03d54de1c1b596d4b7b00"
-        },
-        "date": 1793287601326,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 165248,
-            "range": "± 313",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 142250,
-            "range": "± 7051",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2132969,
-            "range": "± 4943",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -26419,6 +26377,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1995104,
             "range": "± 2786",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b1669b27671df9c7984583208abdbaa08e2915f4",
+          "message": "chore(ci): skip benchmark-machine jobs for master pushes that cannot change them (#14235)",
+          "timestamp": "2026-11-25T13:42:40Z",
+          "tree_id": "26b620a6b19ec87d23bafe9de31d0ad4a78ce8a0",
+          "url": "https://github.com/noir-lang/noir/commit/b1669b27671df9c7984583208abdbaa08e2915f4"
+        },
+        "date": 1795615834022,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 142944,
+            "range": "± 274",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 119815,
+            "range": "± 339",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1943218,
+            "range": "± 3079",
             "unit": "ns/iter"
           }
         ]
