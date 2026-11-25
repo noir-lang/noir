@@ -204,6 +204,34 @@ class NeedsBencher(unittest.TestCase):
         self.base = self.commit()
         self.assertEqual(self.push({"docs/index.md": "# changed\n"}), "false")
 
+    def test_deleting_a_file_the_workflow_reads_runs(self):
+        self.write({})
+        (self.repo / ".github/actions/download-binary/action.yml").unlink()
+        after = self.commit()
+        result = subprocess.run([sys.executable, str(SCRIPT), self.base, after], cwd=self.repo,
+                                capture_output=True, text=True, check=True)
+        self.assertEqual(result.stdout.strip(), "true")
+
+    def test_deleting_a_docs_page_skips(self):
+        (self.repo / "docs/index.md").unlink()
+        after = self.commit()
+        result = subprocess.run([sys.executable, str(SCRIPT), self.base, after], cwd=self.repo,
+                                capture_output=True, text=True, check=True)
+        self.assertEqual(result.stdout.strip(), "false")
+
+    def test_an_include_dir_from_an_environment_variable_keeps_every_push(self):
+        self.write({"compiler/lib/src/dir.rs": 'static D: Dir = include_dir!("$CARGO_MANIFEST_DIR/templates");\n'})
+        self.base = self.commit()
+        self.assertEqual(self.push({"docs/index.md": "# changed\n"}), "true")
+
+    def test_a_quote_char_literal_does_not_hide_a_path(self):
+        self.write({
+            "compiler/lib/src/quote.rs": "fn f(c: char) { match c { '\"' => read(\"docs/a.md\"), _ => {} } }\n",
+            "docs/a.md": "# a\n",
+        })
+        self.base = self.commit()
+        self.assertEqual(self.push({"docs/a.md": "# changed\n"}), "true")
+
     def test_a_non_literal_include_dir_keeps_every_push(self):
         self.write({"compiler/lib/src/dir.rs": 'static D: Dir = include_dir!(concat!(env!("ROOT"), "/x"));\n'})
         self.base = self.commit()
