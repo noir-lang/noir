@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Foo {
+    x: Field,
+}
+
+unconstrained fn main(x: Field) {
+    let mut a: Foo = Foo { x: x };
+    let mut b: Foo = Foo { x: x + 9_Field };
+    let mut r: &mut Foo = &mut a;
+    let t: (&mut Field, Field) = (
+        &mut r.x, {
+            r = &mut b;
+            0_Field
+        },
+    );
+    *t.0 = x + 4_Field;
+    assert(a.x == (x + 4_Field));
+    assert(b.x == (x + 9_Field));
+    let mut c: Foo = Foo { x: x };
+    let mut d: Foo = Foo { x: x + 9_Field };
+    let mut inner: &mut Foo = &mut c;
+    let outer: &mut &mut Foo = &mut inner;
+    let t: (&mut Field, Field) = (
+        &mut (*outer).x, {
+            *outer = &mut d;
+            0_Field
+        },
+    );
+    *t.0 = x + 4_Field;
+    assert(c.x == (x + 4_Field));
+    assert(d.x == (x + 9_Field));
+}
