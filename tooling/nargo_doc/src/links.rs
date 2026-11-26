@@ -177,9 +177,9 @@ fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item 
             .or(captures.get(4))
             .map_or_else(|| word.clone(), |capture| capture.as_str().to_string());
 
-        // If the left bracket it escaped (`\[`) then it's not a link.
+        // Regex offsets are byte offsets. An escaped left bracket (`\[`) is not a link.
         // There's no need to check the right bracket as `\` is not a valid path character.
-        if start > 0 && line.chars().nth(start - 1).is_some_and(|char| char == '\\') {
+        if start > 0 && line.as_bytes()[start - 1] == b'\\' {
             return None;
         }
 
@@ -623,6 +623,15 @@ mod tests {
         let line = "Hello \\[foo]!";
         let links = find_links_in_markdown_line(line, &reference_regex()).collect::<Vec<_>>();
         assert!(links.is_empty());
+    }
+
+    #[test]
+    fn does_not_find_escaped_reference_after_multibyte_character() {
+        let line = r"例 \[literal] [reference]";
+        let names = find_links_in_markdown_line(line, &reference_regex())
+            .map(|link| link.name)
+            .collect::<Vec<_>>();
+        assert_eq!(names, ["reference"]);
     }
 
     #[test]
