@@ -1748,8 +1748,10 @@ impl Elaborator<'_> {
             );
         };
 
-        // Kept for the value fallback below (the method-lookup branches consume `turbofish`).
+        // Kept for the fallbacks below (the method-lookup branches consume `turbofish` and
+        // `path_resolution`).
         let fallback_turbofish = turbofish.clone();
+        let fallback_path_resolution = path_resolution.clone();
 
         let method_name = last_segment.ident.as_str();
 
@@ -1794,11 +1796,31 @@ impl Elaborator<'_> {
         // The last segment isn't an inherent or qualified trait method on the type; it may still be
         // an enum variant or an associated constant accessed as `Type::CONST`, resolved directly on
         // the type (or, if the prefix was a broken type alias whose type is `Type::Error`, reported
-        // there as an unresolved member). The error is reported if it is none of these.
-        match trait_resolution {
-            Some(resolution) => self.variable_from_trait_resolution(location, resolution),
-            None => self.resolve_value_in_type(&last_segment, &typ, fallback_turbofish),
+        // there as an unresolved member). Failing that, it may be a method of an impl for all types
+        // `T` (`impl<T> Foo for T`). The value's error is reported if it is none of these.
+        if let Some(resolution) = trait_resolution {
+            return self.variable_from_trait_resolution(location, resolution);
         }
+        let value =
+            self.lookup_path_as_value_in_type(&last_segment, &typ, fallback_turbofish.clone());
+        if value.is_err() {
+            let has_self_arg = false;
+            let generic_methods = self.lookup_generic_methods(&typ, method_name, has_self_arg);
+            if !generic_methods.is_empty()
+                && let Some(resolution) = self.resolve_qualified_trait_method(
+                    &typ,
+                    Some(generic_methods),
+                    &last_segment,
+                    fallback_turbofish,
+                    fallback_path_resolution,
+                    Vec::new(),
+                    location,
+                )
+            {
+                return self.variable_from_trait_resolution(location, resolution);
+            }
+        }
+        self.variable_resolution_from_value_item(value, last_segment.ident.location())
     }
 
     /// Resolves a turbofished `TypeName::<..>::method` path. Resolves to the single inherent method
@@ -3593,8 +3615,10 @@ impl Elaborator<'_> {
     /// select no other impl for `object_type`.
     ///
     /// A default body an impl inherits shares the trait's `FuncId`, whose `Self` the trait
-    /// constraint binds. A call another impl can serve goes through the trait constraint too,
-    /// which selects that impl or reports the ambiguity.
+    /// constraint binds. So does an impl for all types `T` (`impl<T> Foo for T`), whose self type
+    /// says nothing about `object_type`: bound directly, its `T` would be inferred from how the
+    /// result is used. A call another impl can serve goes through the trait constraint too, which
+    /// selects that impl or reports the ambiguity.
     fn directly_bound_impl_method(
         &self,
         object_type: &Type,
@@ -3606,7 +3630,8 @@ impl Elaborator<'_> {
             return None;
         }
         if let Some(impl_id) = meta.trait_impl
-            && self.interner.another_impl_applies(object_type, impl_id)
+            && (self.interner.is_impl_for_all_types(impl_id)
+                || self.interner.another_impl_applies(object_type, impl_id))
         {
             return None;
         }

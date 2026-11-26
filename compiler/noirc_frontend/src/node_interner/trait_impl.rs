@@ -12,7 +12,10 @@ use crate::{
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::traits::{Impl, NamedType, ResolvedTraitBound, TraitConstraint, TraitImpl},
-    node_interner::{ImplId, ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind},
+    node_interner::{
+        ImplId, ImplSearchErrorKind, TraitId, TraitImplId, TraitImplKind, TypeMethodKey,
+        get_type_method_key,
+    },
 };
 
 use super::NodeInterner;
@@ -843,6 +846,13 @@ impl NodeInterner {
                 Err(ImplSearchErrorKind::MultipleMatching(impls))
             }
         }
+    }
+
+    /// Whether `impl_id` is an impl for all types `T` (`impl<T> Foo for T`).
+    pub(crate) fn is_impl_for_all_types(&self, impl_id: TraitImplId) -> bool {
+        let trait_impl = self.get_trait_implementation(impl_id);
+        let typ = &trait_impl.borrow().typ;
+        get_type_method_key(typ) == Some(TypeMethodKey::Generic)
     }
 
     /// Whether the impl search for `object_type` at `impl_id`'s trait and trait arguments can
