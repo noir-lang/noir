@@ -25,15 +25,12 @@ where
     shuffle_indices
 }
 
-unconstrained fn __get_index<let N: u32>(indices: &[u32; N], idx: u32) -> u32 {
-    let mut result = 0;
+unconstrained fn __get_inverse_indices<let N: u32>(indices: &[u32; N]) -> [u32; N] {
+    let mut inverse = [0; N];
     for i in 0..N {
-        if (indices[i] == idx) {
-            result = i;
-            break;
-        }
+        inverse[indices[i]] = i;
     }
-    result
+    inverse
 }
 
 pub(crate) fn check_shuffle<T, let N: u32>(lhs: &[T; N], rhs: &[T; N])
@@ -45,9 +42,9 @@ where
     unsafe {
         let shuffle_indices = __get_shuffle_indices(lhs, rhs);
 
+        let inverse_indices = __get_inverse_indices(&shuffle_indices);
         for i in 0..N {
-            let idx = __get_index(&shuffle_indices, i);
-            assert_eq(shuffle_indices[idx], i);
+            assert_eq(shuffle_indices[inverse_indices[i]], i);
         }
         for i in 0..N {
             let idx = shuffle_indices[i];
